@@ -1,63 +1,21 @@
-import { createClient } from "@/lib/supabase/server";
-import { isSupabaseConfigured } from "@/lib/supabase/env";
+async getBySlug(slug: string): Promise<DisciplineServer | null> {
 
-export interface DisciplineServer {
-  id: string;
-  slug: string;
-  name: string;
-  color: string;
-  professor?: string;
-  sala?: string;
-}
+  console.log("BUSCANDO DISCIPLINA:", slug);
 
+  const supabase = await createClient();
 
-function fromRow(row: {
-  id: string;
-  slug: string;
-  nome: string;
-  cor?: string | null;
-  professor?: string | null;
-  sala?: string | null;
-}): DisciplineServer {
+  const { data, error } = await supabase
+    .from("disciplinas")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
 
-  return {
-    id: row.id,
-    slug: row.slug,
-    name: row.nome,
-    color: row.cor ?? "#D4AF37",
-    professor: row.professor ?? undefined,
-    sala: row.sala ?? undefined,
-  };
+  console.log("RESULTADO SUPABASE:", data);
+  console.log("ERRO SUPABASE:", error);
 
-}
+  if (error) {
+    throw error;
+  }
 
-
-export const disciplinesServerRepository = {
-
-  async getBySlug(slug: string): Promise<DisciplineServer | null> {
-
-    if (!isSupabaseConfigured) {
-      return null;
-    }
-
-
-    const supabase = await createClient();
-
-
-    const { data, error } = await supabase
-      .from("disciplinas")
-      .select("*")
-      .eq("slug", slug)
-      .maybeSingle();
-
-
-    if (error) {
-      throw error;
-    }
-
-
-    return data ? fromRow(data) : null;
-
-  },
-
-};
+  return data ? fromRow(data) : null;
+},
