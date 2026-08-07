@@ -1,0 +1,415 @@
+// ==========================================================
+// GC OdontoHub — Prisma Schema
+// PostgreSQL (Supabase). Soft delete + auditoria em todas as tabelas.
+// ==========================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Núcleo / Usuários ----------
+
+enum UserRole {
+  ADMIN
+  PROFESSOR
+  ALUNO
+}
+
+model User {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  avatarUrl String?
+  role      UserRole  @default(ALUNO)
+  duplaId   String?
+  dupla     Dupla?    @relation(fields: [duplaId], references: [id])
+
+  tarefas       Tarefa[]
+  notas         AnotacaoClinica[]
+  atendimentos  Atendimento[]      @relation("AtendimentoDupla")
+  xp            Xp?
+  sequencia     Sequencia?
+  configuracoes Configuracao?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  createdBy String?
+  updatedBy String?
+
+  @@map("users")
+}
+
+model Dupla {
+  id      String @id @default(cuid())
+  nome    String
+  membros User[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("duplas")
+}
+
+// ---------- Acadêmico ----------
+
+model Disciplina {
+  id        String  @id @default(cuid())
+  nome      String
+  slug      String  @unique
+  corTema   String  @default("#D4AF37")
+  professor Professor? @relation(fields: [professorId], references: [id])
+  professorId String?
+
+  tarefas      Tarefa[]
+  avaliacoes   Avaliacao[]
+  eventos      Evento[]
+  itensBiblioteca ItemBiblioteca[]
+  fotos        Foto[]
+  flashcards   Flashcard[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("disciplinas")
+}
+
+model Professor {
+  id           String       @id @default(cuid())
+  nome         String
+  disciplinas  Disciplina[]
+  atendimentos Atendimento[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("professores")
+}
+
+// ---------- Pacientes / Clínica ----------
+
+model Paciente {
+  id           String   @id @default(cuid())
+  nome         String
+  idade        Int?
+  observacoes  String?
+  atendimentos Atendimento[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("pacientes")
+}
+
+model Procedimento {
+  id           String        @id @default(cuid())
+  nome         String        @unique
+  atendimentos Atendimento[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("procedimentos")
+}
+
+enum StatusAtendimento {
+  EM_ANDAMENTO
+  FINALIZADO
+}
+
+model Atendimento {
+  id             String            @id @default(cuid())
+  paciente       Paciente          @relation(fields: [pacienteId], references: [id])
+  pacienteId     String
+  procedimento   Procedimento      @relation(fields: [procedimentoId], references: [id])
+  procedimentoId String
+  professor      Professor?        @relation(fields: [professorId], references: [id])
+  professorId    String?
+  dupla          User[]            @relation("AtendimentoDupla")
+  status         StatusAtendimento @default(EM_ANDAMENTO)
+
+  inicio DateTime  @default(now())
+  fim    DateTime?
+
+  checklist      Json?
+  materiais      Json?
+  complicacoes   String?
+  observacoesProf String?
+  pendencias     String?
+  retornoData    DateTime?
+  retornoObs     String?
+
+  resumoComoFoi      String?
+  resumoAprendizado  String?
+  resumoFariaDiferente String?
+  resumoDificuldade  String?
+
+  fotos     Foto[]
+  timeline  EventoTimeline[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("atendimentos")
+}
+
+model EventoTimeline {
+  id            String      @id @default(cuid())
+  atendimento   Atendimento @relation(fields: [atendimentoId], references: [id])
+  atendimentoId String
+  descricao     String
+  horario       DateTime    @default(now())
+
+  @@map("timeline_atendimento")
+}
+
+model AnotacaoClinica {
+  id            String   @id @default(cuid())
+  autor         User     @relation(fields: [autorId], references: [id])
+  autorId       String
+  atendimentoId String?
+  conteudo      String
+  createdAt     DateTime @default(now())
+
+  @@map("anotacoes_clinicas")
+}
+
+// ---------- Organização ----------
+
+enum PrioridadeTarefa {
+  BAIXA
+  MEDIA
+  ALTA
+}
+
+model Tarefa {
+  id           String           @id @default(cuid())
+  titulo       String
+  descricao    String?
+  concluida    Boolean          @default(false)
+  prioridade   PrioridadeTarefa @default(MEDIA)
+  data         DateTime?
+  disciplina   Disciplina?      @relation(fields: [disciplinaId], references: [id])
+  disciplinaId String?
+  responsavel  User?            @relation(fields: [responsavelId], references: [id])
+  responsavelId String?
+  aprendizado  String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("tarefas")
+}
+
+model Lembrete {
+  id         String    @id @default(cuid())
+  titulo     String
+  categoria  String?
+  recorrente Boolean   @default(false)
+  data       DateTime?
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@map("lembretes")
+}
+
+model Evento {
+  id           String      @id @default(cuid())
+  titulo       String
+  tipo         String      @default("evento")
+  cor          String      @default("#00BFFF")
+  inicio       DateTime
+  fim          DateTime?
+  disciplina   Disciplina? @relation(fields: [disciplinaId], references: [id])
+  disciplinaId String?
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@map("agenda_eventos")
+}
+
+// ---------- Notas ----------
+
+model Avaliacao {
+  id           String     @id @default(cuid())
+  disciplina   Disciplina @relation(fields: [disciplinaId], references: [id])
+  disciplinaId String
+  nome         String
+  peso         Float      @default(1)
+  valor        Float      @default(10)
+  nota         Float?
+  data         DateTime?
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@map("avaliacoes")
+}
+
+// ---------- Biblioteca / Arquivos ----------
+
+enum TipoArquivo {
+  PDF
+  SLIDE
+  VIDEO
+  DOCUMENTO
+}
+
+model ItemBiblioteca {
+  id           String      @id @default(cuid())
+  titulo       String
+  tipo         TipoArquivo
+  disciplina   Disciplina? @relation(fields: [disciplinaId], references: [id])
+  disciplinaId String?
+  professor    String?
+  assunto      String?
+  urlArquivo   String?
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@map("biblioteca_itens")
+}
+
+model Foto {
+  id            String       @id @default(cuid())
+  urlOriginal   String
+  urlThumbnail  String?
+  descricao     String?
+  fase          String?
+  disciplina    Disciplina?  @relation(fields: [disciplinaId], references: [id])
+  disciplinaId  String?
+  atendimento   Atendimento? @relation(fields: [atendimentoId], references: [id])
+  atendimentoId String?
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@map("fotos")
+}
+
+// ---------- Futuro: IA / Gamificação (estrutura preparada) ----------
+
+model Flashcard {
+  id           String      @id @default(cuid())
+  pergunta     String
+  resposta     String
+  disciplina   Disciplina? @relation(fields: [disciplinaId], references: [id])
+  disciplinaId String?
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@map("flashcards")
+}
+
+model Objetivo {
+  id        String   @id @default(cuid())
+  titulo    String
+  tipo      String // diario | semanal | mensal | semestral
+  metaTotal Int      @default(1)
+  progresso Int      @default(0)
+  prazo     DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@map("objetivos")
+}
+
+model Xp {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @unique
+  total  Int    @default(0)
+  nivel  String @default("Calouro")
+
+  @@map("xp")
+}
+
+model Conquista {
+  id          String   @id @default(cuid())
+  titulo      String
+  descricao   String
+  icone       String   @default("award")
+  desbloqueada Boolean @default(false)
+
+  @@map("conquistas")
+}
+
+model Sequencia {
+  id            String @id @default(cuid())
+  user          User   @relation(fields: [userId], references: [id])
+  userId        String @unique
+  diasAtual     Int    @default(0)
+  maiorSequencia Int   @default(0)
+
+  @@map("sequencias")
+}
+
+model Configuracao {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @unique
+  tema   String @default("dark")
+  prefs  Json?
+
+  @@map("configuracoes")
+}
+
+model Notificacao {
+  id      String   @id @default(cuid())
+  titulo  String
+  lida    Boolean  @default(false)
+  criadaEm DateTime @default(now())
+
+  @@map("notificacoes")
+}
+
+model Frase {
+  id        String @id @default(cuid())
+  texto     String
+  categoria String
+
+  @@map("frases")
+}
+
+model IaLog {
+  id        String   @id @default(cuid())
+  prompt    String
+  resposta  String?
+  criadoEm  DateTime @default(now())
+
+  @@map("ia_logs")
+}
+
+model Upload {
+  id        String   @id @default(cuid())
+  url       String
+  tipo      String
+  criadoEm  DateTime @default(now())
+
+  @@map("uploads")
+}
+
+model Log {
+  id        String   @id @default(cuid())
+  acao      String
+  detalhe   Json?
+  criadoEm  DateTime @default(now())
+
+  @@map("logs")
+}
