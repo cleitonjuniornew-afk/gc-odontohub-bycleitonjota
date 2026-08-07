@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { disciplinesServerRepository } from "@/repositories/disciplinas.server.repository";
+import { disciplinesServerRepository } from "@/repositories/disciplines.server.repository";
 
 import {
   TasksEmptyState,
@@ -14,35 +14,26 @@ import {
 
 export const dynamic = "force-dynamic";
 
-
 export default async function DisciplinePage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-
-
   const { slug } = await params;
-
 
   const discipline =
     await disciplinesServerRepository.getBySlug(slug);
-
 
   if (!discipline) {
     notFound();
   }
 
-
   const disciplineTasks: never[] = [];
   const disciplineLibrary: never[] = [];
   const disciplinePhotos: never[] = [];
 
-
   return (
-
     <div className="space-y-6">
-
 
       <PageHeader
         title={discipline.name}
@@ -55,7 +46,6 @@ export default async function DisciplinePage({
 
 
       <Tabs defaultValue="resumo">
-
 
         <TabsList className="flex-wrap">
 
@@ -86,9 +76,7 @@ export default async function DisciplinePage({
         </TabsList>
 
 
-
         <TabsContent value="resumo" className="space-y-4">
-
 
           <div className="grid gap-4 md:grid-cols-2">
 
@@ -146,7 +134,6 @@ export default async function DisciplinePage({
                   "Nenhuma descrição cadastrada."}
 
               </p>
-
 
             </Card>
 
@@ -233,8 +220,6 @@ export default async function DisciplinePage({
 
       </Tabs>
 
-
     </div>
-
   );
 }
