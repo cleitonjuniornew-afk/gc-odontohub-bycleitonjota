@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -11,8 +12,9 @@ interface Task {
   id: string;
   title: string;
   description?: string | null;
-  priority: string;
-  completed: boolean;
+  priority?: string | null;
+  dueDate?: string | null;
+  completed?: boolean | null;
 }
 
 export function DisciplineTasks({
@@ -32,9 +34,15 @@ export function DisciplineTasks({
       );
 
 
+      if (!response.ok) {
+        throw new Error("Erro ao carregar tarefas");
+      }
+
+
       const data = await response.json();
 
       setTasks(data);
+
 
     } catch (error) {
 
@@ -56,15 +64,17 @@ export function DisciplineTasks({
   }, [disciplineId]);
 
 
+
   if (loading) {
 
     return (
-      <p>
+      <Card className="p-6">
         Carregando tarefas...
-      </p>
+      </Card>
     );
 
   }
+
 
 
   return (
@@ -72,65 +82,96 @@ export function DisciplineTasks({
     <div className="space-y-4">
 
 
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
 
-        <h3 className="font-semibold">
-          Tarefas da disciplina
-        </h3>
+        <div>
+
+          <h3 className="text-lg font-semibold">
+            Tarefas da disciplina
+          </h3>
+
+          <p className="text-sm text-text-secondary">
+            Tarefas vinculadas a esta matéria.
+          </p>
+
+        </div>
 
 
         <Button>
-          Nova tarefa
+          + Nova tarefa
         </Button>
 
       </div>
 
 
 
-      {
-        tasks.length === 0 ? (
 
-          <div className="rounded-lg border p-6">
+      {tasks.length === 0 ? (
 
-            <p className="text-sm text-text-secondary">
-              Nenhuma tarefa vinculada a esta disciplina.
-            </p>
+        <Card className="p-6">
 
-          </div>
+          <p className="text-sm text-text-secondary">
+            Nenhuma tarefa cadastrada nesta disciplina.
+          </p>
 
-
-        ) : (
+        </Card>
 
 
-          <div className="space-y-3">
+      ) : (
 
-            {tasks.map((task)=>(
 
-              <div
-                key={task.id}
-                className="rounded-lg border p-4"
-              >
+        <div className="space-y-3">
 
-                <p className="font-medium">
-                  {task.title}
+          {tasks.map((task) => (
+
+            <Card
+              key={task.id}
+              className="p-4"
+            >
+
+              <h4 className="font-medium">
+                {task.title}
+              </h4>
+
+
+              {task.description && (
+
+                <p className="mt-2 text-sm text-text-secondary">
+                  {task.description}
                 </p>
 
-                <p className="text-sm text-text-secondary">
-                  Prioridade: {task.priority}
-                </p>
+              )}
 
+
+              <div className="mt-3 flex gap-4 text-xs">
+
+                {task.priority && (
+                  <span>
+                    Prioridade: {task.priority}
+                  </span>
+                )}
+
+
+                {task.dueDate && (
+                  <span>
+                    Data: {task.dueDate}
+                  </span>
+                )}
 
               </div>
 
-            ))}
 
-          </div>
+            </Card>
 
-        )
-      }
+          ))}
+
+        </div>
+
+      )}
 
 
     </div>
 
   );
+
 }
