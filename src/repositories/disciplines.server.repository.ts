@@ -10,6 +10,7 @@ export interface DisciplineServer {
   sala?: string;
 }
 
+
 function fromRow(row: {
   id: string;
   slug: string;
@@ -18,6 +19,7 @@ function fromRow(row: {
   professor?: string | null;
   sala?: string | null;
 }): DisciplineServer {
+
   return {
     id: row.id,
     slug: row.slug,
@@ -26,26 +28,36 @@ function fromRow(row: {
     professor: row.professor ?? undefined,
     sala: row.sala ?? undefined,
   };
+
 }
 
+
 export const disciplinesServerRepository = {
+
   async getBySlug(slug: string): Promise<DisciplineServer | null> {
 
     if (!isSupabaseConfigured) {
       return null;
     }
 
+
     const supabase = await createClient();
+
 
     const { data, error } = await supabase
       .from("disciplinas")
       .select("*")
       .eq("slug", slug)
-      .is("deleted_at", null)
       .maybeSingle();
 
-    if (error) throw error;
+
+    if (error) {
+      throw error;
+    }
+
 
     return data ? fromRow(data) : null;
+
   },
+
 };
