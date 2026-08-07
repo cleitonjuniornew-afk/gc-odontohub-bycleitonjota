@@ -8,7 +8,11 @@ export interface DisciplineServer {
   color: string;
   professor?: string;
   sala?: string;
+  dia_aula?: string;
+  horario?: string;
+  descricao?: string;
 }
+
 
 function fromRow(row: {
   id: string;
@@ -17,7 +21,11 @@ function fromRow(row: {
   cor?: string | null;
   professor?: string | null;
   sala?: string | null;
+  dia_aula?: string | null;
+  horario?: string | null;
+  descricao?: string | null;
 }): DisciplineServer {
+
   return {
     id: row.id,
     slug: row.slug,
@@ -25,18 +33,28 @@ function fromRow(row: {
     color: row.cor ?? "#D4AF37",
     professor: row.professor ?? undefined,
     sala: row.sala ?? undefined,
+    dia_aula: row.dia_aula ?? undefined,
+    horario: row.horario ?? undefined,
+    descricao: row.descricao ?? undefined,
   };
+
 }
+
 
 export const disciplinesServerRepository = {
 
-  async getBySlug(slug: string): Promise<DisciplineServer | null> {
+  async getBySlug(
+    slug: string
+  ): Promise<DisciplineServer | null> {
+
 
     if (!isSupabaseConfigured) {
       return null;
     }
 
+
     const supabase = await createClient();
+
 
     const { data, error } = await supabase
       .from("disciplinas")
@@ -45,11 +63,14 @@ export const disciplinesServerRepository = {
       .is("deleted_at", null)
       .maybeSingle();
 
+
     if (error) {
       throw error;
     }
 
+
     return data ? fromRow(data) : null;
+
   },
 
 };
