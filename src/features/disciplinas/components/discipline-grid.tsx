@@ -14,7 +14,7 @@ export function DisciplineGrid() {
   if (isLoading) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {[1, 2, 3, 4, 5].map((i) => (
+        {[1, 2, 3, 4, 5, 6].map((i) => (
           <Skeleton key={i} className="h-40 w-full" />
         ))}
       </div>
@@ -23,30 +23,28 @@ export function DisciplineGrid() {
 
   if (isError) {
     return (
-      <Card>
-        <p className="text-sm text-error">
+      <div className="rounded-[var(--radius-card)] border border-error/20 bg-error/5 p-6 text-center">
+        <p className="text-sm font-medium text-error">
           Não foi possível carregar as disciplinas.
         </p>
         <p className="mt-1 text-xs text-text-muted">
           Verifique a conexão com o Supabase e tente novamente.
         </p>
-      </Card>
+      </div>
     );
   }
 
   if (disciplines.length === 0) {
     return (
-      <Card>
-        <div className="flex flex-col items-center justify-center py-10 text-center">
-          <GraduationCap className="h-10 w-10 text-text-muted" />
-          <h3 className="mt-3 text-base font-semibold text-text-primary">
-            Nenhuma disciplina cadastrada
-          </h3>
-          <p className="mt-1 text-sm text-text-muted">
-            Cadastre suas disciplinas para começar a organizar seu conteúdo.
-          </p>
-        </div>
-      </Card>
+      <div className="rounded-[var(--radius-card)] border border-border bg-surface p-8 text-center">
+        <GraduationCap className="mx-auto h-8 w-8 text-text-muted" />
+        <p className="mt-3 text-sm font-medium text-text-primary">
+          Nenhuma disciplina cadastrada
+        </p>
+        <p className="mt-1 text-xs text-text-muted">
+          Cadastre uma disciplina para ela aparecer aqui.
+        </p>
+      </div>
     );
   }
 
@@ -86,7 +84,7 @@ export function DisciplineGrid() {
               )}
 
               <p className="mt-3 text-xs text-text-secondary">
-                Acessar disciplina →
+                Acessar disciplina
               </p>
             </Card>
           </Link>
