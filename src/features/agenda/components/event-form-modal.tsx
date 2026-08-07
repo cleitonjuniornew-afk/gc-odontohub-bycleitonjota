@@ -3,12 +3,29 @@
 import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { eventSchema, type EventFormInput, TYPE_COLOR, TYPE_LABEL } from "../schemas/event-schema";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  eventSchema,
+  type EventFormInput,
+  TYPE_COLOR,
+  TYPE_LABEL,
+} from "../schemas/event-schema";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import type { AgendaEvent } from "@/types";
 import { useDisciplines } from "@/features/disciplinas/hooks/use-disciplines";
 
@@ -124,7 +141,6 @@ export function EventFormModal({
             )}
           </div>
 
-
           <div>
             <Label>Tipo</Label>
 
@@ -147,12 +163,10 @@ export function EventFormModal({
                       </SelectItem>
                     ))}
                   </SelectContent>
-
                 </Select>
               )}
             />
           </div>
-
 
           <div className="grid grid-cols-2 gap-4">
 
@@ -173,7 +187,6 @@ export function EventFormModal({
               )}
             </div>
 
-
             <div>
               <Label htmlFor="time">Hora</Label>
 
@@ -187,7 +200,6 @@ export function EventFormModal({
 
           </div>
 
-
           <div>
             <Label>Disciplina (opcional)</Label>
 
@@ -199,27 +211,22 @@ export function EventFormModal({
                   value={field.value}
                   onValueChange={field.onChange}
                 >
-
                   <SelectTrigger className="mt-1.5">
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
 
                   <SelectContent>
-
                     {disciplines.map((d) => (
                       <SelectItem key={d.id} value={d.id}>
-                        {d.nome}
+                        {d.name}
                       </SelectItem>
                     ))}
-
                   </SelectContent>
 
                 </Select>
               )}
             />
-
           </div>
-
 
           <div className="mt-2 flex justify-end gap-3">
 
@@ -230,7 +237,6 @@ export function EventFormModal({
             >
               Cancelar
             </Button>
-
 
             <Button
               type="submit"
