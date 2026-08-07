@@ -4,7 +4,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { disciplinesRepository } from "@/repositories/disciplines.repository";
+import { disciplinesServerRepository } from "@/repositories/disciplines.server.repository";
+
 import {
   TasksEmptyState,
   LibraryEmptyState,
@@ -28,7 +29,8 @@ export default async function DisciplinePage({
   const { slug } = await params;
 
 
-  const discipline = await disciplinesRepository.getBySlug(slug);
+  const discipline =
+    await disciplinesServerRepository.getBySlug(slug);
 
 
   if (!discipline) {
@@ -55,6 +57,7 @@ export default async function DisciplinePage({
 
 
       <Tabs defaultValue="resumo">
+
 
         <TabsList className="flex-wrap">
 
@@ -90,41 +93,32 @@ export default async function DisciplinePage({
           <div className="grid gap-4 sm:grid-cols-3">
 
             <Card>
-
               <p className="text-xs text-text-secondary">
                 Tarefas pendentes
               </p>
-
-              <p className="mt-2 text-2xl font-bold text-text-primary">
-                0
+              <p className="mt-2 text-2xl font-bold">
+                {disciplineTasks.length}
               </p>
-
             </Card>
 
 
             <Card>
-
               <p className="text-xs text-text-secondary">
-                Itens na biblioteca
+                Biblioteca
               </p>
-
-              <p className="mt-2 text-2xl font-bold text-text-primary">
-                0
+              <p className="mt-2 text-2xl font-bold">
+                {disciplineLibrary.length}
               </p>
-
             </Card>
 
 
             <Card>
-
               <p className="text-xs text-text-secondary">
-                Fotos registradas
+                Fotos
               </p>
-
-              <p className="mt-2 text-2xl font-bold text-text-primary">
-                0
+              <p className="mt-2 text-2xl font-bold">
+                {disciplinePhotos.length}
               </p>
-
             </Card>
 
           </div>
@@ -133,42 +127,31 @@ export default async function DisciplinePage({
 
 
         <TabsContent value="tarefas">
-
           <TasksEmptyState />
-
         </TabsContent>
 
 
         <TabsContent value="biblioteca">
-
           <LibraryEmptyState />
-
         </TabsContent>
 
 
         <TabsContent value="fotos">
-
           <PhotosEmptyState />
-
         </TabsContent>
 
 
         <TabsContent value="notas">
-
           <GradesEmptyState />
-
         </TabsContent>
 
 
         <TabsContent value="observacoes">
-
           <ObservationsEmptyState />
-
         </TabsContent>
 
 
       </Tabs>
-
 
     </div>
   );
