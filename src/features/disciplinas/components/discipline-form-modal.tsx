@@ -1,7 +1,13 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -9,6 +15,12 @@ import { Button } from "@/components/ui/button";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+interface DisciplineFormData {
+  name: string;
+  professor: string;
+  color: string;
 }
 
 export function DisciplineFormModal({
@@ -20,10 +32,10 @@ export function DisciplineFormModal({
     register,
     handleSubmit,
     reset,
-  } = useForm();
+  } = useForm<DisciplineFormData>();
 
 
-  function submit(data: any) {
+  function submit(data: DisciplineFormData) {
     console.log(data);
     reset();
     onOpenChange(false);
