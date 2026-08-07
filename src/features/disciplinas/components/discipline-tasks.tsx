@@ -3,45 +3,51 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Plus } from "lucide-react";
-import { TaskFormModal } from "@/features/tasks/components/task-form-modal";
-import type { TaskFormInput } from "@/features/tasks/schemas/task-schema";
-import { useTasks } from "@/features/tasks/hooks/use-tasks";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Props {
   disciplineId: string;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
 }
 
 export function DisciplineTasks({
   disciplineId,
 }: Props) {
 
-  const {
-    tasks,
-    createTask,
-    loading,
-  } = useTasks();
-
-
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [open, setOpen] = useState(false);
 
-
-  const disciplineTasks = tasks.filter(
-    (task) => task.disciplineId === disciplineId
-  );
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
 
 
-  async function handleCreate(
-    data: TaskFormInput
-  ) {
+  function addTask() {
 
-    await createTask({
-      ...data,
-      disciplineId,
-    });
+    if (!title.trim()) return;
 
+
+    const newTask: Task = {
+      id: crypto.randomUUID(),
+      title,
+      description,
+    };
+
+
+    setTasks((old) => [
+      ...old,
+      newTask,
+    ]);
+
+
+    setTitle("");
+    setDescription("");
     setOpen(false);
-
   }
 
 
@@ -60,25 +66,52 @@ export function DisciplineTasks({
         <Button
           onClick={() => setOpen(true)}
         >
-
-          <Plus className="mr-2 h-4 w-4"/>
-
-          Nova tarefa
-
+          + Nova tarefa
         </Button>
-
 
       </div>
 
 
 
-      {disciplineTasks.length === 0 && (
+      {open && (
 
-        <Card className="p-6 text-center">
+        <Card className="space-y-3 p-4">
 
-          <p className="text-sm text-text-secondary">
-            Nenhuma tarefa cadastrada nesta disciplina.
-          </p>
+          <Input
+            placeholder="Título da tarefa"
+            value={title}
+            onChange={(e) =>
+              setTitle(e.target.value)
+            }
+          />
+
+
+          <Textarea
+            placeholder="Descrição"
+            value={description}
+            onChange={(e) =>
+              setDescription(e.target.value)
+            }
+          />
+
+
+          <div className="flex gap-2">
+
+            <Button
+              onClick={addTask}
+            >
+              Salvar
+            </Button>
+
+
+            <Button
+              variant="ghost"
+              onClick={() => setOpen(false)}
+            >
+              Cancelar
+            </Button>
+
+          </div>
 
         </Card>
 
@@ -86,47 +119,48 @@ export function DisciplineTasks({
 
 
 
-      {disciplineTasks.map((task)=> (
+      {tasks.length === 0 ? (
 
-        <Card
-          key={task.id}
-          className="p-4"
-        >
+        <Card className="p-6 text-center text-sm text-muted-foreground">
 
-          <h3 className="font-medium">
-            {task.title}
-          </h3>
-
-
-          {task.description && (
-
-            <p className="text-sm text-text-secondary mt-2">
-              {task.description}
-            </p>
-
-          )}
+          Nenhuma tarefa cadastrada nesta disciplina.
 
         </Card>
 
-      ))}
+      ) : (
+
+        <div className="space-y-3">
+
+          {tasks.map((task) => (
+
+            <Card
+              key={task.id}
+              className="p-4"
+            >
+
+              <h3 className="font-semibold">
+                {task.title}
+              </h3>
 
 
+              {task.description && (
 
-      <TaskFormModal
+                <p className="text-sm text-muted-foreground mt-1">
+                  {task.description}
+                </p>
 
-        open={open}
+              )}
 
-        onOpenChange={setOpen}
+            </Card>
 
-        onSubmit={handleCreate}
+          ))}
 
-        submitting={loading}
+        </div>
 
-      />
+      )}
 
 
     </div>
 
   );
-
 }
