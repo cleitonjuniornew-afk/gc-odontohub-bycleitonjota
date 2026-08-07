@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { disciplinesRepository } from "@/repositories/disciplines.repository";
 
 interface Props {
   open: boolean;
@@ -35,10 +36,18 @@ export function DisciplineFormModal({
   } = useForm<DisciplineFormData>();
 
 
-  function submit(data: DisciplineFormData) {
-    console.log(data);
+  async function submit(data: DisciplineFormData) {
+
+    await disciplinesRepository.create({
+      name: data.name,
+      professor: data.professor,
+      color: data.color,
+    });
+
     reset();
     onOpenChange(false);
+
+    window.location.reload();
   }
 
 
