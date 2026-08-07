@@ -1,109 +1,84 @@
 "use client";
 
-import { useState } from "react";
-import { Plus } from "lucide-react";
-
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-import { TaskFormModal } from "@/features/planejamento/components/task-form-modal";
-
-interface Props {
-  disciplineId: string;
-  disciplineName: string;
+interface Task {
+  id: string;
+  title: string;
+  description?: string | null;
+  done?: boolean;
 }
 
+interface Props {
+  tasks?: Task[];
+  onCreate?: () => void;
+}
 
 export function DisciplineTasks({
-  disciplineId,
-  disciplineName,
+  tasks = [],
+  onCreate,
 }: Props) {
-
-  const [open, setOpen] = useState(false);
-
-
-  async function createTask(data: any) {
-
-    console.log(
-      "CRIANDO TAREFA DA DISCIPLINA:",
-      disciplineId,
-      data
-    );
-
-    // aqui vamos ligar ao Supabase na próxima etapa
-
-  }
-
-
   return (
-
     <div className="space-y-4">
 
-
       <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-text-primary">
+          Tarefas da disciplina
+        </h2>
 
-
-        <div>
-
-          <h3 className="text-lg font-semibold">
-            Tarefas
-          </h3>
-
-          <p className="text-sm text-text-secondary">
-            {disciplineName}
-          </p>
-
-        </div>
-
-
-
-        <Button
-          onClick={() => setOpen(true)}
-        >
-
-          <Plus className="mr-2 h-4 w-4" />
-
+        <Button onClick={onCreate}>
           Nova tarefa
-
         </Button>
-
-
       </div>
 
 
+      {tasks.length === 0 ? (
 
+        <Card className="p-6 text-center">
 
-      <Card className="p-6 text-center">
+          <p className="text-sm text-text-secondary">
+            Nenhuma tarefa cadastrada para esta disciplina.
+          </p>
 
+          <Button
+            className="mt-4"
+            onClick={onCreate}
+          >
+            Criar primeira tarefa
+          </Button>
 
-        <p className="text-sm text-text-secondary">
+        </Card>
 
-          Nenhuma tarefa cadastrada para esta disciplina.
+      ) : (
 
-        </p>
+        <div className="space-y-3">
 
+          {tasks.map((task) => (
 
-      </Card>
+            <Card
+              key={task.id}
+              className="p-4"
+            >
 
+              <h3 className="font-medium text-text-primary">
+                {task.title}
+              </h3>
 
+              {task.description && (
+                <p className="mt-1 text-sm text-text-secondary">
+                  {task.description}
+                </p>
+              )}
 
+            </Card>
 
+          ))}
 
-      <TaskFormModal
+        </div>
 
-        open={open}
-
-        onOpenChange={setOpen}
-
-        onSubmit={createTask}
-
-        disciplineId={disciplineId}
-
-      />
-
+      )}
 
     </div>
-
   );
-
 }
