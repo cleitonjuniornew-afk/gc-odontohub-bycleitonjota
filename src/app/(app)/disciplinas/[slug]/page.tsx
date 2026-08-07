@@ -1,10 +1,8 @@
 import { notFound } from "next/navigation";
-import { FileText } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { disciplinesServerRepository } from "@/repositories/disciplines.server.repository";
+import { disciplinesServerRepository } from "@/repositories/disciplinas.server.repository";
 
 import {
   TasksEmptyState,
@@ -16,30 +14,35 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export async function generateStaticParams() {
-  return [];
-}
 
 export default async function DisciplinePage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
+
+
   const { slug } = await params;
+
 
   const discipline =
     await disciplinesServerRepository.getBySlug(slug);
+
 
   if (!discipline) {
     notFound();
   }
 
+
   const disciplineTasks: never[] = [];
   const disciplineLibrary: never[] = [];
   const disciplinePhotos: never[] = [];
 
+
   return (
+
     <div className="space-y-6">
+
 
       <PageHeader
         title={discipline.name}
@@ -50,7 +53,9 @@ export default async function DisciplinePage({
         }
       />
 
+
       <Tabs defaultValue="resumo">
+
 
         <TabsList className="flex-wrap">
 
@@ -81,22 +86,94 @@ export default async function DisciplinePage({
         </TabsList>
 
 
-        <TabsContent value="resumo">
+
+        <TabsContent value="resumo" className="space-y-4">
+
+
+          <div className="grid gap-4 md:grid-cols-2">
+
+
+            <Card>
+
+              <h3 className="font-semibold text-text-primary">
+                Informações da disciplina
+              </h3>
+
+
+              <div className="mt-4 space-y-2 text-sm">
+
+
+                <p>
+                  <strong>Professor:</strong>{" "}
+                  {discipline.professor || "Não informado"}
+                </p>
+
+
+                <p>
+                  <strong>Sala:</strong>{" "}
+                  {discipline.sala || "Não informado"}
+                </p>
+
+
+                <p>
+                  <strong>Dia da aula:</strong>{" "}
+                  {discipline.dia_aula || "Não informado"}
+                </p>
+
+
+                <p>
+                  <strong>Horário:</strong>{" "}
+                  {discipline.horario || "Não informado"}
+                </p>
+
+
+              </div>
+
+            </Card>
+
+
+
+            <Card>
+
+              <h3 className="font-semibold text-text-primary">
+                Sobre a disciplina
+              </h3>
+
+
+              <p className="mt-4 text-sm text-text-secondary">
+
+                {discipline.descricao ||
+                  "Nenhuma descrição cadastrada."}
+
+              </p>
+
+
+            </Card>
+
+
+          </div>
+
+
 
           <div className="grid gap-4 sm:grid-cols-3">
 
+
             <Card>
+
               <p className="text-xs text-text-secondary">
-                Tarefas pendentes
+                Tarefas
               </p>
 
               <p className="mt-2 text-2xl font-bold">
                 {disciplineTasks.length}
               </p>
+
             </Card>
 
 
+
             <Card>
+
               <p className="text-xs text-text-secondary">
                 Biblioteca
               </p>
@@ -104,10 +181,13 @@ export default async function DisciplinePage({
               <p className="mt-2 text-2xl font-bold">
                 {disciplineLibrary.length}
               </p>
+
             </Card>
 
 
+
             <Card>
+
               <p className="text-xs text-text-secondary">
                 Fotos
               </p>
@@ -115,11 +195,15 @@ export default async function DisciplinePage({
               <p className="mt-2 text-2xl font-bold">
                 {disciplinePhotos.length}
               </p>
+
             </Card>
+
 
           </div>
 
+
         </TabsContent>
+
 
 
         <TabsContent value="tarefas">
@@ -149,6 +233,8 @@ export default async function DisciplinePage({
 
       </Tabs>
 
+
     </div>
+
   );
 }
