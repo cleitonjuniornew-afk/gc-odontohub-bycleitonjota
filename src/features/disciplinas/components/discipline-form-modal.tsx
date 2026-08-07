@@ -16,24 +16,34 @@ import { disciplinesRepository } from "@/repositories/disciplines.repository";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCreated?: () => void;
 }
 
 interface DisciplineFormData {
   name: string;
   professor: string;
+  sala: string;
+  dia_aula: string;
+  horario: string;
+  descricao: string;
   color: string;
 }
 
 export function DisciplineFormModal({
   open,
   onOpenChange,
+  onCreated,
 }: Props) {
 
   const {
     register,
     handleSubmit,
     reset,
-  } = useForm<DisciplineFormData>();
+  } = useForm<DisciplineFormData>({
+    defaultValues: {
+      color: "#00BFFF",
+    },
+  });
 
 
   async function submit(data: DisciplineFormData) {
@@ -41,13 +51,20 @@ export function DisciplineFormModal({
     await disciplinesRepository.create({
       name: data.name,
       professor: data.professor,
+      sala: data.sala,
       color: data.color,
+      dia_aula: data.dia_aula,
+      horario: data.horario,
+      descricao: data.descricao,
     });
+
 
     reset();
     onOpenChange(false);
 
-    window.location.reload();
+    if (onCreated) {
+      onCreated();
+    }
   }
 
 
@@ -57,13 +74,15 @@ export function DisciplineFormModal({
       <DialogContent>
 
         <DialogHeader>
+
           <DialogTitle>
             Nova disciplina
           </DialogTitle>
 
           <DialogDescription>
-            Cadastre uma disciplina do seu curso.
+            Cadastre todas as informações da disciplina.
           </DialogDescription>
+
         </DialogHeader>
 
 
@@ -71,6 +90,7 @@ export function DisciplineFormModal({
           onSubmit={handleSubmit(submit)}
           className="space-y-4"
         >
+
 
           <div>
             <Label>
@@ -100,13 +120,64 @@ export function DisciplineFormModal({
 
           <div>
             <Label>
+              Sala
+            </Label>
+
+            <Input
+              className="mt-1.5"
+              placeholder="Ex: Clínica 2"
+              {...register("sala")}
+            />
+          </div>
+
+
+          <div>
+            <Label>
+              Dia da aula
+            </Label>
+
+            <Input
+              className="mt-1.5"
+              placeholder="Ex: Terça e Quinta"
+              {...register("dia_aula")}
+            />
+          </div>
+
+
+          <div>
+            <Label>
+              Horário
+            </Label>
+
+            <Input
+              className="mt-1.5"
+              placeholder="Ex: 13:30 às 17:30"
+              {...register("horario")}
+            />
+          </div>
+
+
+          <div>
+            <Label>
+              Descrição
+            </Label>
+
+            <Input
+              className="mt-1.5"
+              placeholder="Informações da disciplina"
+              {...register("descricao")}
+            />
+          </div>
+
+
+          <div>
+            <Label>
               Cor
             </Label>
 
             <Input
               type="color"
               className="mt-1.5 h-10"
-              defaultValue="#00BFFF"
               {...register("color")}
             />
           </div>
