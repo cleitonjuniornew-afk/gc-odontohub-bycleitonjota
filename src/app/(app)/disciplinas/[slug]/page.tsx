@@ -8,7 +8,7 @@ import {
   TabsContent,
 } from "@/components/ui/tabs";
 
-import { disciplinesServerRepository } from "@/repositories/disciplinas.server.repository";
+import { disciplinesServerRepository } from "@/repositories/disciplines.server.repository";
 
 import { DisciplineTasks } from "@/features/disciplinas/components/discipline-tasks";
 
@@ -109,7 +109,6 @@ export default async function DisciplinePage({
 
             <Card>
 
-
               <h3 className="font-semibold text-text-primary">
                 Informações da disciplina
               </h3>
@@ -150,7 +149,6 @@ export default async function DisciplinePage({
 
 
             <Card>
-
 
               <h3 className="font-semibold text-text-primary">
                 Sobre a disciplina
