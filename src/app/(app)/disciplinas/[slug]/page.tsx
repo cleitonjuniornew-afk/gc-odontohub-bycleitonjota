@@ -14,37 +14,32 @@ import {
   ObservationsEmptyState,
 } from "@/features/disciplinas/components/discipline-empty-states";
 
+export const dynamic = "force-dynamic";
 
 export async function generateStaticParams() {
   return [];
 }
-
 
 export default async function DisciplinePage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-
   const { slug } = await params;
-
 
   const discipline =
     await disciplinesServerRepository.getBySlug(slug);
-
 
   if (!discipline) {
     notFound();
   }
 
-
   const disciplineTasks: never[] = [];
   const disciplineLibrary: never[] = [];
   const disciplinePhotos: never[] = [];
 
-
   return (
-    <div>
+    <div className="space-y-6">
 
       <PageHeader
         title={discipline.name}
@@ -55,9 +50,7 @@ export default async function DisciplinePage({
         }
       />
 
-
       <Tabs defaultValue="resumo">
-
 
         <TabsList className="flex-wrap">
 
@@ -96,6 +89,7 @@ export default async function DisciplinePage({
               <p className="text-xs text-text-secondary">
                 Tarefas pendentes
               </p>
+
               <p className="mt-2 text-2xl font-bold">
                 {disciplineTasks.length}
               </p>
@@ -106,6 +100,7 @@ export default async function DisciplinePage({
               <p className="text-xs text-text-secondary">
                 Biblioteca
               </p>
+
               <p className="mt-2 text-2xl font-bold">
                 {disciplineLibrary.length}
               </p>
@@ -116,6 +111,7 @@ export default async function DisciplinePage({
               <p className="text-xs text-text-secondary">
                 Fotos
               </p>
+
               <p className="mt-2 text-2xl font-bold">
                 {disciplinePhotos.length}
               </p>
