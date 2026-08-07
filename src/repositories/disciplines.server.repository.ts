@@ -29,6 +29,7 @@ function fromRow(row: {
 }
 
 export const disciplinesServerRepository = {
+
   async getBySlug(slug: string): Promise<DisciplineServer | null> {
 
     if (!isSupabaseConfigured) {
@@ -50,4 +51,5 @@ export const disciplinesServerRepository = {
 
     return data ? fromRow(data) : null;
   },
+
 };
