@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export interface Discipline {
@@ -32,7 +32,7 @@ export const disciplinesRepository = {
     }
 
 
-    const supabase = await createClient();
+    const supabase = createClient();
 
 
     const { data, error } = await supabase
@@ -57,7 +57,7 @@ export const disciplinesRepository = {
     }
 
 
-    const supabase = await createClient();
+    const supabase = createClient();
 
 
     const { data, error } = await supabase
@@ -74,5 +74,48 @@ export const disciplinesRepository = {
     return data ? fromRow(data) : null;
 
   },
+
+
+  async create(input: {
+    name: string;
+    professor?: string;
+    color?: string;
+    sala?: string;
+  }) {
+
+    const supabase = createClient();
+
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+
+    const slug = input.name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "-");
+
+
+    const { data, error } = await supabase
+      .from("disciplinas")
+      .insert({
+        nome: input.name,
+        slug,
+        professor: input.professor || null,
+        sala: input.sala || null,
+        cor: input.color ?? "#D4AF37",
+        user_id: user?.id,
+      })
+      .select()
+      .single();
+
+
+    if (error) throw error;
+
+
+    return fromRow(data);
+
+  },
+
 
 };
