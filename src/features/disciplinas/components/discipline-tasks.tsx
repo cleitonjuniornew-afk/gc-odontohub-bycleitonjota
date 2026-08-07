@@ -1,80 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card } from "@/components/ui/card";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Plus } from "lucide-react";
+import { TaskFormModal } from "@/features/tasks/components/task-form-modal";
+import type { TaskFormInput } from "@/features/tasks/schemas/task-schema";
+import { useTasks } from "@/features/tasks/hooks/use-tasks";
 
 interface Props {
   disciplineId: string;
-}
-
-interface Task {
-  id: string;
-  title: string;
-  description?: string | null;
-  priority?: string | null;
-  dueDate?: string | null;
-  completed?: boolean | null;
 }
 
 export function DisciplineTasks({
   disciplineId,
 }: Props) {
 
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    tasks,
+    createTask,
+    loading,
+  } = useTasks();
 
 
-  async function loadTasks() {
-
-    try {
-
-      const response = await fetch(
-        `/api/tasks?disciplineId=${disciplineId}`
-      );
+  const [open, setOpen] = useState(false);
 
 
-      if (!response.ok) {
-        throw new Error("Erro ao carregar tarefas");
-      }
+  const disciplineTasks = tasks.filter(
+    (task) => task.disciplineId === disciplineId
+  );
 
 
-      const data = await response.json();
+  async function handleCreate(
+    data: TaskFormInput
+  ) {
 
-      setTasks(data);
+    await createTask({
+      ...data,
+      disciplineId,
+    });
 
-
-    } catch (error) {
-
-      console.error(error);
-
-    } finally {
-
-      setLoading(false);
-
-    }
+    setOpen(false);
 
   }
-
-
-  useEffect(() => {
-
-    loadTasks();
-
-  }, [disciplineId]);
-
-
-
-  if (loading) {
-
-    return (
-      <Card className="p-6">
-        Carregando tarefas...
-      </Card>
-    );
-
-  }
-
 
 
   return (
@@ -82,33 +50,31 @@ export function DisciplineTasks({
     <div className="space-y-4">
 
 
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between items-center">
 
-        <div>
-
-          <h3 className="text-lg font-semibold">
-            Tarefas da disciplina
-          </h3>
-
-          <p className="text-sm text-text-secondary">
-            Tarefas vinculadas a esta matéria.
-          </p>
-
-        </div>
+        <h2 className="text-lg font-semibold">
+          Tarefas da disciplina
+        </h2>
 
 
-        <Button>
-          + Nova tarefa
+        <Button
+          onClick={() => setOpen(true)}
+        >
+
+          <Plus className="mr-2 h-4 w-4"/>
+
+          Nova tarefa
+
         </Button>
+
 
       </div>
 
 
 
+      {disciplineTasks.length === 0 && (
 
-      {tasks.length === 0 ? (
-
-        <Card className="p-6">
+        <Card className="p-6 text-center">
 
           <p className="text-sm text-text-secondary">
             Nenhuma tarefa cadastrada nesta disciplina.
@@ -116,58 +82,47 @@ export function DisciplineTasks({
 
         </Card>
 
-
-      ) : (
-
-
-        <div className="space-y-3">
-
-          {tasks.map((task) => (
-
-            <Card
-              key={task.id}
-              className="p-4"
-            >
-
-              <h4 className="font-medium">
-                {task.title}
-              </h4>
-
-
-              {task.description && (
-
-                <p className="mt-2 text-sm text-text-secondary">
-                  {task.description}
-                </p>
-
-              )}
-
-
-              <div className="mt-3 flex gap-4 text-xs">
-
-                {task.priority && (
-                  <span>
-                    Prioridade: {task.priority}
-                  </span>
-                )}
-
-
-                {task.dueDate && (
-                  <span>
-                    Data: {task.dueDate}
-                  </span>
-                )}
-
-              </div>
-
-
-            </Card>
-
-          ))}
-
-        </div>
-
       )}
+
+
+
+      {disciplineTasks.map((task)=> (
+
+        <Card
+          key={task.id}
+          className="p-4"
+        >
+
+          <h3 className="font-medium">
+            {task.title}
+          </h3>
+
+
+          {task.description && (
+
+            <p className="text-sm text-text-secondary mt-2">
+              {task.description}
+            </p>
+
+          )}
+
+        </Card>
+
+      ))}
+
+
+
+      <TaskFormModal
+
+        open={open}
+
+        onOpenChange={setOpen}
+
+        onSubmit={handleCreate}
+
+        submitting={loading}
+
+      />
 
 
     </div>
