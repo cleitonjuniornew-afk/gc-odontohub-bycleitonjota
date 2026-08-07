@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
@@ -9,6 +10,9 @@ export interface Discipline {
   color: string;
   professor?: string;
   sala?: string;
+  dia_aula?: string;
+  horario?: string;
+  descricao?: string;
 }
 
 
@@ -20,11 +24,15 @@ function fromRow(row: any): Discipline {
     color: row.cor ?? "#D4AF37",
     professor: row.professor ?? undefined,
     sala: row.sala ?? undefined,
+    dia_aula: row.dia_aula ?? undefined,
+    horario: row.horario ?? undefined,
+    descricao: row.descricao ?? undefined,
   };
 }
 
 
 export const disciplinesRepository = {
+
 
   async list(): Promise<Discipline[]> {
 
@@ -82,12 +90,17 @@ export const disciplinesRepository = {
     professor?: string;
     color?: string;
     sala?: string;
+    dia_aula?: string;
+    horario?: string;
+    descricao?: string;
   }) {
+
 
     const supabase = createClient();
 
 
     const { data: { user } } = await supabase.auth.getUser();
+
 
 
     const slug = input.name
@@ -97,21 +110,37 @@ export const disciplinesRepository = {
       .replace(/\s+/g, "-");
 
 
+
     const { data, error } = await supabase
       .from("disciplinas")
       .insert({
+
         nome: input.name,
+
         slug,
+
         professor: input.professor || null,
+
         sala: input.sala || null,
+
+        dia_aula: input.dia_aula || null,
+
+        horario: input.horario || null,
+
+        descricao: input.descricao || null,
+
         cor: input.color ?? "#D4AF37",
+
         user_id: user?.id,
+
       })
       .select()
       .single();
 
 
+
     if (error) throw error;
+
 
 
     return fromRow(data);
