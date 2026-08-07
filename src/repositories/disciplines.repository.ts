@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 export interface Discipline {
@@ -8,15 +7,7 @@ export interface Discipline {
   name: string;
   color: string;
   professor?: string;
-}
-
-function createSlug(text: string) {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+  sala?: string;
 }
 
 
@@ -27,6 +18,7 @@ function fromRow(row: any): Discipline {
     name: row.nome,
     color: row.cor ?? "#D4AF37",
     professor: row.professor ?? undefined,
+    sala: row.sala ?? undefined,
   };
 }
 
@@ -40,7 +32,7 @@ export const disciplinesRepository = {
     }
 
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
 
     const { data, error } = await supabase
@@ -65,7 +57,7 @@ export const disciplinesRepository = {
     }
 
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
 
     const { data, error } = await supabase
@@ -80,42 +72,6 @@ export const disciplinesRepository = {
 
 
     return data ? fromRow(data) : null;
-
-  },
-
-
-  async create(input: {
-    name: string;
-    professor?: string;
-    color?: string;
-  }): Promise<Discipline> {
-
-
-    const supabase = createClient();
-
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-
-    const { data, error } = await supabase
-      .from("disciplinas")
-      .insert({
-        nome: input.name,
-        slug: createSlug(input.name),
-        cor: input.color ?? "#D4AF37",
-        professor: input.professor ?? null,
-        user_id: user?.id,
-      })
-      .select()
-      .single();
-
-
-    if (error) throw error;
-
-
-    return fromRow(data);
 
   },
 
