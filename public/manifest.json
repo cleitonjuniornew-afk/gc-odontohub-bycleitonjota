@@ -1,0 +1,10 @@
+{
+  "name": "GC OdontoHub",
+  "short_name": "OdontoHub",
+  "description": "O hub acadêmico completo para estudantes de Odontologia.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#090909",
+  "theme_color": "#090909",
+  "icons": []
+}
