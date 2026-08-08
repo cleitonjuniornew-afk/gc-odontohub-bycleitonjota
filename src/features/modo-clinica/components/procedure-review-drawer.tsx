@@ -10,7 +10,6 @@ ListOrdered,
 ShieldAlert,
 AlertTriangle,
 CheckSquare,
-Package,
 Camera,
 } from "lucide-react";
 import { slideInFromRight } from "@/animations/variants";
@@ -38,9 +37,7 @@ useState<ClinicalProcedure | null>(null);
 const [loading, setLoading] = useState(false);
 
 useEffect(() => {
-if (!open) {
-return;
-}
+if (!open) return;
 
 ```
 let cancelled = false;
@@ -51,10 +48,6 @@ async function loadProcedure() {
   try {
     let result: ClinicalProcedure | null = null;
 
-    /*
-     * PRIMEIRA OPÇÃO:
-     * usar diretamente o ID do protocolo clínico.
-     */
     if (procedureId) {
       result =
         await clinicalProceduresRepository.get(
@@ -62,10 +55,6 @@ async function loadProcedure() {
         );
     }
 
-    /*
-     * SEGUNDA OPÇÃO:
-     * caso não exista procedureId, procura pelo nome.
-     */
     if (!result && procedure) {
       const procedures =
         await clinicalProceduresRepository.list();
@@ -166,9 +155,7 @@ onClick={() => onOpenChange(false)}
 
           <button
             type="button"
-            onClick={() =>
-              onOpenChange(false)
-            }
+            onClick={() => onOpenChange(false)}
             className="rounded-full p-1.5 text-text-muted hover:bg-card hover:text-text-primary"
             aria-label="Fechar revisão"
           >
@@ -187,8 +174,8 @@ onClick={() => onOpenChange(false)}
             </p>
 
             <p className="mt-1">
-              Não foi encontrado um protocolo
-              clínico cadastrado para:
+              Não foi encontrado um protocolo clínico
+              cadastrado para:
             </p>
 
             <p className="mt-2 font-medium text-primary">
@@ -197,7 +184,6 @@ onClick={() => onOpenChange(false)}
           </div>
         ) : (
           <div className="space-y-7 text-sm">
-            {/* DESCRIÇÃO / REVISÃO */}
             {clinicalProcedure.revisaoConteudo && (
               <section>
                 <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
@@ -211,7 +197,6 @@ onClick={() => onOpenChange(false)}
               </section>
             )}
 
-            {/* OBJETIVO / DESCRIÇÃO */}
             {clinicalProcedure.descricao && (
               <section>
                 <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
@@ -225,7 +210,6 @@ onClick={() => onOpenChange(false)}
               </section>
             )}
 
-            {/* MATERIAIS */}
             {materials.length > 0 && (
               <section>
                 <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
@@ -234,33 +218,29 @@ onClick={() => onOpenChange(false)}
                 </h4>
 
                 <ul className="space-y-1.5 text-text-secondary">
-                  {materials.map(
-                    (material, index) => (
-                      <li
-                        key={`${material.nome}-${index}`}
-                        className="flex items-start gap-2"
-                      >
-                        <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                  {materials.map((material, index) => (
+                    <li
+                      key={`${material.nome}-${index}`}
+                      className="flex items-start gap-2"
+                    >
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
 
-                        <span>
-                          {material.nome}
+                      <span>
+                        {material.nome}
 
-                          {material.quantidade &&
-                            material.quantidade > 1 && (
-                              <span className="ml-1 text-text-muted">
-                                ×{" "}
-                                {material.quantidade}
-                              </span>
-                            )}
-                        </span>
-                      </li>
-                    )
-                  )}
+                        {material.quantidade &&
+                          material.quantidade > 1 && (
+                            <span className="ml-1 text-text-muted">
+                              × {material.quantidade}
+                            </span>
+                          )}
+                      </span>
+                    </li>
+                  ))}
                 </ul>
               </section>
             )}
 
-            {/* PASSO A PASSO */}
             {steps.length > 0 && (
               <section>
                 <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
@@ -269,10 +249,9 @@ onClick={() => onOpenChange(false)}
                 </h4>
 
                 <ol className="space-y-3 text-text-secondary">
-                  {steps
+                  {[...steps]
                     .sort(
-                      (a, b) =>
-                        a.ordem - b.ordem
+                      (a, b) => a.ordem - b.ordem
                     )
                     .map((step) => (
                       <li
@@ -300,7 +279,6 @@ onClick={() => onOpenChange(false)}
               </section>
             )}
 
-            {/* ORIENTAÇÕES */}
             {orientations.length > 0 && (
               <section>
                 <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
@@ -330,7 +308,6 @@ onClick={() => onOpenChange(false)}
               </section>
             )}
 
-            {/* COMPLICAÇÕES */}
             {complications.length > 0 && (
               <section>
                 <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
@@ -360,7 +337,6 @@ onClick={() => onOpenChange(false)}
               </section>
             )}
 
-            {/* FOTOS */}
             {photos.length > 0 && (
               <section>
                 <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
@@ -369,30 +345,26 @@ onClick={() => onOpenChange(false)}
                 </h4>
 
                 <ul className="space-y-1.5 text-text-secondary">
-                  {photos.map(
-                    (photo, index) => (
-                      <li
-                        key={`${photo.fase}-${index}`}
-                        className="flex items-center justify-between"
-                      >
-                        <span className="capitalize">
-                          Foto{" "}
-                          {photo.fase}
-                        </span>
+                  {photos.map((photo, index) => (
+                    <li
+                      key={`${photo.fase}-${index}`}
+                      className="flex items-center justify-between"
+                    >
+                      <span className="capitalize">
+                        Foto {photo.fase}
+                      </span>
 
-                        {photo.obrigatoria && (
-                          <span className="text-xs font-medium text-warning">
-                            Obrigatória
-                          </span>
-                        )}
-                      </li>
-                    )
-                  )}
+                      {photo.obrigatoria && (
+                        <span className="text-xs font-medium text-warning">
+                          Obrigatória
+                        </span>
+                      )}
+                    </li>
+                  ))}
                 </ul>
               </section>
             )}
 
-            {/* CHECKLIST */}
             {checklist.length > 0 && (
               <section>
                 <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
@@ -408,16 +380,13 @@ onClick={() => onOpenChange(false)}
                     >
                       <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-success" />
 
-                      <span>
-                        {item.label}
-                      </span>
+                      <span>{item.label}</span>
                     </li>
                   ))}
                 </ul>
               </section>
             )}
 
-            {/* TEMPO DE REVISÃO */}
             {clinicalProcedure.tempoRevisao && (
               <div className="border-t border-border pt-4 text-center text-xs text-text-muted">
                 Tempo estimado de revisão:{" "}
