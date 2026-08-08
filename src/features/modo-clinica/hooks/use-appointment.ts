@@ -9,6 +9,8 @@ import {
 } from "react";
 
 import { appointmentsRepository } from "@/repositories/appointments.repository";
+import { photosRepository } from "@/repositories/photos.repository";
+
 import type {
   Appointment,
   ChecklistItem,
@@ -76,6 +78,7 @@ export function useAppointment(appointmentId?: string) {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const saveTimeout =
     useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -86,39 +89,41 @@ export function useAppointment(appointmentId?: string) {
     async function init() {
       setLoading(true);
 
-      if (appointmentId) {
-        const existing =
-          await appointmentsRepository.get(appointmentId);
+      try {
+        if (appointmentId) {
+          const existing =
+            await appointmentsRepository.get(appointmentId);
 
-        if (!cancelled) {
-          setAppointment(existing);
+          if (!cancelled) {
+            setAppointment(existing);
+          }
+        } else {
+          const created =
+            await appointmentsRepository.create({
+              discipline:
+                "Integrativa Dentística / Periodontia",
+
+              professor:
+                "Dra. Ana Militão",
+
+              procedure:
+                "Restauração Classe II",
+
+              checklist: DEFAULT_CHECKLIST,
+            });
+
+          if (!cancelled) {
+            setAppointment(created);
+          }
         }
-      } else {
-        const created =
-          await appointmentsRepository.create({
-            discipline:
-              "Integrativa Dentística / Periodontia",
-
-            professor:
-              "Dra. Ana Militão",
-
-            procedure:
-              "Restauração Classe II",
-
-            checklist: DEFAULT_CHECKLIST,
-          });
-
+      } finally {
         if (!cancelled) {
-          setAppointment(created);
+          setLoading(false);
         }
-      }
-
-      if (!cancelled) {
-        setLoading(false);
       }
     }
 
-    init();
+    void init();
 
     return () => {
       cancelled = true;
@@ -302,22 +307,69 @@ export function useAppointment(appointmentId?: string) {
     [persist, addTimelineEntry]
   );
 
-  /*
-   * IMPORTANTE:
+  /**
+   * Upload real da foto do atendimento.
    *
-   * Este método NÃO adiciona uma foto falsa.
+   * A foto é vinculada automaticamente:
+   * - ao paciente selecionado;
+   * - ao atendimento atual;
+   * - à fase escolhida;
+   * - à descrição informada.
    *
-   * Ele apenas registra a fase que o usuário pretende
-   * fotografar. O upload real será feito pelo seletor
-   * de arquivos do Modo Atendimento.
+   * O upload é feito pelo photosRepository, que já cuida
+   * do Supabase Storage e da tabela "fotos".
    */
   const addPhoto = useCallback(
-    (phase: "Antes" | "Durante" | "Depois") => {
-      addTimelineEntry(
-        `Foto selecionada para ${phase.toLowerCase()}`
-      );
+    async (
+      file: File,
+      meta: {
+        phase: "Antes" | "Durante" | "Depois";
+        description?: string;
+        disciplineId?: string;
+        patientId?: string;
+      }
+    ) => {
+      if (!appointment) {
+        throw new Error(
+          "Atendimento não encontrado."
+        );
+      }
+
+      if (!file) {
+        throw new Error(
+          "Nenhuma foto selecionada."
+        );
+      }
+
+      setUploadingPhoto(true);
+
+      try {
+        const phaseMap = {
+          Antes: "antes",
+          Durante: "durante",
+          Depois: "depois",
+        } as const;
+
+        await photosRepository.upload(file, {
+          description: meta.description,
+          phase: phaseMap[meta.phase],
+          disciplineId:
+            meta.disciplineId,
+          patientId:
+            meta.patientId ??
+            appointment.patientId,
+          appointmentId:
+            appointment.id,
+        });
+
+        addTimelineEntry(
+          `Foto adicionada — ${meta.phase}`
+        );
+      } finally {
+        setUploadingPhoto(false);
+      }
     },
-    [addTimelineEntry]
+    [appointment, addTimelineEntry]
   );
 
   const finish = useCallback(
@@ -340,7 +392,8 @@ export function useAppointment(appointmentId?: string) {
         {
           id: crypto.randomUUID(),
           time: nowLabel(),
-          description: "Atendimento finalizado",
+          description:
+            "Atendimento finalizado",
         },
       ];
 
@@ -391,6 +444,7 @@ export function useAppointment(appointmentId?: string) {
     appointment,
     loading,
     saving,
+    uploadingPhoto,
     checklistProgress,
     toggleChecklistItem,
     addMaterial,
