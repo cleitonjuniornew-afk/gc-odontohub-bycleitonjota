@@ -22,7 +22,7 @@ export const patientSchema = z.object({
 
   professor: z.string().optional(),
 
-  procedures: z.array(procedureSchema).default([]),
+  procedures: z.array(procedureSchema),
 
   nextReturn: z.string().optional(),
 
