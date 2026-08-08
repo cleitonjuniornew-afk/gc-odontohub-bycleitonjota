@@ -57,58 +57,51 @@ export interface ClinicalProcedure {
 
 type LocalRow = ClinicalProcedure;
 
-const localStore = createLocalStore<LocalRow>([]);
+const localStore = createLocalStore([]);
 
 function fromRow(row: any): ClinicalProcedure {
   return {
     id: row.id,
+
     userId: row.user_id ?? null,
 
     nome: row.nome ?? "",
     slug: row.slug ?? "",
 
-    disciplina:
-      row.disciplina ?? null,
+    disciplina: row.disciplina ?? null,
 
-    descricao:
-      row.descricao ?? null,
+    descricao: row.descricao ?? null,
 
-    revisaoTitulo:
-      row.revisao_titulo ?? null,
+    revisaoTitulo: row.revisao_titulo ?? null,
 
-    revisaoConteudo:
-      row.revisao_conteudo ?? null,
+    revisaoConteudo: row.revisao_conteudo ?? null,
 
-    passoAPasso:
-      row.passo_a_passo ?? [],
+    passoAPasso: row.passo_a_passo ?? [],
 
-    checklist:
-      row.checklist ?? [],
+    checklist: row.checklist ?? [],
 
-    materiais:
-      row.materiais ?? [],
+    materiais: row.materiais ?? [],
 
-    complicacoes:
-      row.complicacoes ?? [],
+    complicacoes: row.complicacoes ?? [],
 
-    orientacoes:
-      row.orientacoes ?? [],
+    orientacoes: row.orientacoes ?? [],
 
-    fotosNecessarias:
-      row.fotos_necessarias ?? [],
+    fotosNecessarias: row.fotos_necessarias ?? [],
 
-    tempoRevisao:
-      row.tempo_revisao ?? null,
+    tempoRevisao: row.tempo_revisao ?? null,
 
-    ativo:
-      row.ativo ?? true,
+    ativo: row.ativo ?? true,
   };
 }
 
 export const clinicalProceduresRepository = {
   async list(): Promise<ClinicalProcedure[]> {
     if (!isSupabaseConfigured) {
-      return localStore.list();
+      const rows = await localStore.list();
+
+      return rows.filter(
+        (item) => item.ativo !== false
+      );
     }
 
     const supabase = createClient();
@@ -162,5 +155,35 @@ export const clinicalProceduresRepository = {
     return data
       ? fromRow(data)
       : null;
+  },
+
+  async delete(
+    id: string
+  ): Promise<void> {
+    if (!isSupabaseConfigured) {
+      await localStore.update(
+        id,
+        {
+          ativo: false,
+        } as Partial<LocalRow>
+      );
+
+      return;
+    }
+
+    const supabase = createClient();
+
+    const {
+      error,
+    } = await supabase
+      .from("procedimentos_clinicos")
+      .update({
+        ativo: false,
+      })
+      .eq("id", id);
+
+    if (error) {
+      throw error;
+    }
   },
 };
