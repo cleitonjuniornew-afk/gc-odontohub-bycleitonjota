@@ -123,7 +123,8 @@ function toRow(input: Partial<Appointment>) {
   }
 
   if (input.procedureId !== undefined) {
-    row.procedimento_id = input.procedureId || null;
+    row.procedimento_id =
+      input.procedureId || null;
   }
 
   if (input.discipline !== undefined) {
@@ -143,7 +144,8 @@ function toRow(input: Partial<Appointment>) {
   }
 
   if (input.finishedAt !== undefined) {
-    row.finalizado_em = input.finishedAt;
+    row.finalizado_em =
+      input.finishedAt;
   }
 
   if (input.checklist !== undefined) {
@@ -155,20 +157,26 @@ function toRow(input: Partial<Appointment>) {
   }
 
   if (input.clinicalNotes !== undefined) {
-    row.anotacoes_clinicas = input.clinicalNotes;
+    row.anotacoes_clinicas =
+      input.clinicalNotes;
   }
 
   if (input.complications !== undefined) {
-    row.complicacoes = input.complications;
+    row.complicacoes =
+      input.complications;
   }
 
-  if (input.professorObservations !== undefined) {
+  if (
+    input.professorObservations !==
+    undefined
+  ) {
     row.observacoes_professor =
       input.professorObservations;
   }
 
   if (input.pendencies !== undefined) {
-    row.pendencias = input.pendencies;
+    row.pendencias =
+      input.pendencies;
   }
 
   if (input.returnDate !== undefined) {
@@ -182,7 +190,8 @@ function toRow(input: Partial<Appointment>) {
   }
 
   if (input.timeline !== undefined) {
-    row.timeline = input.timeline;
+    row.timeline =
+      input.timeline;
   }
 
   if (input.resumoComoFoi !== undefined) {
@@ -190,17 +199,26 @@ function toRow(input: Partial<Appointment>) {
       input.resumoComoFoi;
   }
 
-  if (input.resumoAprendizado !== undefined) {
+  if (
+    input.resumoAprendizado !==
+    undefined
+  ) {
     row.resumo_aprendizado =
       input.resumoAprendizado;
   }
 
-  if (input.resumoFariaDiferente !== undefined) {
+  if (
+    input.resumoFariaDiferente !==
+    undefined
+  ) {
     row.resumo_faria_diferente =
       input.resumoFariaDiferente;
   }
 
-  if (input.resumoDificuldade !== undefined) {
+  if (
+    input.resumoDificuldade !==
+    undefined
+  ) {
     row.resumo_dificuldade =
       input.resumoDificuldade;
   }
@@ -211,10 +229,16 @@ function toRow(input: Partial<Appointment>) {
 export const appointmentsRepository = {
   async list(): Promise<Appointment[]> {
     if (!isSupabaseConfigured) {
-      return localStore.list();
+      const rows =
+        await localStore.list();
+
+      return rows.filter(
+        (row) => !row.deletedAt
+      );
     }
 
-    const supabase = createClient();
+    const supabase =
+      createClient();
 
     const {
       data,
@@ -231,7 +255,9 @@ export const appointmentsRepository = {
       throw error;
     }
 
-    return (data ?? []).map(fromRow);
+    return (data ?? []).map(
+      fromRow
+    );
   },
 
   async get(
@@ -241,15 +267,18 @@ export const appointmentsRepository = {
       const all =
         await localStore.list();
 
-      return (
+      const found =
         all.find(
           (appointment) =>
-            appointment.id === id
-        ) ?? null
-      );
+            appointment.id === id &&
+            !appointment.deletedAt
+        );
+
+      return found ?? null;
     }
 
-    const supabase = createClient();
+    const supabase =
+      createClient();
 
     const {
       data,
@@ -258,6 +287,7 @@ export const appointmentsRepository = {
       .from("atendimentos")
       .select("*")
       .eq("id", id)
+      .is("deleted_at", null)
       .maybeSingle();
 
     if (error) {
@@ -303,24 +333,25 @@ export const appointmentsRepository = {
         clinicalNotes:
           input.clinicalNotes ?? "",
 
-        timeline: [
-          {
-            id:
-              crypto.randomUUID(),
+        timeline:
+          input.timeline ?? [
+            {
+              id:
+                crypto.randomUUID(),
 
-            time:
-              new Date().toLocaleTimeString(
-                "pt-BR",
-                {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }
-              ),
+              time:
+                new Date().toLocaleTimeString(
+                  "pt-BR",
+                  {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }
+                ),
 
-            description:
-              "Atendimento iniciado",
-          },
-        ],
+              description:
+                "Atendimento iniciado",
+            },
+          ],
 
         ...input,
       } as LocalRow);
@@ -330,11 +361,14 @@ export const appointmentsRepository = {
       createClient();
 
     const {
-      data: { user },
+      data: {
+        user,
+      },
     } =
       await supabase.auth.getUser();
 
-    const row = toRow(input);
+    const row =
+      toRow(input);
 
     const {
       data,
@@ -367,7 +401,7 @@ export const appointmentsRepository = {
     if (!isSupabaseConfigured) {
       return localStore.update(
         id,
-        input as Partial<LocalRow>
+        input
       );
     }
 
@@ -379,7 +413,9 @@ export const appointmentsRepository = {
       error,
     } = await supabase
       .from("atendimentos")
-      .update(toRow(input))
+      .update(
+        toRow(input)
+      )
       .eq("id", id)
       .select()
       .single();
@@ -395,10 +431,13 @@ export const appointmentsRepository = {
     id: string
   ): Promise<void> {
     if (!isSupabaseConfigured) {
-      await localStore.update(id, {
-        deletedAt:
-          new Date().toISOString(),
-      });
+      await localStore.update(
+        id,
+        {
+          deletedAt:
+            new Date().toISOString(),
+        }
+      );
 
       return;
     }
