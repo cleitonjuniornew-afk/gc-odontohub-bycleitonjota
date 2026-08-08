@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash2, Pencil, Check, X } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Pencil,
+  Check,
+  X,
+} from "lucide-react";
 
 import {
   patientSchema,
@@ -24,12 +30,17 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 import { calculateAge } from "@/lib/age";
-import type { Patient, PatientProcedure } from "@/types";
+import type {
+  Patient,
+  PatientProcedure,
+} from "@/types";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: Omit<Patient, "id">) => Promise<void> | void;
+  onSubmit: (
+    data: Omit<Patient, "id">
+  ) => Promise<void> | void;
   submitting?: boolean;
   initialData?: Patient | null;
 }
@@ -78,13 +89,18 @@ export function PatientFormModal({
     },
   });
 
-  const [procedures, setProcedures] = useState<PatientProcedure[]>([]);
+  const [procedures, setProcedures] = useState<
+    PatientProcedure[]
+  >([]);
+
   const [procedureDraft, setProcedureDraft] =
     useState<ProcedureDraft>(EMPTY_PROCEDURE);
+
   const [editingProcedureId, setEditingProcedureId] =
     useState<string | null>(null);
 
   const birthDate = watch("birthDate");
+
   const computedAge = calculateAge(birthDate);
 
   useEffect(() => {
@@ -101,7 +117,9 @@ export function PatientFormModal({
         notes: initialData.notes ?? "",
       });
 
-      setProcedures(initialData.procedures ?? []);
+      setProcedures(
+        initialData.procedures ?? []
+      );
     } else {
       reset({
         name: "",
@@ -131,18 +149,32 @@ export function PatientFormModal({
   }
 
   function saveProcedureDraft() {
-    if (!procedureDraft.procedure.trim()) return;
+    if (!procedureDraft.procedure.trim()) {
+      return;
+    }
 
     const procedure: PatientProcedure = {
       id:
-        editingProcedureId ??
+        editingProcedureId ||
         procedureDraft.id ||
         crypto.randomUUID(),
-      procedure: procedureDraft.procedure.trim(),
+
+      procedure:
+        procedureDraft.procedure.trim(),
+
       status: procedureDraft.status,
-      tooth: procedureDraft.tooth.trim() || undefined,
-      region: procedureDraft.region.trim() || undefined,
-      details: procedureDraft.details.trim() || undefined,
+
+      tooth:
+        procedureDraft.tooth.trim() ||
+        undefined,
+
+      region:
+        procedureDraft.region.trim() ||
+        undefined,
+
+      details:
+        procedureDraft.details.trim() ||
+        undefined,
     };
 
     if (editingProcedureId) {
@@ -154,15 +186,25 @@ export function PatientFormModal({
         )
       );
     } else {
-      setProcedures((prev) => [...prev, procedure]);
+      setProcedures((prev) => [
+        ...prev,
+        procedure,
+      ]);
     }
 
-    setProcedureDraft(EMPTY_PROCEDURE);
+    setProcedureDraft(
+      EMPTY_PROCEDURE
+    );
+
     setEditingProcedureId(null);
   }
 
-  function editProcedure(procedure: PatientProcedure) {
-    setEditingProcedureId(procedure.id);
+  function editProcedure(
+    procedure: PatientProcedure
+  ) {
+    setEditingProcedureId(
+      procedure.id
+    );
 
     setProcedureDraft({
       id: procedure.id,
@@ -176,37 +218,63 @@ export function PatientFormModal({
 
   function removeProcedure(id: string) {
     setProcedures((prev) =>
-      prev.filter((procedure) => procedure.id !== id)
+      prev.filter(
+        (procedure) =>
+          procedure.id !== id
+      )
     );
 
     if (editingProcedureId === id) {
       setEditingProcedureId(null);
-      setProcedureDraft(EMPTY_PROCEDURE);
+      setProcedureDraft(
+        EMPTY_PROCEDURE
+      );
     }
   }
 
   function cancelProcedureEdit() {
     setEditingProcedureId(null);
-    setProcedureDraft(EMPTY_PROCEDURE);
+    setProcedureDraft(
+      EMPTY_PROCEDURE
+    );
   }
 
-  async function submit(data: PatientFormInput) {
+  async function submit(
+    data: PatientFormInput
+  ) {
     await onSubmit({
       name: data.name,
-      phone: data.phone || undefined,
-      birthDate: data.birthDate || undefined,
-      age: calculateAge(data.birthDate),
-      professor: data.professor || undefined,
+
+      phone:
+        data.phone || undefined,
+
+      birthDate:
+        data.birthDate || undefined,
+
+      age: calculateAge(
+        data.birthDate
+      ),
+
+      professor:
+        data.professor || undefined,
+
       procedures,
-      nextReturn: data.nextReturn || undefined,
-      notes: data.notes || undefined,
+
+      nextReturn:
+        data.nextReturn || undefined,
+
+      notes:
+        data.notes || undefined,
     });
 
     onOpenChange(false);
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
@@ -216,8 +284,8 @@ export function PatientFormModal({
           </DialogTitle>
 
           <DialogDescription>
-            A idade é calculada automaticamente a partir
-            da data de nascimento.
+            A idade é calculada automaticamente
+            a partir da data de nascimento.
           </DialogDescription>
         </DialogHeader>
 
@@ -225,6 +293,7 @@ export function PatientFormModal({
           onSubmit={handleSubmit(submit)}
           className="space-y-5"
         >
+          {/* NOME */}
           <div>
             <Label htmlFor="name">
               Nome
@@ -244,6 +313,7 @@ export function PatientFormModal({
             )}
           </div>
 
+          {/* TELEFONE / NASCIMENTO */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="phone">
@@ -278,6 +348,7 @@ export function PatientFormModal({
             </div>
           </div>
 
+          {/* PROFESSOR */}
           <div>
             <Label htmlFor="professor">
               Professor responsável
@@ -300,8 +371,9 @@ export function PatientFormModal({
                 </Label>
 
                 <p className="mt-1 text-xs text-text-muted">
-                  Cadastre os procedimentos planejados ou
-                  realizados para este paciente.
+                  Cadastre os procedimentos
+                  planejados ou realizados
+                  para este paciente.
                 </p>
               </div>
 
@@ -315,83 +387,99 @@ export function PatientFormModal({
               )}
             </div>
 
-            {/* LISTA */}
+            {/* PROCEDIMENTOS CADASTRADOS */}
             {procedures.length > 0 && (
               <div className="space-y-2">
-                {procedures.map((procedure) => (
-                  <div
-                    key={procedure.id}
-                    className="rounded-lg border border-border bg-card p-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-medium text-text-primary">
-                          {procedure.procedure}
-                        </p>
+                {procedures.map(
+                  (procedure) => (
+                    <div
+                      key={procedure.id}
+                      className="rounded-lg border border-border bg-card p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-medium text-text-primary">
+                            {
+                              procedure.procedure
+                            }
+                          </p>
 
-                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-text-muted">
-                          <span>
-                            {procedure.status ===
-                            "PLANEJADO"
-                              ? "Planejado"
-                              : procedure.status ===
-                                  "EM_ANDAMENTO"
-                                ? "Em andamento"
-                                : "Concluído"}
-                          </span>
-
-                          {procedure.tooth && (
+                          <div className="mt-1 flex flex-wrap gap-2 text-xs text-text-muted">
                             <span>
-                              Dente: {procedure.tooth}
+                              {procedure.status ===
+                              "PLANEJADO"
+                                ? "Planejado"
+                                : procedure.status ===
+                                    "EM_ANDAMENTO"
+                                  ? "Em andamento"
+                                  : "Concluído"}
                             </span>
-                          )}
 
-                          {procedure.region && (
-                            <span>
-                              Região: {procedure.region}
-                            </span>
+                            {procedure.tooth && (
+                              <span>
+                                Dente:{" "}
+                                {
+                                  procedure.tooth
+                                }
+                              </span>
+                            )}
+
+                            {procedure.region && (
+                              <span>
+                                Região:{" "}
+                                {
+                                  procedure.region
+                                }
+                              </span>
+                            )}
+                          </div>
+
+                          {procedure.details && (
+                            <p className="mt-2 text-sm text-text-secondary">
+                              {
+                                procedure.details
+                              }
+                            </p>
                           )}
                         </div>
 
-                        {procedure.details && (
-                          <p className="mt-2 text-sm text-text-secondary">
-                            {procedure.details}
-                          </p>
-                        )}
-                      </div>
+                        <div className="flex shrink-0 gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              editProcedure(
+                                procedure
+                              )
+                            }
+                            title="Editar procedimento"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
 
-                      <div className="flex shrink-0 gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() =>
-                            editProcedure(procedure)
-                          }
-                          title="Editar procedimento"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() =>
-                            removeProcedure(procedure.id)
-                          }
-                          title="Excluir procedimento"
-                        >
-                          <Trash2 className="h-4 w-4 text-error" />
-                        </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              removeProcedure(
+                                procedure.id
+                              )
+                            }
+                            title="Excluir procedimento"
+                          >
+                            <Trash2 className="h-4 w-4 text-error" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                )}
               </div>
             )}
 
-            {/* FORMULÁRIO DO PROCEDIMENTO */}
+            {/* ADICIONAR / EDITAR PROCEDIMENTO */}
             <div className="rounded-lg border border-border bg-surface/50 p-4">
               <div className="mb-3 flex items-center gap-2">
                 {editingProcedureId ? (
@@ -408,13 +496,16 @@ export function PatientFormModal({
               </div>
 
               <div className="space-y-3">
+                {/* PROCEDIMENTO */}
                 <div>
                   <Label>
                     Procedimento
                   </Label>
 
                   <Input
-                    value={procedureDraft.procedure}
+                    value={
+                      procedureDraft.procedure
+                    }
                     onChange={(e) =>
                       updateDraft(
                         "procedure",
@@ -426,6 +517,7 @@ export function PatientFormModal({
                   />
                 </div>
 
+                {/* STATUS / DENTE */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label>
@@ -433,7 +525,9 @@ export function PatientFormModal({
                     </Label>
 
                     <select
-                      value={procedureDraft.status}
+                      value={
+                        procedureDraft.status
+                      }
                       onChange={(e) =>
                         updateDraft(
                           "status",
@@ -462,7 +556,9 @@ export function PatientFormModal({
                     </Label>
 
                     <Input
-                      value={procedureDraft.tooth}
+                      value={
+                        procedureDraft.tooth
+                      }
                       onChange={(e) =>
                         updateDraft(
                           "tooth",
@@ -475,13 +571,16 @@ export function PatientFormModal({
                   </div>
                 </div>
 
+                {/* REGIÃO */}
                 <div>
                   <Label>
                     Região
                   </Label>
 
                   <Input
-                    value={procedureDraft.region}
+                    value={
+                      procedureDraft.region
+                    }
                     onChange={(e) =>
                       updateDraft(
                         "region",
@@ -493,13 +592,16 @@ export function PatientFormModal({
                   />
                 </div>
 
+                {/* DETALHES */}
                 <div>
                   <Label>
                     Detalhes clínicos
                   </Label>
 
                   <Textarea
-                    value={procedureDraft.details}
+                    value={
+                      procedureDraft.details
+                    }
                     onChange={(e) =>
                       updateDraft(
                         "details",
@@ -511,12 +613,15 @@ export function PatientFormModal({
                   />
                 </div>
 
+                {/* BOTÕES */}
                 <div className="flex justify-end gap-2">
                   {editingProcedureId && (
                     <Button
                       type="button"
                       variant="ghost"
-                      onClick={cancelProcedureEdit}
+                      onClick={
+                        cancelProcedureEdit
+                      }
                     >
                       <X className="h-4 w-4" />
                       Cancelar
@@ -526,7 +631,9 @@ export function PatientFormModal({
                   <Button
                     type="button"
                     variant="secondary"
-                    onClick={saveProcedureDraft}
+                    onClick={
+                      saveProcedureDraft
+                    }
                     disabled={
                       !procedureDraft.procedure.trim()
                     }
@@ -548,6 +655,7 @@ export function PatientFormModal({
             </div>
           </div>
 
+          {/* RETORNO */}
           <div>
             <Label htmlFor="nextReturn">
               Próximo retorno
@@ -561,6 +669,7 @@ export function PatientFormModal({
             />
           </div>
 
+          {/* OBSERVAÇÕES */}
           <div>
             <Label htmlFor="notes">
               Observações
@@ -574,11 +683,14 @@ export function PatientFormModal({
             />
           </div>
 
+          {/* AÇÕES */}
           <div className="flex justify-end gap-3 pt-2">
             <Button
               type="button"
               variant="ghost"
-              onClick={() => onOpenChange(false)}
+              onClick={() =>
+                onOpenChange(false)
+              }
             >
               Cancelar
             </Button>
