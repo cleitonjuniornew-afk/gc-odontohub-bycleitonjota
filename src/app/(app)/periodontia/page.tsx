@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Stethoscope } from "lucide-react";
-
-import { Odontogram } from "@/features/periodontia/components/odontogram";
+import { Odontogram } from "./components/odontogram";
 
 export default function PeriodontiaPage() {
   return (
@@ -30,38 +29,49 @@ export default function PeriodontiaPage() {
             </div>
 
             <div>
-              <CardTitle>Exame Periodontal</CardTitle>
-
+              <CardTitle>Odontograma</CardTitle>
               <p className="mt-1 text-sm text-text-secondary">
-                Selecione um paciente para iniciar o exame.
+                Selecione os dentes para registrar as condições clínicas.
               </p>
             </div>
           </div>
         </CardHeader>
 
         <CardContent>
-          <div className="flex min-h-[300px] flex-col items-center justify-center rounded-xl border border-dashed border-border text-center">
+          <Odontogram />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Exame Periodontal</CardTitle>
+          <p className="mt-1 text-sm text-text-secondary">
+            O periodontograma completo será integrado a este exame.
+          </p>
+        </CardHeader>
+
+        <CardContent>
+          <div className="flex min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-border text-center">
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
               <Stethoscope className="h-7 w-7 text-primary" />
             </div>
 
             <h3 className="text-base font-semibold text-text-primary">
-              Nenhum exame periodontal selecionado
+              Periodontograma
             </h3>
 
             <p className="mt-2 max-w-md text-sm text-text-secondary">
-              Selecione um paciente para iniciar o odontograma e o
-              periodontograma completo.
+              Aqui vamos adicionar a sondagem periodontal, sangramento à
+              sondagem, recessão gengival, nível de inserção clínica,
+              mobilidade, furca e demais informações do exame.
             </p>
 
             <Badge variant="secondary" className="mt-4">
-              Novo módulo
+              Próxima etapa
             </Badge>
           </div>
         </CardContent>
       </Card>
-
-      <Odontogram />
     </div>
   );
 }
