@@ -11,7 +11,6 @@ import {
 } from "@/animations/variants";
 
 import { useAppointment } from "@/features/modo-clinica/hooks/use-appointment";
-import { photosRepository } from "@/repositories/photos.repository";
 
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -31,13 +30,18 @@ import {
 } from "@/features/modo-clinica/components/secondary-cards";
 
 import { TimelineCard } from "@/features/modo-clinica/components/timeline-card";
+
 import { FloatingActionButton } from "@/features/modo-clinica/components/floating-action-button";
+
 import { FinishAppointmentModal } from "@/features/modo-clinica/components/finish-appointment-modal";
+
 import { AppointmentFinishedView } from "@/features/modo-clinica/components/appointment-finished-view";
 
 function ModoAtendimentoInner() {
   const searchParams = useSearchParams();
-  const appointmentId = searchParams.get("id") ?? undefined;
+
+  const appointmentId =
+    searchParams.get("id") ?? undefined;
 
   const {
     appointment,
@@ -48,61 +52,73 @@ function ModoAtendimentoInner() {
     removeMaterial,
     updateField,
     selectPatient,
+    addPhoto,
     addTimelineEntry,
     finish,
   } = useAppointment(appointmentId);
 
-  const [finishModalOpen, setFinishModalOpen] = useState(false);
+  const [finishModalOpen, setFinishModalOpen] =
+    useState(false);
 
+  /**
+   * Estado de carregamento
+   */
   if (loading || !appointment) {
     return (
-      <div className="mx-auto grid max-w-6xl gap-5 px-5 py-6 sm:px-8 lg:grid-cols-3 lg:py-8">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="space-y-5">
-            <Skeleton className="h-48 w-full rounded-xl" />
-            <Skeleton className="h-48 w-full rounded-xl" />
-            <Skeleton className="h-48 w-full rounded-xl" />
-          </div>
-        ))}
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto max-w-6xl space-y-5 px-5 py-6 sm:px-8 lg:py-8">
+          {[1, 2, 3].map((i) => (
+            <Skeleton
+              key={i}
+              className="h-32 w-full rounded-xl"
+            />
+          ))}
+        </div>
       </div>
     );
   }
 
+  /**
+   * Atendimento já finalizado
+   */
   if (appointment.status === "FINALIZADO") {
-    return <AppointmentFinishedView appointment={appointment} />;
+    return (
+      <AppointmentFinishedView
+        appointment={appointment}
+      />
+    );
   }
 
   /**
    * Upload real da foto.
    *
-   * O PhotosCard envia:
-   * - arquivo
-   * - fase
+   * A fase usa sempre:
+   * "antes" | "durante" | "depois"
    *
-   * O photosRepository salva:
-   * - arquivo no Supabase Storage
-   * - registro na tabela fotos
+   * O PhotosCard já trabalha com esse mesmo formato.
    */
   const handleAddPhoto = async (
     file: File,
-    phase: "Antes" | "Durante" | "Depois"
+    phase: "antes" | "durante" | "depois"
   ) => {
     try {
-      await photosRepository.upload(file, {
+      await addPhoto(file, {
         phase,
         disciplineId: undefined,
         patientId: appointment.patientId,
         appointmentId: appointment.id,
       });
 
-      addTimelineEntry(
-        `Foto adicionada: ${phase.toLowerCase()}`
+      toast.success("Foto adicionada.");
+    } catch (error) {
+      console.error(
+        "Erro ao adicionar foto:",
+        error
       );
 
-      toast.success("Foto adicionada com sucesso.");
-    } catch (error) {
-      console.error("Erro ao adicionar foto:", error);
-      toast.error("Não foi possível adicionar a foto.");
+      toast.error(
+        "Não foi possível adicionar a foto."
+      );
     }
   };
 
@@ -115,7 +131,9 @@ function ModoAtendimentoInner() {
       <ClinicalHeader
         startedAt={appointment.startedAt}
         saving={saving}
-        onFinish={() => setFinishModalOpen(true)}
+        onFinish={() =>
+          setFinishModalOpen(true)
+        }
       />
 
       <motion.div
@@ -131,7 +149,9 @@ function ModoAtendimentoInner() {
             onSelectPatient={selectPatient}
           />
 
-          <ProcedureCard appointment={appointment} />
+          <ProcedureCard
+            appointment={appointment}
+          />
 
           <ChecklistCard
             checklist={appointment.checklist}
@@ -141,12 +161,17 @@ function ModoAtendimentoInner() {
 
         {/* COLUNA 2 */}
         <div className="space-y-5">
-          <PhotosCard onAdd={handleAddPhoto} />
+          <PhotosCard
+            onAdd={handleAddPhoto}
+          />
 
           <NotesCard
             value={appointment.clinicalNotes}
-            onChange={(v) =>
-              updateField("clinicalNotes", v)
+            onChange={(value) =>
+              updateField(
+                "clinicalNotes",
+                value
+              )
             }
           />
 
@@ -188,44 +213,67 @@ function ModoAtendimentoInner() {
       {/* BOTÃO FLUTUANTE */}
       <FloatingActionButton
         onPhoto={() => {
-          const input = document.createElement("input");
+          const input =
+            document.createElement("input");
 
           input.type = "file";
           input.accept = "image/*";
+          input.multiple = false;
 
           input.onchange = async () => {
-            const file = input.files?.[0];
+            const file =
+              input.files?.[0];
 
             if (!file) return;
 
-            await handleAddPhoto(file, "Durante");
+            await handleAddPhoto(
+              file,
+              "durante"
+            );
           };
 
           input.click();
         }}
         onNote={() =>
-          addTimelineEntry("Observação adicionada")
+          addTimelineEntry(
+            "Observação adicionada"
+          )
         }
         onMaterial={() =>
-          addTimelineEntry("Material adicionado")
+          addTimelineEntry(
+            "Material adicionado"
+          )
         }
         onPendency={() =>
-          addTimelineEntry("Pendência adicionada")
+          addTimelineEntry(
+            "Pendência adicionada"
+          )
         }
       />
 
-      {/* FINALIZAR ATENDIMENTO */}
+      {/* MODAL DE FINALIZAÇÃO */}
       <FinishAppointmentModal
         open={finishModalOpen}
         onOpenChange={setFinishModalOpen}
         onConfirm={async (data) => {
-          await finish(data);
+          try {
+            await finish(data);
 
-          setFinishModalOpen(false);
+            setFinishModalOpen(false);
 
-          toast.success(
-            "Atendimento finalizado com sucesso."
-          );
+            toast.success(
+              "Atendimento finalizado com sucesso."
+            );
+          } catch (error) {
+            console.error(
+              "Erro ao finalizar atendimento:",
+              error
+            );
+
+            toast.error(
+              "Não foi possível finalizar o atendimento."
+            );
+          }
         }}
       />
     </motion.div>
@@ -236,8 +284,15 @@ export default function ModoAtendimentoPage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-6xl px-5 py-8">
-          <Skeleton className="h-12 w-full rounded-xl" />
+        <div className="min-h-screen bg-background">
+          <div className="mx-auto max-w-6xl space-y-5 px-5 py-6 sm:px-8 lg:py-8">
+            {[1, 2, 3].map((i) => (
+              <Skeleton
+                key={i}
+                className="h-32 w-full rounded-xl"
+              />
+            ))}
+          </div>
         </div>
       }
     >
