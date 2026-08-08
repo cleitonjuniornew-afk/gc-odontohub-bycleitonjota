@@ -21,6 +21,10 @@ const localStore = createLocalStore(
   }))
 );
 
+/* =========================================================
+   MAPEADORES
+   ========================================================= */
+
 function fromProcedureRow(
   row: any
 ): PatientProcedure {
@@ -105,13 +109,14 @@ function fromRow(row: any): Patient {
   };
 }
 
+/* =========================================================
+   PACIENTE -> ROW SUPABASE
+   ========================================================= */
+
 function patientToRow(
   input: Partial<Patient>
-) {
-  const row: Record<
-    string,
-    unknown
-  > = {};
+): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
 
   if (input.name !== undefined) {
     row.nome = input.name;
@@ -159,6 +164,10 @@ function patientToRow(
   return row;
 }
 
+/* =========================================================
+   PROCEDIMENTO -> ROW SUPABASE
+   ========================================================= */
+
 function procedureToRow(
   procedure: PatientProcedure,
   patientId: string,
@@ -180,20 +189,42 @@ function procedureToRow(
       procedure.status,
 
     dente:
-      procedure.tooth || null,
+      procedure.tooth ||
+      null,
 
     regiao:
-      procedure.region || null,
+      procedure.region ||
+      null,
 
     detalhes:
-      procedure.details || null,
+      procedure.details ||
+      null,
   };
 }
 
+/* =========================================================
+   REPOSITÓRIO
+   ========================================================= */
+
 export const patientsRepository = {
+
+  /* =======================================================
+     LISTAR PACIENTES
+     ======================================================= */
+
   async list(): Promise<Patient[]> {
     if (!isSupabaseConfigured) {
-      return localStore.list();
+      const patients =
+        await localStore.list();
+
+      return patients
+        .filter(
+          (patient) =>
+            !patient.deletedAt
+        )
+        .map((patient) =>
+          fromRow(patient)
+        );
     }
 
     const supabase =
@@ -223,12 +254,29 @@ export const patientsRepository = {
     );
   },
 
+  /* =======================================================
+     BUSCAR UM PACIENTE
+     ======================================================= */
+
   async get(
     id: string
   ): Promise<Patient> {
+
+    /*
+     * MODO LOCAL
+     *
+     * createLocalStore não possui .get().
+     * Então buscamos pelo list().
+     */
     if (!isSupabaseConfigured) {
+      const patients =
+        await localStore.list();
+
       const patient =
-        await localStore.get(id);
+        patients.find(
+          (item) =>
+            item.id === id
+        );
 
       if (!patient) {
         throw new Error(
@@ -236,9 +284,12 @@ export const patientsRepository = {
         );
       }
 
-      return patient;
+      return fromRow(patient);
     }
 
+    /*
+     * SUPABASE
+     */
     const supabase =
       createClient();
 
@@ -251,7 +302,10 @@ export const patientsRepository = {
         *,
         paciente_procedimentos (*)
       `)
-      .eq("id", id)
+      .eq(
+        "id",
+        id
+      )
       .single();
 
     if (error) {
@@ -261,17 +315,33 @@ export const patientsRepository = {
     return fromRow(data);
   },
 
+  /* =======================================================
+     CRIAR PACIENTE
+     ======================================================= */
+
   async create(
     input: Omit<Patient, "id">
   ): Promise<Patient> {
+
+    /*
+     * MODO LOCAL
+     */
     if (!isSupabaseConfigured) {
-      return localStore.create({
-        ...input,
-        procedures:
-          input.procedures ?? [],
-      } as LocalRow);
+      const created =
+        await localStore.create({
+          ...input,
+
+          procedures:
+            input.procedures ??
+            [],
+        } as LocalRow);
+
+      return fromRow(created);
     }
 
+    /*
+     * SUPABASE
+     */
     const supabase =
       createClient();
 
@@ -289,8 +359,10 @@ export const patientsRepository = {
       .from("pacientes")
       .insert({
         ...patientToRow(input),
+
         user_id:
-          user?.id ?? null,
+          user?.id ??
+          null,
       })
       .select()
       .single();
@@ -302,10 +374,13 @@ export const patientsRepository = {
     const patient =
       fromRow(data);
 
+    /*
+     * Salva os procedimentos
+     * vinculados ao paciente.
+     */
     if (
       input.procedures &&
-      input.procedures.length >
-        0
+      input.procedures.length > 0
     ) {
       const procedureRows =
         input.procedures.map(
@@ -320,37 +395,57 @@ export const patientsRepository = {
       const {
         error:
           procedureError,
-      } = await supabase
-        .from(
-          "paciente_procedimentos"
-        )
-        .insert(
-          procedureRows
-        );
+      } =
+        await supabase
+          .from(
+            "paciente_procedimentos"
+          )
+          .insert(
+            procedureRows
+          );
 
       if (procedureError) {
         throw procedureError;
       }
     }
 
+    /*
+     * Retorna o paciente completo
+     * com os procedimentos.
+     */
     return {
       ...patient,
       procedures:
-        input.procedures ?? [],
+        input.procedures ??
+        [],
     };
   },
+
+  /* =======================================================
+     ATUALIZAR PACIENTE
+     ======================================================= */
 
   async update(
     id: string,
     input: Partial<Patient>
   ): Promise<Patient> {
+
+    /*
+     * MODO LOCAL
+     */
     if (!isSupabaseConfigured) {
-      return localStore.update(
-        id,
-        input
-      );
+      const updated =
+        await localStore.update(
+          id,
+          input
+        );
+
+      return fromRow(updated);
     }
 
+    /*
+     * SUPABASE
+     */
     const supabase =
       createClient();
 
@@ -361,6 +456,10 @@ export const patientsRepository = {
     } =
       await supabase.auth.getUser();
 
+    /*
+     * Atualiza os dados básicos
+     * do paciente.
+     */
     const patientFields =
       patientToRow(input);
 
@@ -371,39 +470,55 @@ export const patientsRepository = {
     ) {
       const {
         error,
-      } = await supabase
-        .from("pacientes")
-        .update(
-          patientFields
-        )
-        .eq("id", id);
+      } =
+        await supabase
+          .from("pacientes")
+          .update(
+            patientFields
+          )
+          .eq(
+            "id",
+            id
+          );
 
       if (error) {
         throw error;
       }
     }
 
+    /*
+     * Se os procedimentos foram
+     * enviados, substituímos a lista
+     * pelos procedimentos atuais.
+     */
     if (
       input.procedures !==
       undefined
     ) {
+      /*
+       * Remove os antigos.
+       */
       const {
         error:
           deleteError,
-      } = await supabase
-        .from(
-          "paciente_procedimentos"
-        )
-        .delete()
-        .eq(
-          "paciente_id",
-          id
-        );
+      } =
+        await supabase
+          .from(
+            "paciente_procedimentos"
+          )
+          .delete()
+          .eq(
+            "paciente_id",
+            id
+          );
 
       if (deleteError) {
         throw deleteError;
       }
 
+      /*
+       * Insere os novos.
+       */
       if (
         input.procedures.length >
         0
@@ -421,13 +536,14 @@ export const patientsRepository = {
         const {
           error:
             insertError,
-        } = await supabase
-          .from(
-            "paciente_procedimentos"
-          )
-          .insert(
-            procedureRows
-          );
+        } =
+          await supabase
+            .from(
+              "paciente_procedimentos"
+            )
+            .insert(
+              procedureRows
+            );
 
         if (insertError) {
           throw insertError;
@@ -435,12 +551,44 @@ export const patientsRepository = {
       }
     }
 
-    return this.get(id);
+    /*
+     * Busca novamente para garantir
+     * que retornamos o paciente completo.
+     */
+    const {
+      data,
+      error,
+    } =
+      await supabase
+        .from("pacientes")
+        .select(`
+          *,
+          paciente_procedimentos (*)
+        `)
+        .eq(
+          "id",
+          id
+        )
+        .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return fromRow(data);
   },
+
+  /* =======================================================
+     EXCLUIR PACIENTE
+     ======================================================= */
 
   async softDelete(
     id: string
   ): Promise<void> {
+
+    /*
+     * MODO LOCAL
+     */
     if (!isSupabaseConfigured) {
       await localStore.softDelete(
         id
@@ -449,27 +597,42 @@ export const patientsRepository = {
       return;
     }
 
+    /*
+     * SUPABASE
+     */
     const supabase =
       createClient();
 
     const {
       error,
-    } = await supabase
-      .from("pacientes")
-      .update({
-        deleted_at:
-          new Date().toISOString(),
-      })
-      .eq("id", id);
+    } =
+      await supabase
+        .from("pacientes")
+        .update({
+          deleted_at:
+            new Date().toISOString(),
+        })
+        .eq(
+          "id",
+          id
+        );
 
     if (error) {
       throw error;
     }
   },
 
+  /* =======================================================
+     RESTAURAR PACIENTE
+     ======================================================= */
+
   async restore(
     id: string
   ): Promise<void> {
+
+    /*
+     * MODO LOCAL
+     */
     if (!isSupabaseConfigured) {
       await localStore.restore(
         id
@@ -478,17 +641,25 @@ export const patientsRepository = {
       return;
     }
 
+    /*
+     * SUPABASE
+     */
     const supabase =
       createClient();
 
     const {
       error,
-    } = await supabase
-      .from("pacientes")
-      .update({
-        deleted_at: null,
-      })
-      .eq("id", id);
+    } =
+      await supabase
+        .from("pacientes")
+        .update({
+          deleted_at:
+            null,
+        })
+        .eq(
+          "id",
+          id
+        );
 
     if (error) {
       throw error;
