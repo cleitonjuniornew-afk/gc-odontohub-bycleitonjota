@@ -11,14 +11,9 @@ import type {
 } from "@/types";
 
 /*
- * O armazenamento local usa deletedAt como null.
- * Mantemos exatamente o mesmo formato usado na criação
- * do localStore para evitar conflitos de tipagem.
+ * O armazenamento local mantém deletedAt internamente,
+ * mas a aplicação trabalha apenas com Patient.
  */
-type LocalPatient = Patient & {
-  deletedAt: null;
-};
-
 const localStore = createLocalStore(
   seedPatients.map((patient) => ({
     ...patient,
@@ -27,8 +22,27 @@ const localStore = createLocalStore(
 );
 
 /*
+ * Remove o campo interno deletedAt antes de devolver
+ * o paciente para o restante da aplicação.
+ */
+function cleanLocalPatient(
+  patient: Awaited<
+    ReturnType<typeof localStore.list>
+  >[number]
+): Patient {
+  const {
+    deletedAt,
+    ...cleanPatient
+  } = patient;
+
+  void deletedAt;
+
+  return cleanPatient;
+}
+
+/*
  * Converte uma linha de paciente_procedimentos
- * do Supabase para o formato usado pela aplicação.
+ * para o formato usado pela aplicação.
  */
 function fromProcedureRow(
   row: any
@@ -63,9 +77,12 @@ function fromProcedureRow(
 }
 
 /*
- * Converte uma linha do Supabase para Patient.
+ * Converte uma linha do Supabase
+ * para Patient.
  */
-function fromRow(row: any): Patient {
+function fromRow(
+  row: any
+): Patient {
   return {
     id: row.id,
 
@@ -134,13 +151,21 @@ function patientToRow(
     unknown
   > = {};
 
-  if (input.name !== undefined) {
-    row.nome = input.name;
+  if (
+    input.name !==
+    undefined
+  ) {
+    row.nome =
+      input.name;
   }
 
-  if (input.phone !== undefined) {
+  if (
+    input.phone !==
+    undefined
+  ) {
     row.telefone =
-      input.phone || null;
+      input.phone ||
+      null;
   }
 
   if (
@@ -148,12 +173,17 @@ function patientToRow(
     undefined
   ) {
     row.nascimento =
-      input.birthDate || null;
+      input.birthDate ||
+      null;
   }
 
-  if (input.age !== undefined) {
+  if (
+    input.age !==
+    undefined
+  ) {
     row.idade =
-      input.age ?? null;
+      input.age ??
+      null;
   }
 
   if (
@@ -161,7 +191,8 @@ function patientToRow(
     undefined
   ) {
     row.professor =
-      input.professor || null;
+      input.professor ||
+      null;
   }
 
   if (
@@ -169,20 +200,25 @@ function patientToRow(
     undefined
   ) {
     row.proximo_retorno =
-      input.nextReturn || null;
+      input.nextReturn ||
+      null;
   }
 
-  if (input.notes !== undefined) {
+  if (
+    input.notes !==
+    undefined
+  ) {
     row.observacoes =
-      input.notes || null;
+      input.notes ||
+      null;
   }
 
   return row;
 }
 
 /*
- * Converte um procedimento do paciente
- * para uma linha da tabela paciente_procedimentos.
+ * Converte um procedimento para uma linha
+ * da tabela paciente_procedimentos.
  */
 function procedureToRow(
   procedure: PatientProcedure,
@@ -190,13 +226,15 @@ function procedureToRow(
   userId?: string
 ) {
   return {
-    id: procedure.id,
+    id:
+      procedure.id,
 
     paciente_id:
       patientId,
 
     user_id:
-      userId ?? null,
+      userId ??
+      null,
 
     procedimento:
       procedure.procedure,
@@ -205,13 +243,16 @@ function procedureToRow(
       procedure.status,
 
     dente:
-      procedure.tooth || null,
+      procedure.tooth ||
+      null,
 
     regiao:
-      procedure.region || null,
+      procedure.region ||
+      null,
 
     detalhes:
-      procedure.details || null,
+      procedure.details ||
+      null,
   };
 }
 
@@ -223,19 +264,14 @@ export const patientsRepository = {
     /*
      * Modo local
      */
-    if (!isSupabaseConfigured) {
+    if (
+      !isSupabaseConfigured
+    ) {
       const patients =
         await localStore.list();
 
       return patients.map(
-        (patient) => {
-          const {
-            deletedAt: _deletedAt,
-            ...cleanPatient
-          } = patient;
-
-          return cleanPatient;
-        }
+        cleanLocalPatient
       );
     }
 
@@ -248,23 +284,26 @@ export const patientsRepository = {
     const {
       data,
       error,
-    } = await supabase
-      .from("pacientes")
-      .select(`
-        *,
-        paciente_procedimentos (*)
-      `)
-      .is(
-        "deleted_at",
-        null
-      )
-      .order("nome");
+    } =
+      await supabase
+        .from("pacientes")
+        .select(`
+          *,
+          paciente_procedimentos (*)
+        `)
+        .is(
+          "deleted_at",
+          null
+        )
+        .order("nome");
 
     if (error) {
       throw error;
     }
 
-    return (data ?? []).map(
+    return (
+      data ?? []
+    ).map(
       fromRow
     );
   },
@@ -276,11 +315,23 @@ export const patientsRepository = {
     id: string
   ): Promise<Patient> {
     /*
-     * Modo local
+     * Modo local.
+     *
+     * IMPORTANTE:
+     * localStore NÃO possui get().
+     * Então usamos list() e procuramos pelo id.
      */
-    if (!isSupabaseConfigured) {
+    if (
+      !isSupabaseConfigured
+    ) {
+      const patients =
+        await localStore.list();
+
       const patient =
-        await localStore.get(id);
+        patients.find(
+          (item) =>
+            item.id === id
+        );
 
       if (!patient) {
         throw new Error(
@@ -288,12 +339,9 @@ export const patientsRepository = {
         );
       }
 
-      const {
-        deletedAt: _deletedAt,
-        ...cleanPatient
-      } = patient;
-
-      return cleanPatient;
+      return cleanLocalPatient(
+        patient
+      );
     }
 
     /*
@@ -305,14 +353,18 @@ export const patientsRepository = {
     const {
       data,
       error,
-    } = await supabase
-      .from("pacientes")
-      .select(`
-        *,
-        paciente_procedimentos (*)
-      `)
-      .eq("id", id)
-      .single();
+    } =
+      await supabase
+        .from("pacientes")
+        .select(`
+          *,
+          paciente_procedimentos (*)
+        `)
+        .eq(
+          "id",
+          id
+        )
+        .single();
 
     if (error) {
       throw error;
@@ -333,7 +385,9 @@ export const patientsRepository = {
     /*
      * Modo local
      */
-    if (!isSupabaseConfigured) {
+    if (
+      !isSupabaseConfigured
+    ) {
       const created =
         await localStore.create({
           ...input,
@@ -342,20 +396,13 @@ export const patientsRepository = {
             input.procedures ??
             [],
 
-          /*
-           * IMPORTANTE:
-           * o localStore espera deletedAt
-           * exatamente como null.
-           */
-          deletedAt: null,
+          deletedAt:
+            null as null,
         });
 
-      const {
-        deletedAt: _deletedAt,
-        ...cleanPatient
-      } = created;
-
-      return cleanPatient;
+      return cleanLocalPatient(
+        created
+      );
     }
 
     /*
@@ -410,7 +457,9 @@ export const patientsRepository = {
     ) {
       const procedureRows =
         input.procedures.map(
-          (procedure) =>
+          (
+            procedure
+          ) =>
             procedureToRow(
               procedure,
               patient.id,
@@ -430,15 +479,13 @@ export const patientsRepository = {
             procedureRows
           );
 
-      if (procedureError) {
+      if (
+        procedureError
+      ) {
         throw procedureError;
       }
     }
 
-    /*
-     * Retorna o paciente completo,
-     * incluindo seus procedimentos.
-     */
     return {
       ...patient,
 
@@ -458,19 +505,18 @@ export const patientsRepository = {
     /*
      * Modo local
      */
-    if (!isSupabaseConfigured) {
+    if (
+      !isSupabaseConfigured
+    ) {
       const updated =
         await localStore.update(
           id,
           input
         );
 
-      const {
-        deletedAt: _deletedAt,
-        ...cleanPatient
-      } = updated;
-
-      return cleanPatient;
+      return cleanLocalPatient(
+        updated
+      );
     }
 
     /*
@@ -487,11 +533,12 @@ export const patientsRepository = {
       await supabase.auth.getUser();
 
     /*
-     * Atualiza os dados principais
-     * do paciente.
+     * Atualiza os dados principais.
      */
     const patientFields =
-      patientToRow(input);
+      patientToRow(
+        input
+      );
 
     if (
       Object.keys(
@@ -517,8 +564,8 @@ export const patientsRepository = {
     }
 
     /*
-     * Se os procedimentos foram enviados,
-     * substituímos a lista antiga pela nova.
+     * Se procedures foi enviado,
+     * substitui os procedimentos antigos.
      */
     if (
       input.procedures !==
@@ -538,7 +585,9 @@ export const patientsRepository = {
             id
           );
 
-      if (deleteError) {
+      if (
+        deleteError
+      ) {
         throw deleteError;
       }
 
@@ -548,7 +597,9 @@ export const patientsRepository = {
       ) {
         const procedureRows =
           input.procedures.map(
-            (procedure) =>
+            (
+              procedure
+            ) =>
               procedureToRow(
                 procedure,
                 id,
@@ -568,7 +619,9 @@ export const patientsRepository = {
               procedureRows
             );
 
-        if (insertError) {
+        if (
+          insertError
+        ) {
           throw insertError;
         }
       }
@@ -601,8 +654,7 @@ export const patientsRepository = {
   },
 
   /*
-   * EXCLUIR PACIENTE
-   * (exclusão lógica)
+   * EXCLUSÃO LÓGICA
    */
   async softDelete(
     id: string
@@ -610,7 +662,9 @@ export const patientsRepository = {
     /*
      * Modo local
      */
-    if (!isSupabaseConfigured) {
+    if (
+      !isSupabaseConfigured
+    ) {
       await localStore.softDelete(
         id
       );
@@ -652,7 +706,9 @@ export const patientsRepository = {
     /*
      * Modo local
      */
-    if (!isSupabaseConfigured) {
+    if (
+      !isSupabaseConfigured
+    ) {
       await localStore.restore(
         id
       );
@@ -672,7 +728,8 @@ export const patientsRepository = {
       await supabase
         .from("pacientes")
         .update({
-          deleted_at: null,
+          deleted_at:
+            null,
         })
         .eq(
           "id",
