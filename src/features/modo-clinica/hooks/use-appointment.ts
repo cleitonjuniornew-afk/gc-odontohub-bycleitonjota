@@ -15,6 +15,7 @@ import type {
   Appointment,
   ChecklistItem,
   MaterialItem,
+  PhotoItem,
 } from "@/types";
 
 const DEFAULT_CHECKLIST: ChecklistItem[] = [
@@ -72,13 +73,22 @@ function nowLabel() {
   });
 }
 
+type PhotoPhase = "antes" | "durante" | "depois";
+
+interface AddPhotoMeta {
+  phase: PhotoPhase;
+  disciplineId?: string;
+  patientId?: string;
+  appointmentId?: string;
+  description?: string;
+}
+
 export function useAppointment(appointmentId?: string) {
   const [appointment, setAppointment] =
     useState<Appointment | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const saveTimeout =
     useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -308,66 +318,66 @@ export function useAppointment(appointmentId?: string) {
   );
 
   /**
-   * Upload real da foto do atendimento.
+   * Faz o upload REAL da foto.
    *
-   * A foto é vinculada automaticamente:
-   * - ao paciente selecionado;
-   * - ao atendimento atual;
-   * - à fase escolhida;
-   * - à descrição informada.
+   * O page.tsx envia:
    *
-   * O upload é feito pelo photosRepository, que já cuida
-   * do Supabase Storage e da tabela "fotos".
+   * addPhoto(file, {
+   *   phase: "antes" | "durante" | "depois",
+   *   patientId,
+   *   appointmentId
+   * })
+   *
+   * Aqui convertemos a fase para o formato
+   * aceito pelo banco/repositório.
    */
   const addPhoto = useCallback(
     async (
       file: File,
-      meta: {
-        phase: "Antes" | "Durante" | "Depois";
-        description?: string;
-        disciplineId?: string;
-        patientId?: string;
-      }
-    ) => {
+      meta: AddPhotoMeta
+    ): Promise<PhotoItem> => {
       if (!appointment) {
         throw new Error(
-          "Atendimento não encontrado."
+          "Nenhum atendimento está carregado."
         );
       }
 
-      if (!file) {
-        throw new Error(
-          "Nenhuma foto selecionada."
-        );
-      }
+      const phaseMap: Record<
+        PhotoPhase,
+        PhotoItem["phase"]
+      > = {
+        antes: "Antes",
+        durante: "Durante",
+        depois: "Depois",
+      };
 
-      setUploadingPhoto(true);
+      const photo = await photosRepository.upload(
+        file,
+        {
+          description:
+            meta.description,
 
-      try {
-        const phaseMap = {
-          Antes: "antes",
-          Durante: "durante",
-          Depois: "depois",
-        } as const;
+          phase:
+            phaseMap[meta.phase],
 
-        await photosRepository.upload(file, {
-          description: meta.description,
-          phase: phaseMap[meta.phase],
           disciplineId:
             meta.disciplineId,
+
           patientId:
             meta.patientId ??
             appointment.patientId,
-          appointmentId:
-            appointment.id,
-        });
 
-        addTimelineEntry(
-          `Foto adicionada — ${meta.phase}`
-        );
-      } finally {
-        setUploadingPhoto(false);
-      }
+          appointmentId:
+            meta.appointmentId ??
+            appointment.id,
+        }
+      );
+
+      addTimelineEntry(
+        `Foto adicionada — ${phaseMap[meta.phase]}`
+      );
+
+      return photo;
     },
     [appointment, addTimelineEntry]
   );
@@ -444,7 +454,6 @@ export function useAppointment(appointmentId?: string) {
     appointment,
     loading,
     saving,
-    uploadingPhoto,
     checklistProgress,
     toggleChecklistItem,
     addMaterial,
