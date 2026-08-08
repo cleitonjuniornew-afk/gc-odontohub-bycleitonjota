@@ -106,24 +106,35 @@ export interface TimelineEntry {
 
 export interface Appointment {
   id: string;
+
   patientId?: string;
+  procedureId?: string;
+
   patientName: string;
   patientAge?: number;
+
   discipline: string;
   professor: string;
   procedure: string;
+
   status: AppointmentStatus;
+
   startedAt: string;
   finishedAt?: string;
+
   checklist: ChecklistItem[];
   materials: MaterialItem[];
+
   clinicalNotes: string;
   complications?: string;
   professorObservations?: string;
   pendencies?: string;
+
   returnDate?: string;
   returnNotes?: string;
+
   timeline: TimelineEntry[];
+
   resumoComoFoi?: string;
   resumoAprendizado?: string;
   resumoFariaDiferente?: string;
