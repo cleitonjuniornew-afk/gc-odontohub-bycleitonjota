@@ -1,427 +1,436 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X,
-  Target,
-  Wrench,
-  ListOrdered,
-  ShieldAlert,
-  AlertTriangle,
-  CheckSquare,
+X,
+Target,
+Wrench,
+ListOrdered,
+ShieldAlert,
+AlertTriangle,
+CheckSquare,
+Package,
+Camera,
 } from "lucide-react";
 import { slideInFromRight } from "@/animations/variants";
+import {
+clinicalProceduresRepository,
+type ClinicalProcedure,
+} from "@/repositories/clinical-procedures.repository";
 
 interface Props {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  procedure: string;
-}
-
-interface ProcedureContent {
-  objective: string;
-  instruments: string[];
-  steps: string[];
-  care: string[];
-  mistakes: string[];
-  checklist: string[];
-}
-
-const DEFAULT_CONTENT: ProcedureContent = {
-  objective:
-    "Revisar os principais cuidados, materiais e etapas relacionados ao procedimento clínico selecionado.",
-
-  instruments: [
-    "Instrumentais específicos do procedimento",
-    "Materiais clínicos necessários",
-    "Equipamentos de proteção individual",
-  ],
-
-  steps: [
-    "Confirmar o procedimento e o planejamento clínico",
-    "Separar os materiais e instrumentais necessários",
-    "Preparar o paciente e o campo operatório",
-    "Realizar o procedimento conforme o protocolo clínico",
-    "Conferir o resultado e registrar as informações do atendimento",
-  ],
-
-  care: [
-    "Confirmar o planejamento antes de iniciar",
-    "Manter técnica e biossegurança adequadas",
-    "Registrar intercorrências e observações clínicas",
-  ],
-
-  mistakes: [
-    "Iniciar sem conferir os materiais necessários",
-    "Não seguir a sequência adequada do procedimento",
-    "Deixar de registrar informações importantes do atendimento",
-  ],
-
-  checklist: [
-    "Materiais separados",
-    "Instrumentais conferidos",
-    "Paciente preparado",
-    "Procedimento confirmado",
-  ],
-};
-
-const PROCEDURE_CONTENT: Record<string, ProcedureContent> = {
-  profilaxia: {
-    objective:
-      "Remover biofilme, manchas e depósitos superficiais, contribuindo para a manutenção da saúde periodontal e da higiene bucal.",
-
-    instruments: [
-      "Espelho clínico",
-      "Sonda exploradora",
-      "Taça de borracha ou escova de Robinson",
-      "Pasta profilática",
-      "Fio dental",
-      "Ejetor de saliva",
-    ],
-
-    steps: [
-      "Avaliação inicial da condição bucal",
-      "Identificação de biofilme e manchas extrínsecas",
-      "Realização da profilaxia com instrumento rotatório e pasta profilática",
-      "Uso do fio dental nas regiões interproximais",
-      "Remoção de resíduos e conferência das superfícies dentárias",
-      "Orientação de higiene bucal ao paciente",
-    ],
-
-    care: [
-      "Evitar pressão excessiva durante o polimento",
-      "Observar regiões com sensibilidade ou alterações gengivais",
-      "Utilizar técnica adequada para cada superfície dentária",
-      "Orientar o paciente sobre higiene bucal após o procedimento",
-    ],
-
-    mistakes: [
-      "Pressão excessiva durante o polimento",
-      "Deixar biofilme ou manchas em regiões de difícil acesso",
-      "Não realizar higiene das regiões interproximais",
-      "Não orientar o paciente após o procedimento",
-    ],
-
-    checklist: [
-      "Materiais e instrumentais separados",
-      "Pasta profilática disponível",
-      "Taça de borracha ou escova de Robinson pronta",
-      "Fio dental disponível",
-      "Paciente orientado sobre o procedimento",
-    ],
-  },
-
-  "restauracao classe ii": {
-    objective:
-      "Restaurar a função e a anatomia do dente comprometido, devolvendo o contato proximal e o selamento marginal.",
-
-    instruments: [
-      "Espátula de inserção",
-      "Matriz e cunha interdental",
-      "Fotopolimerizador",
-      "Brocas de acabamento",
-      "Fio dental",
-    ],
-
-    steps: [
-      "Isolamento adequado do campo operatório",
-      "Remoção do tecido cariado",
-      "Condicionamento ácido e aplicação do sistema adesivo",
-      "Inserção incremental do compósito",
-      "Fotopolimerização por camada",
-      "Acabamento e polimento",
-    ],
-
-    care: [
-      "Checar a oclusão após a restauração",
-      "Confirmar ausência de excessos proximais",
-      "Verificar o contato proximal com fio dental",
-      "Orientar sobre possível sensibilidade pós-operatória",
-    ],
-
-    mistakes: [
-      "Contaminação do campo operatório",
-      "Excesso de material na região cervical",
-      "Fotopolimerização insuficiente",
-      "Contato proximal inadequado",
-    ],
-
-    checklist: [
-      "Materiais separados",
-      "Matriz e cunha prontas",
-      "Cor do compósito selecionada",
-      "Fotopolimerizador conferido",
-      "Paciente orientado sobre o procedimento",
-    ],
-  },
-
-  exodontia: {
-    objective:
-      "Realizar a remoção do elemento dentário indicado de forma planejada, segura e atraumática, respeitando os princípios cirúrgicos.",
-
-    instruments: [
-      "Espelho clínico",
-      "Descolador",
-      "Sindesmótomo",
-      "Alavancas",
-      "Fórceps adequado ao elemento",
-      "Cureta alveolar",
-      "Gaze estéril",
-    ],
-
-    steps: [
-      "Avaliação clínica e confirmação do elemento dentário",
-      "Preparo do campo operatório",
-      "Anestesia local",
-      "Sindesmotomia e/ou luxação conforme indicação",
-      "Remoção do elemento dentário",
-      "Inspeção e limpeza do alvéolo",
-      "Hemostasia e orientações pós-operatórias",
-    ],
-
-    care: [
-      "Confirmar o elemento dentário antes do procedimento",
-      "Avaliar condições clínicas e radiográficas",
-      "Manter técnica cirúrgica e biossegurança adequadas",
-      "Orientar corretamente os cuidados pós-operatórios",
-    ],
-
-    mistakes: [
-      "Não confirmar o elemento antes da exodontia",
-      "Aplicar força excessiva ou inadequada",
-      "Não inspecionar o alvéolo após a remoção",
-      "Orientações pós-operatórias incompletas",
-    ],
-
-    checklist: [
-      "Instrumentais separados",
-      "Fórceps adequado conferido",
-      "Anestésico e materiais disponíveis",
-      "Gazes disponíveis",
-      "Orientações pós-operatórias preparadas",
-    ],
-  },
-
-  raspagem: {
-    objective:
-      "Remover biofilme e cálculo dental, contribuindo para o controle da inflamação periodontal e manutenção da saúde dos tecidos periodontais.",
-
-    instruments: [
-      "Espelho clínico",
-      "Sonda periodontal",
-      "Curetas periodontais",
-      "Ultrassom periodontal, quando indicado",
-      "Gaze",
-      "Fio dental",
-    ],
-
-    steps: [
-      "Avaliação periodontal inicial",
-      "Identificação das áreas com cálculo e biofilme",
-      "Remoção dos depósitos por instrumentação",
-      "Reavaliação das superfícies tratadas",
-      "Polimento quando indicado",
-      "Orientação de higiene bucal",
-    ],
-
-    care: [
-      "Respeitar a anatomia periodontal",
-      "Evitar trauma desnecessário aos tecidos",
-      "Observar sangramento e sensibilidade",
-      "Reforçar as orientações de higiene bucal",
-    ],
-
-    mistakes: [
-      "Deixar cálculo residual",
-      "Aplicar força excessiva",
-      "Não avaliar todas as superfícies",
-      "Não orientar adequadamente o paciente",
-    ],
-
-    checklist: [
-      "Instrumentais periodontais separados",
-      "Sonda periodontal disponível",
-      "Curetas selecionadas",
-      "Materiais de biossegurança conferidos",
-      "Paciente orientado",
-    ],
-  },
-};
-
-function normalizeProcedure(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-}
-
-function getProcedureContent(procedure: string): ProcedureContent {
-  const normalized = normalizeProcedure(procedure);
-
-  if (PROCEDURE_CONTENT[normalized]) {
-    return PROCEDURE_CONTENT[normalized];
-  }
-
-  if (
-    normalized.includes("profilax") ||
-    normalized.includes("limpeza")
-  ) {
-    return PROCEDURE_CONTENT.profilaxia;
-  }
-
-  if (
-    normalized.includes("classe ii") ||
-    normalized.includes("classe 2") ||
-    normalized.includes("restauracao")
-  ) {
-    return PROCEDURE_CONTENT["restauracao classe ii"];
-  }
-
-  if (normalized.includes("exodont")) {
-    return PROCEDURE_CONTENT.exodontia;
-  }
-
-  if (
-    normalized.includes("raspagem") ||
-    normalized.includes("periodontal")
-  ) {
-    return PROCEDURE_CONTENT.raspagem;
-  }
-
-  return DEFAULT_CONTENT;
+open: boolean;
+onOpenChange: (open: boolean) => void;
+procedure: string;
+procedureId?: string | null;
 }
 
 export function ProcedureReviewDrawer({
-  open,
-  onOpenChange,
-  procedure,
+open,
+onOpenChange,
+procedure,
+procedureId,
 }: Props) {
-  const content = getProcedureContent(procedure);
+const [clinicalProcedure, setClinicalProcedure] =
+useState<ClinicalProcedure | null>(null);
 
-  return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
-            onClick={() => onOpenChange(false)}
-          />
+const [loading, setLoading] = useState(false);
 
-          <motion.aside
-            variants={slideInFromRight}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-border bg-surface p-6"
+useEffect(() => {
+if (!open) {
+return;
+}
+
+```
+let cancelled = false;
+
+async function loadProcedure() {
+  setLoading(true);
+
+  try {
+    let result: ClinicalProcedure | null = null;
+
+    /*
+     * PRIMEIRA OPÇÃO:
+     * usar diretamente o ID do protocolo clínico.
+     */
+    if (procedureId) {
+      result =
+        await clinicalProceduresRepository.get(
+          procedureId
+        );
+    }
+
+    /*
+     * SEGUNDA OPÇÃO:
+     * caso não exista procedureId, procura pelo nome.
+     */
+    if (!result && procedure) {
+      const procedures =
+        await clinicalProceduresRepository.list();
+
+      const normalizedName =
+        procedure.trim().toLowerCase();
+
+      result =
+        procedures.find(
+          (item) =>
+            item.nome.trim().toLowerCase() ===
+            normalizedName
+        ) ?? null;
+    }
+
+    if (!cancelled) {
+      setClinicalProcedure(result);
+    }
+  } catch (error) {
+    console.error(
+      "Erro ao carregar revisão do procedimento:",
+      error
+    );
+
+    if (!cancelled) {
+      setClinicalProcedure(null);
+    }
+  } finally {
+    if (!cancelled) {
+      setLoading(false);
+    }
+  }
+}
+
+void loadProcedure();
+
+return () => {
+  cancelled = true;
+};
+```
+
+}, [open, procedure, procedureId]);
+
+const steps =
+clinicalProcedure?.passoAPasso ?? [];
+
+const checklist =
+clinicalProcedure?.checklist ?? [];
+
+const materials =
+clinicalProcedure?.materiais ?? [];
+
+const complications =
+clinicalProcedure?.complicacoes ?? [];
+
+const orientations =
+clinicalProcedure?.orientacoes ?? [];
+
+const photos =
+clinicalProcedure?.fotosNecessarias ?? [];
+
+return ( <AnimatePresence>
+{open && (
+<>
+<motion.div
+initial={{ opacity: 0 }}
+animate={{ opacity: 1 }}
+exit={{ opacity: 0 }}
+className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+onClick={() => onOpenChange(false)}
+/>
+
+```
+      <motion.aside
+        variants={slideInFromRight}
+        initial="hidden"
+        animate="visible"
+        exit="exit"
+        className="fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto border-l border-border bg-surface p-6"
+      >
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-text-muted">
+              Revisão rápida
+            </p>
+
+            <h2 className="mt-1 text-xl font-semibold text-text-primary">
+              {clinicalProcedure?.revisaoTitulo ??
+                procedure}
+            </h2>
+
+            {clinicalProcedure?.disciplina && (
+              <p className="mt-1 text-xs text-text-muted">
+                {clinicalProcedure.disciplina}
+              </p>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              onOpenChange(false)
+            }
+            className="rounded-full p-1.5 text-text-muted hover:bg-card hover:text-text-primary"
+            aria-label="Fechar revisão"
           >
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-text-muted">
-                  Revisão rápida
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="py-12 text-center text-sm text-text-muted">
+            Carregando protocolo clínico...
+          </div>
+        ) : !clinicalProcedure ? (
+          <div className="rounded-lg border border-border bg-card p-4 text-sm text-text-secondary">
+            <p className="font-medium text-text-primary">
+              Protocolo não encontrado
+            </p>
+
+            <p className="mt-1">
+              Não foi encontrado um protocolo
+              clínico cadastrado para:
+            </p>
+
+            <p className="mt-2 font-medium text-primary">
+              {procedure}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-7 text-sm">
+            {/* DESCRIÇÃO / REVISÃO */}
+            {clinicalProcedure.revisaoConteudo && (
+              <section>
+                <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
+                  <Target className="h-4 w-4 text-primary" />
+                  Revisão
+                </h4>
+
+                <p className="leading-relaxed text-text-secondary">
+                  {clinicalProcedure.revisaoConteudo}
                 </p>
+              </section>
+            )}
 
-                <h3 className="mt-1 text-xl font-semibold text-text-primary">
-                  {procedure}
-                </h3>
-              </div>
-
-              <button
-                onClick={() => onOpenChange(false)}
-                className="rounded-full p-1.5 text-text-muted hover:bg-card hover:text-text-primary"
-                aria-label="Fechar revisão"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-6 text-sm">
+            {/* OBJETIVO / DESCRIÇÃO */}
+            {clinicalProcedure.descricao && (
               <section>
                 <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
                   <Target className="h-4 w-4 text-primary" />
                   Objetivo
                 </h4>
 
-                <p className="text-text-secondary">
-                  {content.objective}
+                <p className="leading-relaxed text-text-secondary">
+                  {clinicalProcedure.descricao}
                 </p>
               </section>
+            )}
 
+            {/* MATERIAIS */}
+            {materials.length > 0 && (
               <section>
                 <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
                   <Wrench className="h-4 w-4 text-primary" />
-                  Instrumentais principais
-                </h4>
-
-                <ul className="list-inside list-disc space-y-1 text-text-secondary">
-                  {content.instruments.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </section>
-
-              <section>
-                <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
-                  <ListOrdered className="h-4 w-4 text-primary" />
-                  Passo a passo resumido
-                </h4>
-
-                <ol className="list-inside list-decimal space-y-1 text-text-secondary">
-                  {content.steps.map((step) => (
-                    <li key={step}>{step}</li>
-                  ))}
-                </ol>
-              </section>
-
-              <section>
-                <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
-                  <ShieldAlert className="h-4 w-4 text-secondary" />
-                  Cuidados importantes
-                </h4>
-
-                <ul className="list-inside list-disc space-y-1 text-text-secondary">
-                  {content.care.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </section>
-
-              <section>
-                <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
-                  <AlertTriangle className="h-4 w-4 text-warning" />
-                  Erros comuns
-                </h4>
-
-                <ul className="list-inside list-disc space-y-1 text-text-secondary">
-                  {content.mistakes.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </section>
-
-              <section>
-                <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
-                  <CheckSquare className="h-4 w-4 text-success" />
-                  Checklist final antes de iniciar
+                  Instrumentais e materiais
                 </h4>
 
                 <ul className="space-y-1.5 text-text-secondary">
-                  {content.checklist.map((item) => (
-                    <li key={item} className="flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                      {item}
+                  {materials.map(
+                    (material, index) => (
+                      <li
+                        key={`${material.nome}-${index}`}
+                        className="flex items-start gap-2"
+                      >
+                        <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+
+                        <span>
+                          {material.nome}
+
+                          {material.quantidade &&
+                            material.quantidade > 1 && (
+                              <span className="ml-1 text-text-muted">
+                                ×{" "}
+                                {material.quantidade}
+                              </span>
+                            )}
+                        </span>
+                      </li>
+                    )
+                  )}
+                </ul>
+              </section>
+            )}
+
+            {/* PASSO A PASSO */}
+            {steps.length > 0 && (
+              <section>
+                <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
+                  <ListOrdered className="h-4 w-4 text-primary" />
+                  Passo a passo
+                </h4>
+
+                <ol className="space-y-3 text-text-secondary">
+                  {steps
+                    .sort(
+                      (a, b) =>
+                        a.ordem - b.ordem
+                    )
+                    .map((step) => (
+                      <li
+                        key={`${step.ordem}-${step.titulo}`}
+                        className="flex gap-3"
+                      >
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                          {step.ordem}
+                        </span>
+
+                        <div>
+                          <p className="font-medium text-text-primary">
+                            {step.titulo}
+                          </p>
+
+                          {step.descricao && (
+                            <p className="mt-0.5 leading-relaxed">
+                              {step.descricao}
+                            </p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                </ol>
+              </section>
+            )}
+
+            {/* ORIENTAÇÕES */}
+            {orientations.length > 0 && (
+              <section>
+                <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
+                  <ShieldAlert className="h-4 w-4 text-secondary" />
+                  Cuidados e orientações
+                </h4>
+
+                <ul className="space-y-3 text-text-secondary">
+                  {orientations.map(
+                    (orientation, index) => (
+                      <li
+                        key={`${orientation.titulo}-${index}`}
+                      >
+                        <p className="font-medium text-text-primary">
+                          {orientation.titulo}
+                        </p>
+
+                        {orientation.descricao && (
+                          <p className="mt-0.5 leading-relaxed">
+                            {orientation.descricao}
+                          </p>
+                        )}
+                      </li>
+                    )
+                  )}
+                </ul>
+              </section>
+            )}
+
+            {/* COMPLICAÇÕES */}
+            {complications.length > 0 && (
+              <section>
+                <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
+                  <AlertTriangle className="h-4 w-4 text-warning" />
+                  Complicações e atenção
+                </h4>
+
+                <ul className="space-y-3 text-text-secondary">
+                  {complications.map(
+                    (complication, index) => (
+                      <li
+                        key={`${complication.titulo}-${index}`}
+                      >
+                        <p className="font-medium text-text-primary">
+                          {complication.titulo}
+                        </p>
+
+                        {complication.descricao && (
+                          <p className="mt-0.5 leading-relaxed">
+                            {complication.descricao}
+                          </p>
+                        )}
+                      </li>
+                    )
+                  )}
+                </ul>
+              </section>
+            )}
+
+            {/* FOTOS */}
+            {photos.length > 0 && (
+              <section>
+                <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
+                  <Camera className="h-4 w-4 text-primary" />
+                  Fotografias necessárias
+                </h4>
+
+                <ul className="space-y-1.5 text-text-secondary">
+                  {photos.map(
+                    (photo, index) => (
+                      <li
+                        key={`${photo.fase}-${index}`}
+                        className="flex items-center justify-between"
+                      >
+                        <span className="capitalize">
+                          Foto{" "}
+                          {photo.fase}
+                        </span>
+
+                        {photo.obrigatoria && (
+                          <span className="text-xs font-medium text-warning">
+                            Obrigatória
+                          </span>
+                        )}
+                      </li>
+                    )
+                  )}
+                </ul>
+              </section>
+            )}
+
+            {/* CHECKLIST */}
+            {checklist.length > 0 && (
+              <section>
+                <h4 className="mb-2 flex items-center gap-2 font-medium text-text-primary">
+                  <CheckSquare className="h-4 w-4 text-success" />
+                  Checklist antes de iniciar
+                </h4>
+
+                <ul className="space-y-2 text-text-secondary">
+                  {checklist.map((item) => (
+                    <li
+                      key={item.id}
+                      className="flex items-start gap-2"
+                    >
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-success" />
+
+                      <span>
+                        {item.label}
+                      </span>
                     </li>
                   ))}
                 </ul>
               </section>
-            </div>
-          </motion.aside>
-        </>
-      )}
-    </AnimatePresence>
-  );
+            )}
+
+            {/* TEMPO DE REVISÃO */}
+            {clinicalProcedure.tempoRevisao && (
+              <div className="border-t border-border pt-4 text-center text-xs text-text-muted">
+                Tempo estimado de revisão:{" "}
+                {clinicalProcedure.tempoRevisao} min
+              </div>
+            )}
+          </div>
+        )}
+      </motion.aside>
+    </>
+  )}
+</AnimatePresence>
+```
+
+);
 }
