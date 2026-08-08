@@ -1,4 +1,3 @@
-```tsx
 "use client";
 
 import { useState } from "react";
@@ -10,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CalendarDays } from "lucide-react";
 import { events } from "@/lib/mock-data";
+import type { AgendaEvent } from "@/types";
 
-const typeLabel: Record<string, string> = {
+const typeLabel: Record<AgendaEvent["type"], string> = {
   prova: "Prova",
   clinica: "Clínica",
   aula: "Aula",
@@ -27,21 +27,22 @@ function groupByRelative() {
   );
 
   const today = sorted.filter(
-    (e) => new Date(e.start).toDateString() === now.toDateString()
+    (event) =>
+      new Date(event.start).toDateString() === now.toDateString()
   );
 
-  const tomorrow = sorted.filter((e) => {
-    const d = new Date(e.start);
-    const t = new Date(now);
-    t.setDate(t.getDate() + 1);
+  const tomorrow = sorted.filter((event) => {
+    const date = new Date(event.start);
+    const tomorrowDate = new Date(now);
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
 
-    return d.toDateString() === t.toDateString();
+    return date.toDateString() === tomorrowDate.toDateString();
   });
 
-  const week = sorted.filter((e) => {
-    const d = new Date(e.start);
+  const week = sorted.filter((event) => {
+    const date = new Date(event.start);
     const diff =
-      (d.getTime() - now.getTime()) / 86_400_000;
+      (date.getTime() - now.getTime()) / 86_400_000;
 
     return diff > 1 && diff <= 7;
   });
@@ -49,14 +50,14 @@ function groupByRelative() {
   return { today, tomorrow, week };
 }
 
-function EventCard({ event }: { event: (typeof events)[number] }) {
+function EventCard({ event }: { event: AgendaEvent }) {
   const date = new Date(event.start);
 
   return (
     <motion.div variants={fadeInUp}>
       <Card className="flex items-center gap-4 p-4">
         <div
-          className="flex h-11 w-11 flex-col items-center justify-center rounded-[12px] text-xs font-bold"
+          className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-[12px] text-xs font-bold"
           style={{
             backgroundColor: `${event.color}1A`,
             color: event.color,
@@ -66,11 +67,9 @@ function EventCard({ event }: { event: (typeof events)[number] }) {
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-text-primary">
-            {event.title}
-          </p>
+          <p className="font-medium">{event.title}</p>
 
-          <p className="text-xs text-text-muted">
+          <p className="text-sm text-text-muted">
             {date.toLocaleDateString("pt-BR", {
               weekday: "long",
             })}{" "}
@@ -89,7 +88,7 @@ function EventCard({ event }: { event: (typeof events)[number] }) {
             backgroundColor: `${event.color}1A`,
           }}
         >
-          {typeLabel[String(event.type)] ?? "Evento"}
+          {typeLabel[event.type]}
         </Badge>
       </Card>
     </motion.div>
@@ -98,7 +97,10 @@ function EventCard({ event }: { event: (typeof events)[number] }) {
 
 export function AgendaView() {
   const { today, tomorrow, week } = groupByRelative();
-  const [tab, setTab] = useState("hoje");
+
+  const [tab, setTab] = useState<"hoje" | "amanha" | "semana">(
+    "hoje"
+  );
 
   const groups = {
     hoje: today,
@@ -106,11 +108,16 @@ export function AgendaView() {
     semana: week,
   };
 
-  const active = groups[tab as keyof typeof groups];
+  const active = groups[tab];
 
   return (
     <div className="space-y-4">
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs
+        value={tab}
+        onValueChange={(value) =>
+          setTab(value as "hoje" | "amanha" | "semana")
+        }
+      >
         <TabsList>
           <TabsTrigger value="hoje">Hoje</TabsTrigger>
           <TabsTrigger value="amanha">Amanhã</TabsTrigger>
@@ -132,12 +139,11 @@ export function AgendaView() {
           animate="visible"
           className="space-y-3"
         >
-          {active.map((e) => (
-            <EventCard key={e.id} event={e} />
+          {active.map((event) => (
+            <EventCard key={event.id} event={event} />
           ))}
         </motion.div>
       )}
     </div>
   );
 }
-```
