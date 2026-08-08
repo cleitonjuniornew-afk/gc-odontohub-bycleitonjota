@@ -258,14 +258,13 @@ async function listByPatient(
   return (data ?? []).map(fromExamRow);
 }
 
-async function create(
-  input: Omit<
-    PeriodontalExam,
-    "id" | "teeth"
-  > & {
-    teeth?: PeriodontalTooth[];
-  }
-): Promise<PeriodontalExam> {
+async function createExam(input: {
+  patientId: string;
+  examDate?: string;
+  status?: PeriodontalExamStatus;
+  observations?: string;
+  diagnosis?: string;
+}): Promise<PeriodontalExam> {
   if (!isSupabaseConfigured) {
     throw new Error(
       "Exames periodontais indisponíveis no modo local."
@@ -284,59 +283,84 @@ async function create(
     );
   }
 
-  const { data: exam, error: examError } =
-    await supabase
-      .from("exames_periodontais")
-      .insert({
-        user_id: user.id,
-        paciente_id: input.patientId,
-        data_exame:
-          input.examDate ||
-          new Date().toISOString().slice(0, 10),
-        observacoes:
-          input.observations ?? null,
-        diagnostico:
-          input.diagnosis ?? null,
-        status:
-          input.status ?? "EM_ANDAMENTO",
-      })
-      .select()
-      .single();
+  const { data, error } = await supabase
+    .from("exames_periodontais")
+    .insert({
+      user_id: user.id,
+      paciente_id: input.patientId,
+      data_exame:
+        input.examDate ??
+        new Date().toISOString().slice(0, 10),
+      observacoes:
+        input.observations ?? null,
+      diagnostico:
+        input.diagnosis ?? null,
+      status:
+        input.status ?? "EM_ANDAMENTO",
+    })
+    .select()
+    .single();
 
-  if (examError) {
-    throw examError;
+  if (error) {
+    throw error;
   }
 
-  if (input.teeth?.length) {
-    for (const tooth of input.teeth) {
-      const { data: toothRow, error: toothError } =
+  return get(data.id);
+}
+
+async function create(
+  input: Omit<
+    PeriodontalExam,
+    "id" | "teeth"
+  > & {
+    teeth?: PeriodontalTooth[];
+  }
+): Promise<PeriodontalExam> {
+  const exam = await createExam({
+    patientId: input.patientId,
+    examDate: input.examDate,
+    status: input.status,
+    observations: input.observations,
+    diagnosis: input.diagnosis,
+  });
+
+  if (
+    !input.teeth ||
+    input.teeth.length === 0
+  ) {
+    return exam;
+  }
+
+  const supabase = createClient();
+
+  for (const tooth of input.teeth) {
+    const { data: toothRow, error: toothError } =
+      await supabase
+        .from("periodontograma_dentes")
+        .insert({
+          ...toothToRow(tooth),
+          exame_id: exam.id,
+        })
+        .select()
+        .single();
+
+    if (toothError) {
+      throw toothError;
+    }
+
+    if (tooth.sites?.length) {
+      const sites = tooth.sites.map((site) => ({
+        ...siteToRow(site),
+        dente_id: toothRow.id,
+      }));
+
+      const { error: siteError } =
         await supabase
-          .from("periodontograma_dentes")
-          .insert({
-            ...toothToRow(tooth),
-            exame_id: exam.id,
-          })
-          .select()
-          .single();
+          .from("periodontograma_sitios")
+          .insert(sites);
 
-      if (toothError) {
-        throw toothError;
-      }
-
-      if (tooth.sites?.length) {
-        const sites = tooth.sites.map((site) => ({
-          ...siteToRow(site),
-          dente_id: toothRow.id,
-        }));
-
-        const { error: siteError } =
-          await supabase
-            .from("periodontograma_sitios")
-            .insert(sites);
-
-        if (siteError) {
-          throw siteError;
-        }
+      if (siteError) {
+        throw siteError;
       }
     }
   }
@@ -344,7 +368,7 @@ async function create(
   return get(exam.id);
 }
 
-async function update(
+async function updateExam(
   id: string,
   input: Partial<PeriodontalExam>
 ): Promise<PeriodontalExam> {
@@ -356,39 +380,39 @@ async function update(
 
   const supabase = createClient();
 
-  const examFields: Record<string, unknown> = {};
+  const fields: Record<string, unknown> = {};
 
   if (input.patientId !== undefined) {
-    examFields.paciente_id =
+    fields.paciente_id =
       input.patientId;
   }
 
   if (input.examDate !== undefined) {
-    examFields.data_exame =
+    fields.data_exame =
       input.examDate;
   }
 
   if (input.observations !== undefined) {
-    examFields.observacoes =
+    fields.observacoes =
       input.observations || null;
   }
 
   if (input.diagnosis !== undefined) {
-    examFields.diagnostico =
+    fields.diagnostico =
       input.diagnosis || null;
   }
 
   if (input.status !== undefined) {
-    examFields.status =
+    fields.status =
       input.status;
   }
 
-  examFields.updated_at =
+  fields.updated_at =
     new Date().toISOString();
 
   const { error } = await supabase
     .from("exames_periodontais")
-    .update(examFields)
+    .update(fields)
     .eq("id", id);
 
   if (error) {
@@ -396,6 +420,13 @@ async function update(
   }
 
   return get(id);
+}
+
+async function update(
+  id: string,
+  input: Partial<PeriodontalExam>
+): Promise<PeriodontalExam> {
+  return updateExam(id, input);
 }
 
 async function updateTooth(
@@ -577,12 +608,14 @@ async function restore(
 }
 
 export const periodontiaRepository = {
-  list: listExams,
+  list,
   listExams,
   get,
   listByPatient,
   create,
+  createExam,
   update,
+  updateExam,
   updateTooth,
   updateSite,
   softDelete,
