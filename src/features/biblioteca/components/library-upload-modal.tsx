@@ -39,10 +39,12 @@ import type { LibraryItem } from "@/types";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+
   onSubmit: (
     data: Omit<LibraryItem, "id" | "date">,
     file?: File
-  ) => Promise<void> | void;
+  ) => Promise<LibraryItem> | Promise<void> | void;
+
   submitting?: boolean;
 }
 
@@ -67,6 +69,7 @@ export function LibraryUploadModal({
     formState: { errors },
   } = useForm<LibraryItemFormInput>({
     resolver: zodResolver(libraryItemSchema),
+
     defaultValues: {
       title: "",
       type: "PDF",
@@ -88,18 +91,24 @@ export function LibraryUploadModal({
     });
 
     setFile(null);
+
     onOpenChange(false);
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Adicionar material</DialogTitle>
+          <DialogTitle>
+            Adicionar material
+          </DialogTitle>
 
           <DialogDescription>
-            PDFs, slides e vídeos ficam disponíveis para organização por
-            disciplina.
+            PDFs, slides e vídeos ficam disponíveis
+            para organização por disciplina.
           </DialogDescription>
         </DialogHeader>
 
@@ -107,6 +116,8 @@ export function LibraryUploadModal({
           onSubmit={handleSubmit(submit)}
           className="space-y-5"
         >
+          {/* ARQUIVO */}
+
           <div>
             <Label htmlFor="file">
               Arquivo
@@ -139,18 +150,22 @@ export function LibraryUploadModal({
               id="file"
               type="file"
               className="hidden"
-              onChange={(e) =>
-                setFile(e.target.files?.[0] ?? null)
-              }
+              onChange={(event) => {
+                setFile(
+                  event.target.files?.[0] ?? null
+                );
+              }}
             />
 
             {!isSupabaseConfigured && (
               <p className="mt-2 text-xs text-text-muted">
-                Modo demonstração: o arquivo não será enviado
-                para um servidor real.
+                Modo demonstração: o arquivo não será
+                enviado para um servidor real.
               </p>
             )}
           </div>
+
+          {/* TÍTULO */}
 
           <div>
             <Label htmlFor="title">
@@ -170,6 +185,8 @@ export function LibraryUploadModal({
               </p>
             )}
           </div>
+
+          {/* TIPO E DISCIPLINA */}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -251,6 +268,8 @@ export function LibraryUploadModal({
             </div>
           </div>
 
+          {/* PROFESSOR E ASSUNTO */}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="professor">
@@ -278,6 +297,8 @@ export function LibraryUploadModal({
               />
             </div>
           </div>
+
+          {/* BOTÕES */}
 
           <div className="flex justify-end gap-3">
             <Button
