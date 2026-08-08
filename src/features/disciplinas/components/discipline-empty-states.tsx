@@ -6,37 +6,24 @@ import {
   GraduationCap,
   StickyNote,
 } from "lucide-react";
-
 import { EmptyState } from "@/components/shared/empty-state";
 
-interface ActionProps {
-  onAction: () => void;
-}
-
-export function LibraryEmptyState({
-  onAction,
-}: ActionProps) {
+export function LibraryEmptyState() {
   return (
     <EmptyState
       icon={FileText}
       title="Biblioteca vazia"
       description="Adicione slides, PDFs ou vídeos desta disciplina."
-      actionLabel="Adicionar material"
-      onAction={onAction}
     />
   );
 }
 
-export function PhotosEmptyState({
-  onAction,
-}: ActionProps) {
+export function PhotosEmptyState() {
   return (
     <EmptyState
       icon={ImageIcon}
       title="Nenhuma foto ainda"
       description="Registre fotos de casos e procedimentos desta disciplina."
-      actionLabel="Adicionar foto"
-      onAction={onAction}
     />
   );
 }
@@ -51,16 +38,12 @@ export function GradesEmptyState() {
   );
 }
 
-export function ObservationsEmptyState({
-  onAction,
-}: ActionProps) {
+export function ObservationsEmptyState() {
   return (
     <EmptyState
       icon={StickyNote}
       title="Sem observações"
       description="Registre observações importantes sobre esta disciplina."
-      actionLabel="Adicionar observação"
-      onAction={onAction}
     />
   );
 }
