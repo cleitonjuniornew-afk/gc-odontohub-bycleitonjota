@@ -27,7 +27,7 @@ import type { Patient } from "@/types";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: Omit<Patient, "id">) => Promise | void;
+  onSubmit: (data: Omit<Patient, "id">) => Promise<void> | void;
   submitting?: boolean;
   initialData?: Patient | null;
 }
@@ -338,9 +338,7 @@ export function PatientFormModal({
 
                     <div className="space-y-3">
                       <div>
-                        <Label>
-                          Procedimento
-                        </Label>
+                        <Label>Procedimento</Label>
 
                         <select
                           value={procedure.procedure}
@@ -370,9 +368,7 @@ export function PatientFormModal({
 
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
-                          <Label>
-                            Dente
-                          </Label>
+                          <Label>Dente</Label>
 
                           <Input
                             placeholder="Ex.: 16"
@@ -392,9 +388,7 @@ export function PatientFormModal({
                         </div>
 
                         <div>
-                          <Label>
-                            Região
-                          </Label>
+                          <Label>Região</Label>
 
                           <Input
                             placeholder="Ex.: Arcada superior"
@@ -411,9 +405,7 @@ export function PatientFormModal({
                       </div>
 
                       <div>
-                        <Label>
-                          Detalhes clínicos
-                        </Label>
+                        <Label>Detalhes clínicos</Label>
 
                         <Textarea
                           placeholder="Ex.: restauração Classe II, distal, resina composta..."
@@ -430,9 +422,7 @@ export function PatientFormModal({
                       </div>
 
                       <div>
-                        <Label>
-                          Status
-                        </Label>
+                        <Label>Status</Label>
 
                         <select
                           value={procedure.status}
