@@ -3,10 +3,7 @@
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  UploadCloud,
-  FileCheck2,
-} from "lucide-react";
+import { UploadCloud, FileCheck2 } from "lucide-react";
 
 import {
   libraryItemSchema,
@@ -33,23 +30,21 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 
-import {
-  useDisciplines,
-} from "@/features/disciplinas/hooks/use-disciplines";
+import { useDisciplines } from "@/features/disciplinas/hooks/use-disciplines";
 
-import {
-  isSupabaseConfigured,
-} from "@/lib/supabase/env";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 import type { LibraryItem } from "@/types";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+
   onSubmit: (
     data: Omit<LibraryItem, "id" | "date">,
     file?: File
-  ) => Promise | void;
+  ) => Promise<void> | void;
+
   submitting?: boolean;
 }
 
@@ -59,7 +54,6 @@ export function LibraryUploadModal({
   onSubmit,
   submitting,
 }: Props) {
-
   const [file, setFile] = useState<File | null>(null);
 
   const {
@@ -85,11 +79,7 @@ export function LibraryUploadModal({
   });
 
   async function submit(data: LibraryItemFormInput) {
-
-    await onSubmit(
-      data,
-      file ?? undefined
-    );
+    await onSubmit(data, file ?? undefined);
 
     reset({
       title: "",
@@ -100,66 +90,35 @@ export function LibraryUploadModal({
     });
 
     setFile(null);
-
-    onOpenChange(false);
-  }
-
-  function handleClose() {
-    if (submitting) {
-      return;
-    }
-
-    reset({
-      title: "",
-      type: "PDF",
-      disciplineId: "",
-      professor: "",
-      subject: "",
-    });
-
-    setFile(null);
-
     onOpenChange(false);
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={handleClose}
-    >
-
-      <DialogContent>
-
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-
-          <DialogTitle>
-            Adicionar material
-          </DialogTitle>
+          <DialogTitle>Adicionar material</DialogTitle>
 
           <DialogDescription>
-            PDFs, slides e vídeos ficam disponíveis para toda a dupla.
+            PDFs, slides e vídeos ficam disponíveis para organização por
+            disciplina.
           </DialogDescription>
-
         </DialogHeader>
 
         <form
           onSubmit={handleSubmit(submit)}
-          className="space-y-4"
+          className="space-y-5"
         >
-
           {/* ARQUIVO */}
-
           <div>
-
-            <Label>
+            <Label htmlFor="file">
               Arquivo
             </Label>
 
             <label
-              htmlFor="library-file"
-              className="mt-1.5 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-border p-4 transition hover:border-primary"
+              htmlFor="file"
+              className="mt-1.5 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-border p-4 transition hover:bg-card"
             >
-
               {file ? (
                 <FileCheck2 className="h-5 w-5 text-primary" />
               ) : (
@@ -167,7 +126,6 @@ export function LibraryUploadModal({
               )}
 
               <div className="min-w-0">
-
                 <p className="truncate text-sm font-medium text-text-primary">
                   {file
                     ? file.name
@@ -175,36 +133,30 @@ export function LibraryUploadModal({
                 </p>
 
                 <p className="text-xs text-text-muted">
-                  PDF, slide, vídeo ou documento
+                  PDF, slide, documento ou vídeo
                 </p>
-
               </div>
-
             </label>
 
             <input
-              id="library-file"
+              id="file"
               type="file"
               className="hidden"
               onChange={(e) =>
-                setFile(
-                  e.target.files?.[0] ?? null
-                )
+                setFile(e.target.files?.[0] ?? null)
               }
             />
 
             {!isSupabaseConfigured && (
-              <p className="mt-2 text-xs text-warning">
-                Modo demonstração: o arquivo não será enviado a um servidor real.
+              <p className="mt-2 text-xs text-text-muted">
+                Modo demonstração: o arquivo não será enviado
+                para um servidor real.
               </p>
             )}
-
           </div>
 
           {/* TÍTULO */}
-
           <div>
-
             <Label htmlFor="title">
               Título
             </Label>
@@ -221,15 +173,11 @@ export function LibraryUploadModal({
                 {errors.title.message}
               </p>
             )}
-
           </div>
 
           {/* TIPO + DISCIPLINA */}
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
+          <div className="grid grid-cols-2 gap-4">
             <div>
-
               <Label>
                 Tipo
               </Label>
@@ -238,18 +186,15 @@ export function LibraryUploadModal({
                 control={control}
                 name="type"
                 render={({ field }) => (
-
                   <Select
                     value={field.value}
                     onValueChange={field.onChange}
                   >
-
                     <SelectTrigger className="mt-1.5">
-                      <SelectValue />
+                      <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
 
                     <SelectContent>
-
                       <SelectItem value="PDF">
                         PDF
                       </SelectItem>
@@ -265,18 +210,13 @@ export function LibraryUploadModal({
                       <SelectItem value="DOCUMENTO">
                         Documento
                       </SelectItem>
-
                     </SelectContent>
-
                   </Select>
-
                 )}
               />
-
             </div>
 
             <div>
-
               <Label>
                 Disciplina
               </Label>
@@ -285,15 +225,12 @@ export function LibraryUploadModal({
                 control={control}
                 name="disciplineId"
                 render={({ field }) => (
-
                   <Select
                     value={field.value}
                     onValueChange={field.onChange}
                     disabled={disciplinesLoading}
                   >
-
                     <SelectTrigger className="mt-1.5">
-
                       <SelectValue
                         placeholder={
                           disciplinesLoading
@@ -301,58 +238,27 @@ export function LibraryUploadModal({
                             : "Selecione..."
                         }
                       />
-
                     </SelectTrigger>
 
                     <SelectContent>
-
-                      {disciplines.length === 0 ? (
-
+                      {disciplines.map((discipline) => (
                         <SelectItem
-                          value="__empty__"
-                          disabled
+                          key={discipline.id}
+                          value={discipline.id}
                         >
-                          Nenhuma disciplina cadastrada
+                          {discipline.name}
                         </SelectItem>
-
-                      ) : (
-
-                        disciplines.map((discipline) => (
-
-                          <SelectItem
-                            key={discipline.id}
-                            value={discipline.id}
-                          >
-                            {discipline.name}
-                          </SelectItem>
-
-                        ))
-
-                      )}
-
+                      ))}
                     </SelectContent>
-
-                  </Select>
-
+                  </SelectContent>
                 )}
               />
-
-              {errors.disciplineId && (
-                <p className="mt-1 text-xs text-error">
-                  {errors.disciplineId.message}
-                </p>
-              )}
-
             </div>
-
           </div>
 
           {/* PROFESSOR + ASSUNTO */}
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-
+          <div className="grid grid-cols-2 gap-4">
             <div>
-
               <Label htmlFor="professor">
                 Professor
               </Label>
@@ -363,11 +269,9 @@ export function LibraryUploadModal({
                 placeholder="Nome do professor"
                 {...register("professor")}
               />
-
             </div>
 
             <div>
-
               <Label htmlFor="subject">
                 Assunto
               </Label>
@@ -375,23 +279,18 @@ export function LibraryUploadModal({
               <Input
                 id="subject"
                 className="mt-1.5"
-                placeholder="Ex: Anatomia do periodonto"
+                placeholder="Ex: Anatomia dental"
                 {...register("subject")}
               />
-
             </div>
-
           </div>
 
           {/* BOTÕES */}
-
-          <div className="mt-2 flex justify-end gap-3">
-
+          <div className="flex justify-end gap-3">
             <Button
               type="button"
               variant="ghost"
-              onClick={handleClose}
-              disabled={submitting}
+              onClick={() => onOpenChange(false)}
             >
               Cancelar
             </Button>
@@ -399,20 +298,13 @@ export function LibraryUploadModal({
             <Button
               type="submit"
               loading={submitting}
-              disabled={
-                disciplinesLoading ||
-                disciplines.length === 0
-              }
+              disabled={submitting}
             >
               Adicionar material
             </Button>
-
           </div>
-
         </form>
-
       </DialogContent>
-
     </Dialog>
   );
 }
