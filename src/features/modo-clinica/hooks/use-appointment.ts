@@ -320,16 +320,10 @@ export function useAppointment(appointmentId?: string) {
   /**
    * Faz o upload REAL da foto.
    *
-   * O page.tsx envia:
+   * A fase permanece sempre no formato:
+   * "antes" | "durante" | "depois"
    *
-   * addPhoto(file, {
-   *   phase: "antes" | "durante" | "depois",
-   *   patientId,
-   *   appointmentId
-   * })
-   *
-   * Aqui convertemos a fase para o formato
-   * aceito pelo banco/repositório.
+   * Esse é o mesmo formato utilizado pelo photosRepository.
    */
   const addPhoto = useCallback(
     async (
@@ -342,23 +336,11 @@ export function useAppointment(appointmentId?: string) {
         );
       }
 
-      const phaseMap: Record<
-        PhotoPhase,
-        PhotoItem["phase"]
-      > = {
-        antes: "Antes",
-        durante: "Durante",
-        depois: "Depois",
-      };
+      const photo =
+        await photosRepository.upload(file, {
+          description: meta.description,
 
-      const photo = await photosRepository.upload(
-        file,
-        {
-          description:
-            meta.description,
-
-          phase:
-            phaseMap[meta.phase],
+          phase: meta.phase,
 
           disciplineId:
             meta.disciplineId,
@@ -370,11 +352,16 @@ export function useAppointment(appointmentId?: string) {
           appointmentId:
             meta.appointmentId ??
             appointment.id,
-        }
-      );
+        });
+
+      const phaseLabel = {
+        antes: "Antes",
+        durante: "Durante",
+        depois: "Depois",
+      }[meta.phase];
 
       addTimelineEntry(
-        `Foto adicionada — ${phaseMap[meta.phase]}`
+        `Foto adicionada — ${phaseLabel}`
       );
 
       return photo;
