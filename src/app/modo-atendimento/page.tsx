@@ -60,27 +60,20 @@ function ModoAtendimentoInner() {
   const [finishModalOpen, setFinishModalOpen] =
     useState(false);
 
-  /**
-   * Estado de carregamento
-   */
   if (loading || !appointment) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="mx-auto max-w-6xl space-y-5 px-5 py-6 sm:px-8 lg:py-8">
-          {[1, 2, 3].map((i) => (
-            <Skeleton
-              key={i}
-              className="h-32 w-full rounded-xl"
-            />
-          ))}
+      <div className="min-h-screen space-y-5 p-6">
+        <Skeleton className="h-16 w-full" />
+
+        <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-3">
+          <Skeleton className="h-72 w-full" />
+          <Skeleton className="h-72 w-full" />
+          <Skeleton className="h-72 w-full" />
         </div>
       </div>
     );
   }
 
-  /**
-   * Atendimento já finalizado
-   */
   if (appointment.status === "FINALIZADO") {
     return (
       <AppointmentFinishedView
@@ -89,14 +82,6 @@ function ModoAtendimentoInner() {
     );
   }
 
-  /**
-   * Upload real da foto.
-   *
-   * A fase usa sempre:
-   * "antes" | "durante" | "depois"
-   *
-   * O PhotosCard já trabalha com esse mesmo formato.
-   */
   const handleAddPhoto = async (
     file: File,
     phase: "antes" | "durante" | "depois"
@@ -127,6 +112,7 @@ function ModoAtendimentoInner() {
       variants={clinicalModeTransition}
       initial="hidden"
       animate="visible"
+      className="min-h-screen"
     >
       <ClinicalHeader
         startedAt={appointment.startedAt}
@@ -142,7 +128,6 @@ function ModoAtendimentoInner() {
         animate="visible"
         className="mx-auto grid max-w-6xl gap-5 px-5 py-6 sm:px-8 lg:grid-cols-3 lg:py-8"
       >
-        {/* COLUNA 1 */}
         <div className="space-y-5">
           <PatientCard
             appointment={appointment}
@@ -159,7 +144,6 @@ function ModoAtendimentoInner() {
           />
         </div>
 
-        {/* COLUNA 2 */}
         <div className="space-y-5">
           <PhotosCard
             onAdd={handleAddPhoto}
@@ -182,7 +166,6 @@ function ModoAtendimentoInner() {
           />
         </div>
 
-        {/* COLUNA 3 */}
         <div className="space-y-5">
           <ComplicationsCard
             appointment={appointment}
@@ -210,7 +193,6 @@ function ModoAtendimentoInner() {
         </div>
       </motion.div>
 
-      {/* BOTÃO FLUTUANTE */}
       <FloatingActionButton
         onPhoto={() => {
           const input =
@@ -224,7 +206,9 @@ function ModoAtendimentoInner() {
             const file =
               input.files?.[0];
 
-            if (!file) return;
+            if (!file) {
+              return;
+            }
 
             await handleAddPhoto(
               file,
@@ -251,10 +235,11 @@ function ModoAtendimentoInner() {
         }
       />
 
-      {/* MODAL DE FINALIZAÇÃO */}
       <FinishAppointmentModal
         open={finishModalOpen}
-        onOpenChange={setFinishModalOpen}
+        onOpenChange={
+          setFinishModalOpen
+        }
         onConfirm={async (data) => {
           try {
             await finish(data);
@@ -284,14 +269,13 @@ export default function ModoAtendimentoPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-background">
-          <div className="mx-auto max-w-6xl space-y-5 px-5 py-6 sm:px-8 lg:py-8">
-            {[1, 2, 3].map((i) => (
-              <Skeleton
-                key={i}
-                className="h-32 w-full rounded-xl"
-              />
-            ))}
+        <div className="min-h-screen space-y-5 p-6">
+          <Skeleton className="h-16 w-full" />
+
+          <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-3">
+            <Skeleton className="h-72 w-full" />
+            <Skeleton className="h-72 w-full" />
+            <Skeleton className="h-72 w-full" />
           </div>
         </div>
       }
