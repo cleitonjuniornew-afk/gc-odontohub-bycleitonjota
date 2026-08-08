@@ -1,9 +1,3 @@
-```ts
-// ==========================================================
-// Tipos centrais do domínio — GC OdontoHub
-// Código em inglês técnico, interface em português (conforme regra do projeto)
-// ==========================================================
-
 export type Priority = "BAIXA" | "MEDIA" | "ALTA";
 
 export interface Task {
@@ -69,27 +63,14 @@ export interface PhotoItem {
   appointmentId?: string;
 }
 
-// ==========================================================
-// PROCEDIMENTOS DO PACIENTE
-// ==========================================================
-
-export type PatientProcedureStatus =
-  | "PLANEJADO"
-  | "EM_ANDAMENTO"
-  | "CONCLUIDO";
-
 export interface PatientProcedure {
   id: string;
   procedure: string;
-  status: PatientProcedureStatus;
+  status: "EM_ANDAMENTO" | "PLANEJADO" | "CONCLUIDO";
   tooth?: string;
   region?: string;
   details?: string;
 }
-
-// ==========================================================
-// PACIENTE
-// ==========================================================
 
 export interface Patient {
   id: string;
@@ -98,21 +79,10 @@ export interface Patient {
   birthDate?: string;
   age?: number;
   professor?: string;
-
-  /**
-   * Procedimentos clínicos planejados/realizados
-   * pelo paciente, com possibilidade de informar
-   * dente, região, detalhes e status.
-   */
   procedures: PatientProcedure[];
-
   nextReturn?: string;
   notes?: string;
 }
-
-// ==========================================================
-// ATENDIMENTO / MODO CLÍNICA
-// ==========================================================
 
 export type AppointmentStatus = "EM_ANDAMENTO" | "FINALIZADO";
 
@@ -160,10 +130,6 @@ export interface Appointment {
   resumoDificuldade?: string;
 }
 
-// ==========================================================
-// METAS
-// ==========================================================
-
 export interface WeeklyGoal {
   id: string;
   label: string;
@@ -171,4 +137,3 @@ export interface WeeklyGoal {
   target: number;
   unit?: string;
 }
-```
