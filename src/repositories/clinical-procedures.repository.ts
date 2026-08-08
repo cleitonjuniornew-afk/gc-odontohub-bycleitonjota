@@ -57,7 +57,7 @@ export interface ClinicalProcedure {
 
 type LocalRow = ClinicalProcedure;
 
-const localStore = createLocalStore([]);
+const localStore = createLocalStore<LocalRow>([]);
 
 function fromRow(row: any): ClinicalProcedure {
   return {
