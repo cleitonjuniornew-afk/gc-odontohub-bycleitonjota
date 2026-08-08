@@ -62,6 +62,9 @@ export default function CasosClinicosPage() {
   const [deletingAppointmentId, setDeletingAppointmentId] =
     useState<string | null>(null);
 
+  const [deletingProcedureId, setDeletingProcedureId] =
+    useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -151,8 +154,45 @@ export default function CasosClinicosPage() {
     }
   }
 
+  async function excluirProcedimento(
+    procedure: ClinicalProcedure
+  ) {
+    const confirmed = window.confirm(
+      `Tem certeza que deseja excluir o procedimento "${procedure.nome}"?\n\nO procedimento será removido da lista de Procedimentos Clínicos.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingProcedureId(procedure.id);
+
+      await clinicalProceduresRepository.delete(
+        procedure.id
+      );
+
+      setProcedures((current) =>
+        current.filter(
+          (item) => item.id !== procedure.id
+        )
+      );
+    } catch (error) {
+      console.error(
+        "Erro ao excluir procedimento clínico:",
+        error
+      );
+
+      window.alert(
+        "Não foi possível excluir o procedimento clínico."
+      );
+    } finally {
+      setDeletingProcedureId(null);
+    }
+  }
+
   return (
-    <div className="min-w-0 w-full space-y-8 overflow-hidden">
+    <div className="min-w-0 w-full space-y-8">
       <PageHeader
         title="Casos Clínicos"
         description="Escolha um procedimento para iniciar um atendimento ou continue um atendimento já iniciado."
@@ -162,7 +202,6 @@ export default function CasosClinicosPage() {
               router.push("/modo-atendimento")
             }
           >
-            <PlayCircle className="mr-2 h-4 w-4" />
             Iniciar Atendimento
           </Button>
         }
@@ -273,10 +312,10 @@ export default function CasosClinicosPage() {
                       )}
                     </div>
 
-                    {/* BOTÃO */}
-                    <div className="mt-auto pt-5">
+                    {/* BOTÕES */}
+                    <div className="mt-auto grid grid-cols-1 gap-2 pt-5 sm:grid-cols-[1fr_auto]">
                       <Button
-                        className="w-full"
+                        className="w-full min-w-0"
                         onClick={() =>
                           iniciarProcedimento(
                             procedure
@@ -284,8 +323,32 @@ export default function CasosClinicosPage() {
                         }
                       >
                         <PlayCircle className="mr-2 h-4 w-4 shrink-0" />
+
                         <span className="truncate">
                           Iniciar procedimento
+                        </span>
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        className="w-full sm:w-auto"
+                        disabled={
+                          deletingProcedureId ===
+                          procedure.id
+                        }
+                        onClick={() =>
+                          void excluirProcedimento(
+                            procedure
+                          )
+                        }
+                      >
+                        <Trash2 className="mr-2 h-4 w-4 shrink-0" />
+
+                        <span>
+                          {deletingProcedureId ===
+                          procedure.id
+                            ? "Excluindo..."
+                            : "Excluir"}
                         </span>
                       </Button>
                     </div>
