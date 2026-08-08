@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Stethoscope } from "lucide-react";
 
+import { Odontogram } from "@/features/periodontia/components/odontogram";
+
 export default function PeriodontiaPage() {
   return (
     <div className="space-y-6">
@@ -29,6 +31,7 @@ export default function PeriodontiaPage() {
 
             <div>
               <CardTitle>Exame Periodontal</CardTitle>
+
               <p className="mt-1 text-sm text-text-secondary">
                 Selecione um paciente para iniciar o exame.
               </p>
@@ -47,16 +50,18 @@ export default function PeriodontiaPage() {
             </h3>
 
             <p className="mt-2 max-w-md text-sm text-text-secondary">
-              Em breve você poderá selecionar o paciente e realizar o
-              odontograma e o periodontograma completo diretamente aqui.
+              Selecione um paciente para iniciar o odontograma e o
+              periodontograma completo.
             </p>
 
             <Badge variant="secondary" className="mt-4">
-              Módulo em construção
+              Novo módulo
             </Badge>
           </div>
         </CardContent>
       </Card>
+
+      <Odontogram />
     </div>
   );
 }
