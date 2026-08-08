@@ -1,41 +1,14 @@
 "use client";
 
-import {
-  useRef,
-  useState,
-} from "react";
+import { useRef, useState } from "react";
+import { Camera, Plus, Loader2 } from "lucide-react";
 
-import {
-  Camera,
-  Plus,
-  Loader2,
-} from "lucide-react";
-
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-const phases = [
-  {
-    key: "antes",
-    label: "Antes",
-  },
-  {
-    key: "durante",
-    label: "Durante",
-  },
-  {
-    key: "depois",
-    label: "Depois",
-  },
-] as const;
+const phases = ["Antes", "Durante", "Depois"] as const;
 
-type PhotoPhase =
-  (typeof phases)[number]["key"];
+type PhotoPhase = (typeof phases)[number];
 
 interface Props {
   onAdd: (
@@ -44,48 +17,53 @@ interface Props {
   ) => Promise<void>;
 }
 
-export function PhotosCard({
-  onAdd,
-}: Props) {
-  const inputRef =
-    useRef<HTMLInputElement>(null);
+export function PhotosCard({ onAdd }: Props) {
+  const fileInputRef = useRef<HTMLInputElement | null>(
+    null
+  );
 
   const [selectedPhase, setSelectedPhase] =
     useState<PhotoPhase | null>(null);
 
-  const [uploading, setUploading] =
-    useState(false);
+  const [uploadingPhase, setUploadingPhase] =
+    useState<PhotoPhase | null>(null);
 
-  const handlePhaseClick = (
-    phase: PhotoPhase
-  ) => {
+  /**
+   * Abre o seletor de arquivos para a fase escolhida.
+   */
+  const handleSelectPhase = (phase: PhotoPhase) => {
     setSelectedPhase(phase);
 
-    inputRef.current?.click();
+    // Pequeno timeout para garantir que o estado
+    // seja atualizado antes de abrir o seletor.
+    setTimeout(() => {
+      fileInputRef.current?.click();
+    }, 0);
   };
 
+  /**
+   * Recebe o arquivo escolhido pelo usuário.
+   */
   const handleFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const file =
-      event.target.files?.[0];
+    const file = event.target.files?.[0];
 
     if (!file || !selectedPhase) {
+      event.target.value = "";
       return;
     }
 
     try {
-      setUploading(true);
+      setUploadingPhase(selectedPhase);
 
-      await onAdd(
-        file,
-        selectedPhase
-      );
+      await onAdd(file, selectedPhase);
     } finally {
-      setUploading(false);
-
-      event.target.value = "";
+      setUploadingPhase(null);
       setSelectedPhase(null);
+
+      // Permite selecionar novamente o mesmo arquivo.
+      event.target.value = "";
     }
   };
 
@@ -98,8 +76,10 @@ export function PhotosCard({
         </CardTitle>
       </CardHeader>
 
+      {/* Input invisível responsável por abrir
+          o seletor de arquivos do dispositivo */}
       <input
-        ref={inputRef}
+        ref={fileInputRef}
         type="file"
         accept="image/*"
         capture="environment"
@@ -108,28 +88,34 @@ export function PhotosCard({
       />
 
       <div className="grid grid-cols-3 gap-2">
-        {phases.map((phase) => (
-          <button
-            key={phase.key}
-            type="button"
-            disabled={uploading}
-            onClick={() =>
-              handlePhaseClick(phase.key)
-            }
-            className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-[12px] border border-dashed border-border text-text-muted transition-colors hover:border-primary/50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {uploading &&
-            selectedPhase === phase.key ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )}
+        {phases.map((phase) => {
+          const isUploading =
+            uploadingPhase === phase;
 
-            <span className="text-[10px]">
-              {phase.label}
-            </span>
-          </button>
-        ))}
+          return (
+            <button
+              key={phase}
+              type="button"
+              disabled={uploadingPhase !== null}
+              onClick={() =>
+                handleSelectPhase(phase)
+              }
+              className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-[12px] border border-dashed border-border text-text-muted transition-colors hover:border-primary/50 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isUploading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+
+              <span className="text-[10px]">
+                {isUploading
+                  ? "Enviando..."
+                  : phase}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <Badge className="mt-3">
