@@ -48,26 +48,59 @@ function ModoAtendimentoInner() {
 
   if (loading || !appointment) {
     return (
-      <div className="mx-auto max-w-6xl space-y-5 px-5 py-8">
-        <Skeleton className="h-16 w-full" />
-        <div className="grid gap-5 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-64 w-full" />)}
-        </div>
+      <div className="mx-auto grid max-w-6xl gap-5 px-5 py-6 sm:px-8 lg:grid-cols-3 lg:py-8">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-[420px] w-full rounded-xl" />
+        ))}
       </div>
     );
   }
 
   if (appointment.status === "FINALIZADO") {
     return (
-      <div className="mx-auto max-w-3xl px-6">
-        <AppointmentFinishedView appointment={appointment} />
-      </div>
+      <AppointmentFinishedView
+        appointment={appointment}
+      />
     );
   }
 
+  /*
+   * Abre o fluxo real de adição de foto.
+   *
+   * O PhotosCard agora pode chamar esta função passando:
+   * - arquivo
+   * - fase
+   */
+  const handleAddPhoto = async (
+    file: File,
+    phase: "antes" | "durante" | "depois"
+  ) => {
+    try {
+      await addPhoto(file, {
+        phase,
+        disciplineId: undefined,
+        patientId: appointment.patientId,
+        appointmentId: appointment.id,
+      });
+
+      toast.success("Foto adicionada.");
+    } catch (error) {
+      console.error("Erro ao adicionar foto:", error);
+      toast.error("Não foi possível adicionar a foto.");
+    }
+  };
+
   return (
-    <motion.div variants={clinicalModeTransition} initial="hidden" animate="visible">
-      <ClinicalHeader startedAt={appointment.startedAt} saving={saving} onFinish={() => setFinishModalOpen(true)} />
+    <motion.div
+      variants={clinicalModeTransition}
+      initial="hidden"
+      animate="visible"
+    >
+      <ClinicalHeader
+        startedAt={appointment.startedAt}
+        saving={saving}
+        onFinish={() => setFinishModalOpen(true)}
+      />
 
       <motion.div
         variants={staggerContainer}
@@ -76,31 +109,87 @@ function ModoAtendimentoInner() {
         className="mx-auto grid max-w-6xl gap-5 px-5 py-6 sm:px-8 lg:grid-cols-3 lg:py-8"
       >
         <div className="space-y-5">
-          <PatientCard appointment={appointment} onSelectPatient={selectPatient} />
+          <PatientCard
+            appointment={appointment}
+            onSelectPatient={selectPatient}
+          />
+
           <ProcedureCard appointment={appointment} />
-          <ChecklistCard checklist={appointment.checklist} onToggle={toggleChecklistItem} />
+
+          <ChecklistCard
+            checklist={appointment.checklist}
+            onToggle={toggleChecklistItem}
+          />
         </div>
 
         <div className="space-y-5">
-          <PhotosCard onAdd={() => { addPhoto(); toast.success("Foto adicionada."); }} />
-          <NotesCard value={appointment.clinicalNotes} onChange={(v) => updateField("clinicalNotes", v)} />
-          <MaterialsCard materials={appointment.materials} onAdd={addMaterial} onRemove={removeMaterial} />
+          <PhotosCard onAdd={handleAddPhoto} />
+
+          <NotesCard
+            value={appointment.clinicalNotes}
+            onChange={(v) => updateField("clinicalNotes", v)}
+          />
+
+          <MaterialsCard
+            materials={appointment.materials}
+            onAdd={addMaterial}
+            onRemove={removeMaterial}
+          />
         </div>
 
         <div className="space-y-5">
-          <ComplicationsCard appointment={appointment} onChange={updateField} />
-          <ProfessorObservationsCard appointment={appointment} onChange={updateField} />
-          <PendenciesCard appointment={appointment} onChange={updateField} />
-          <ReturnCard appointment={appointment} onChange={updateField} />
-          <TimelineCard timeline={appointment.timeline} />
+          <ComplicationsCard
+            appointment={appointment}
+            onChange={updateField}
+          />
+
+          <ProfessorObservationsCard
+            appointment={appointment}
+            onChange={updateField}
+          />
+
+          <PendenciesCard
+            appointment={appointment}
+            onChange={updateField}
+          />
+
+          <ReturnCard
+            appointment={appointment}
+            onChange={updateField}
+          />
+
+          <TimelineCard
+            timeline={appointment.timeline}
+          />
         </div>
       </motion.div>
 
       <FloatingActionButton
-        onPhoto={() => { addPhoto(); toast.success("Foto adicionada."); }}
-        onNote={() => addTimelineEntry("Observação adicionada")}
-        onMaterial={() => addTimelineEntry("Material adicionado")}
-        onPendency={() => addTimelineEntry("Pendência adicionada")}
+        onPhoto={() => {
+          const input = document.createElement("input");
+
+          input.type = "file";
+          input.accept = "image/*";
+
+          input.onchange = async () => {
+            const file = input.files?.[0];
+
+            if (!file) return;
+
+            await handleAddPhoto(file, "durante");
+          };
+
+          input.click();
+        }}
+        onNote={() =>
+          addTimelineEntry("Observação adicionada")
+        }
+        onMaterial={() =>
+          addTimelineEntry("Material adicionado")
+        }
+        onPendency={() =>
+          addTimelineEntry("Pendência adicionada")
+        }
       />
 
       <FinishAppointmentModal
@@ -118,7 +207,13 @@ function ModoAtendimentoInner() {
 
 export default function ModoAtendimentoPage() {
   return (
-    <Suspense>
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-6xl px-5 py-8">
+          <Skeleton className="h-[500px] w-full rounded-xl" />
+        </div>
+      }
+    >
       <ModoAtendimentoInner />
     </Suspense>
   );
