@@ -1,133 +1,390 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from "react";
+
 import { appointmentsRepository } from "@/repositories/appointments.repository";
-import type { Appointment, ChecklistItem, MaterialItem } from "@/types";
+import type {
+  Appointment,
+  ChecklistItem,
+  MaterialItem,
+} from "@/types";
 
 const DEFAULT_CHECKLIST: ChecklistItem[] = [
-  { id: "c1", label: "Separar materiais", done: false },
-  { id: "c2", label: "EPIs", done: false },
-  { id: "c3", label: "Fotografar antes", done: false },
-  { id: "c4", label: "Anamnese", done: false },
-  { id: "c5", label: "Radiografia", done: false },
-  { id: "c6", label: "Procedimento", done: false },
-  { id: "c7", label: "Fotografar depois", done: false },
-  { id: "c8", label: "Orientações", done: false },
-  { id: "c9", label: "Agendar retorno", done: false },
+  {
+    id: "c1",
+    label: "Separar materiais",
+    done: false,
+  },
+  {
+    id: "c2",
+    label: "EPIs",
+    done: false,
+  },
+  {
+    id: "c3",
+    label: "Fotografar antes",
+    done: false,
+  },
+  {
+    id: "c4",
+    label: "Anamnese",
+    done: false,
+  },
+  {
+    id: "c5",
+    label: "Radiografia",
+    done: false,
+  },
+  {
+    id: "c6",
+    label: "Procedimento",
+    done: false,
+  },
+  {
+    id: "c7",
+    label: "Fotografar depois",
+    done: false,
+  },
+  {
+    id: "c8",
+    label: "Orientações",
+    done: false,
+  },
+  {
+    id: "c9",
+    label: "Agendar retorno",
+    done: false,
+  },
 ];
 
 function nowLabel() {
-  return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return new Date().toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-/** Persiste o atendimento no Supabase (ou no store local de demonstração) com
- * autosave debounced a cada alteração de campo — nada fica apenas em
- * memória. Se `appointmentId` for informado, retoma um atendimento existente. */
 export function useAppointment(appointmentId?: string) {
-  const [appointment, setAppointment] = useState<Appointment | null>(null);
+  const [appointment, setAppointment] =
+    useState<Appointment | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const saveTimeout =
+    useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+
     async function init() {
       setLoading(true);
+
       if (appointmentId) {
-        const existing = await appointmentsRepository.get(appointmentId);
-        if (!cancelled) setAppointment(existing);
+        const existing =
+          await appointmentsRepository.get(appointmentId);
+
+        if (!cancelled) {
+          setAppointment(existing);
+        }
       } else {
-        const created = await appointmentsRepository.create({
-          discipline: "Integrativa Dentística / Periodontia",
-          professor: "Dra. Ana Militão",
-          procedure: "Restauração Classe II",
-          checklist: DEFAULT_CHECKLIST,
-        });
-        if (!cancelled) setAppointment(created);
+        const created =
+          await appointmentsRepository.create({
+            discipline:
+              "Integrativa Dentística / Periodontia",
+
+            professor:
+              "Dra. Ana Militão",
+
+            procedure:
+              "Restauração Classe II",
+
+            checklist: DEFAULT_CHECKLIST,
+          });
+
+        if (!cancelled) {
+          setAppointment(created);
+        }
       }
-      if (!cancelled) setLoading(false);
+
+      if (!cancelled) {
+        setLoading(false);
+      }
     }
+
     init();
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+
+      if (saveTimeout.current) {
+        clearTimeout(saveTimeout.current);
+      }
+    };
   }, [appointmentId]);
 
-  const persist = useCallback((patch: Partial<Appointment>) => {
-    setAppointment((prev) => (prev ? { ...prev, ...patch } : prev));
-    if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    saveTimeout.current = setTimeout(async () => {
-      setAppointment((current) => {
-        if (current) {
-          setSaving(true);
-          appointmentsRepository.update(current.id, patch).finally(() => setSaving(false));
+  const persist = useCallback(
+    (patch: Partial<Appointment>) => {
+      setAppointment((prev) =>
+        prev
+          ? {
+              ...prev,
+              ...patch,
+            }
+          : prev
+      );
+
+      if (saveTimeout.current) {
+        clearTimeout(saveTimeout.current);
+      }
+
+      saveTimeout.current = setTimeout(async () => {
+        const current = appointment;
+
+        if (!current) return;
+
+        setSaving(true);
+
+        try {
+          await appointmentsRepository.update(
+            current.id,
+            patch
+          );
+        } finally {
+          setSaving(false);
         }
-        return current;
+      }, 500);
+    },
+    [appointment]
+  );
+
+  const addTimelineEntry = useCallback(
+    (description: string) => {
+      setAppointment((prev) => {
+        if (!prev) return prev;
+
+        const timeline = [
+          ...prev.timeline,
+          {
+            id: crypto.randomUUID(),
+            time: nowLabel(),
+            description,
+          },
+        ];
+
+        void appointmentsRepository.update(prev.id, {
+          timeline,
+        });
+
+        return {
+          ...prev,
+          timeline,
+        };
       });
-    }, 500);
-  }, []);
+    },
+    []
+  );
 
-  const addTimelineEntry = useCallback((description: string) => {
-    setAppointment((prev) => {
-      if (!prev) return prev;
-      const timeline = [...prev.timeline, { id: crypto.randomUUID(), time: nowLabel(), description }];
-      appointmentsRepository.update(prev.id, { timeline });
-      return { ...prev, timeline };
-    });
-  }, []);
+  const toggleChecklistItem = useCallback(
+    (id: string) => {
+      setAppointment((prev) => {
+        if (!prev) return prev;
 
-  const toggleChecklistItem = useCallback((id: string) => {
-    setAppointment((prev) => {
-      if (!prev) return prev;
-      const checklist = prev.checklist.map((c) => (c.id === id ? { ...c, done: !c.done } : c));
-      appointmentsRepository.update(prev.id, { checklist });
-      return { ...prev, checklist };
-    });
-  }, []);
+        const checklist = prev.checklist.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                done: !item.done,
+              }
+            : item
+        );
 
-  const addMaterial = useCallback((material: Omit<MaterialItem, "id">) => {
-    setAppointment((prev) => {
-      if (!prev) return prev;
-      const materials = [...prev.materials, { ...material, id: crypto.randomUUID() }];
-      appointmentsRepository.update(prev.id, { materials });
-      addTimelineEntry(`Material adicionado: ${material.name}`);
-      return { ...prev, materials };
-    });
-  }, [addTimelineEntry]);
+        void appointmentsRepository.update(prev.id, {
+          checklist,
+        });
 
-  const removeMaterial = useCallback((id: string) => {
-    setAppointment((prev) => {
-      if (!prev) return prev;
-      const materials = prev.materials.filter((m) => m.id !== id);
-      appointmentsRepository.update(prev.id, { materials });
-      return { ...prev, materials };
-    });
-  }, []);
+        return {
+          ...prev,
+          checklist,
+        };
+      });
+    },
+    []
+  );
 
-  const updateField = useCallback(<K extends keyof Appointment>(field: K, value: Appointment[K]) => {
-    persist({ [field]: value } as Partial<Appointment>);
-  }, [persist]);
+  const addMaterial = useCallback(
+    (material: Omit<MaterialItem, "id">) => {
+      setAppointment((prev) => {
+        if (!prev) return prev;
 
-  const selectPatient = useCallback((patientId: string, patientName: string, patientAge?: number) => {
-    persist({ patientId, patientName, patientAge });
-    addTimelineEntry(`Paciente selecionado: ${patientName}`);
-  }, [persist, addTimelineEntry]);
+        const materials = [
+          ...prev.materials,
+          {
+            ...material,
+            id: crypto.randomUUID(),
+          },
+        ];
 
-  const addPhoto = useCallback(() => {
-    addTimelineEntry("Foto adicionada");
-  }, [addTimelineEntry]);
+        void appointmentsRepository.update(prev.id, {
+          materials,
+        });
 
-  const finish = useCallback(async (summary: Pick<Appointment, "resumoComoFoi" | "resumoAprendizado" | "resumoFariaDiferente" | "resumoDificuldade">) => {
-    if (!appointment) return;
-    const finishedAt = new Date().toISOString();
-    const timeline = [...appointment.timeline, { id: crypto.randomUUID(), time: nowLabel(), description: "Atendimento finalizado" }];
-    const patch = { ...summary, status: "FINALIZADO" as const, finishedAt, timeline };
-    await appointmentsRepository.update(appointment.id, patch);
-    setAppointment((prev) => (prev ? { ...prev, ...patch } : prev));
-  }, [appointment]);
+        return {
+          ...prev,
+          materials,
+        };
+      });
+
+      addTimelineEntry(
+        `Material adicionado: ${material.name}`
+      );
+    },
+    [addTimelineEntry]
+  );
+
+  const removeMaterial = useCallback(
+    (id: string) => {
+      setAppointment((prev) => {
+        if (!prev) return prev;
+
+        const materials =
+          prev.materials.filter(
+            (material) => material.id !== id
+          );
+
+        void appointmentsRepository.update(prev.id, {
+          materials,
+        });
+
+        return {
+          ...prev,
+          materials,
+        };
+      });
+    },
+    []
+  );
+
+  const updateField = useCallback(
+    <K extends keyof Appointment>(
+      field: K,
+      value: Appointment[K]
+    ) => {
+      persist({
+        [field]: value,
+      } as Partial<Appointment>);
+    },
+    [persist]
+  );
+
+  const selectPatient = useCallback(
+    (
+      patientId: string,
+      patientName: string,
+      patientAge?: number
+    ) => {
+      persist({
+        patientId,
+        patientName,
+        patientAge,
+      });
+
+      addTimelineEntry(
+        `Paciente selecionado: ${patientName}`
+      );
+    },
+    [persist, addTimelineEntry]
+  );
+
+  /*
+   * IMPORTANTE:
+   *
+   * Este método NÃO adiciona uma foto falsa.
+   *
+   * Ele apenas registra a fase que o usuário pretende
+   * fotografar. O upload real será feito pelo seletor
+   * de arquivos do Modo Atendimento.
+   */
+  const addPhoto = useCallback(
+    (phase: "Antes" | "Durante" | "Depois") => {
+      addTimelineEntry(
+        `Foto selecionada para ${phase.toLowerCase()}`
+      );
+    },
+    [addTimelineEntry]
+  );
+
+  const finish = useCallback(
+    async (
+      summary: Pick<
+        Appointment,
+        | "resumoComoFoi"
+        | "resumoAprendizado"
+        | "resumoFariaDiferente"
+        | "resumoDificuldade"
+      >
+    ) => {
+      if (!appointment) return;
+
+      const finishedAt =
+        new Date().toISOString();
+
+      const timeline = [
+        ...appointment.timeline,
+        {
+          id: crypto.randomUUID(),
+          time: nowLabel(),
+          description: "Atendimento finalizado",
+        },
+      ];
+
+      const patch = {
+        ...summary,
+        status: "FINALIZADO" as const,
+        finishedAt,
+        timeline,
+      };
+
+      await appointmentsRepository.update(
+        appointment.id,
+        patch
+      );
+
+      setAppointment((prev) =>
+        prev
+          ? {
+              ...prev,
+              ...patch,
+            }
+          : prev
+      );
+    },
+    [appointment]
+  );
 
   const checklistProgress = useMemo(() => {
-    if (!appointment) return { done: 0, total: 0 };
-    const done = appointment.checklist.filter((c) => c.done).length;
-    return { done, total: appointment.checklist.length };
+    if (!appointment) {
+      return {
+        done: 0,
+        total: 0,
+      };
+    }
+
+    const done =
+      appointment.checklist.filter(
+        (item) => item.done
+      ).length;
+
+    return {
+      done,
+      total: appointment.checklist.length,
+    };
   }, [appointment]);
 
   return {
