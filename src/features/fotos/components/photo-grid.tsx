@@ -2,8 +2,15 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Image as ImageIcon, Trash2 } from "lucide-react";
-import { staggerContainer, fadeInUp } from "@/animations/variants";
+import {
+  Image as ImageIcon,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import {
+  staggerContainer,
+  fadeInUp,
+} from "@/animations/variants";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,8 +31,13 @@ export function PhotoGrid() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-text-primary">
+          Fotos
+        </h2>
+
         <Button onClick={() => setUploadOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
           Adicionar foto
         </Button>
       </div>
@@ -68,11 +80,9 @@ export function PhotoGrid() {
               />
 
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-3">
-                {photo.description && (
-                  <p className="truncate text-xs text-white">
-                    {photo.description}
-                  </p>
-                )}
+                <p className="truncate text-xs text-white">
+                  {photo.description}
+                </p>
 
                 {photo.phase && (
                   <Badge
@@ -93,7 +103,6 @@ export function PhotoGrid() {
                   })
                 }
                 className="absolute right-2 top-2 hidden rounded-full bg-black/60 p-1.5 text-white group-hover:block hover:bg-error"
-                aria-label="Excluir foto"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -106,12 +115,12 @@ export function PhotoGrid() {
         open={uploadOpen}
         onOpenChange={setUploadOpen}
         submitting={isUploading}
-        onSubmit={(file, meta) =>
-          uploadPhoto({
+        onSubmit={async (file, meta) => {
+          await uploadPhoto({
             file,
             meta,
-          })
-        }
+          });
+        }}
       />
     </div>
   );
