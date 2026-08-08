@@ -8,7 +8,7 @@ export default function PacientesPage() {
         title="Pacientes"
         description="Cadastro completo com procedimentos, retornos e observações."
       />
-      <PatientList />
+      <PatientList patients={[]} />
     </div>
   );
 }
