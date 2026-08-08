@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { User, ClipboardList } from "lucide-react";
-
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
 import { PatientPicker } from "@/features/pacientes/components/patient-picker";
-import { usePatients } from "@/features/pacientes/hooks/use-patients";
-
-import type { Appointment, Patient } from "@/types";
+import type { Appointment, PatientProcedure } from "@/types";
 
 interface Props {
   appointment: Appointment;
@@ -19,10 +18,7 @@ interface Props {
     name: string,
     age?: number
   ) => void;
-  onSelectProcedure?: (
-    procedureId: string,
-    procedure: string
-  ) => void;
+  onSelectProcedure?: (procedure: PatientProcedure) => void;
 }
 
 export function PatientCard({
@@ -30,42 +26,6 @@ export function PatientCard({
   onSelectPatient,
   onSelectProcedure,
 }: Props) {
-  const { patients } = usePatients();
-
-  const [selectedPatient, setSelectedPatient] =
-    useState<Patient | null>(null);
-
-  useEffect(() => {
-    if (!appointment.patientId) {
-      setSelectedPatient(null);
-      return;
-    }
-
-    const patient = patients.find(
-      (p) => p.id === appointment.patientId
-    );
-
-    if (patient) {
-      setSelectedPatient(patient);
-    }
-  }, [appointment.patientId, patients]);
-
-  const handlePatientChange = (
-    patientId: string,
-    patient: Patient
-  ) => {
-    setSelectedPatient(patient);
-
-    onSelectPatient(
-      patientId,
-      patient.name,
-      patient.age
-    );
-  };
-
-  const procedures =
-    selectedPatient?.procedures ?? [];
-
   return (
     <Card>
       <CardHeader>
@@ -75,142 +35,163 @@ export function PatientCard({
         </CardTitle>
       </CardHeader>
 
-      {!appointment.patientId ? (
-        <PatientPicker
-          onChange={handlePatientChange}
-        />
-      ) : (
-        <div className="space-y-4 text-sm">
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-text-secondary">
-                Nome
-              </span>
+      <CardContent>
+        {!appointment.patientId ? (
+          <PatientPicker
+            onChange={(id, patient) => {
+              onSelectPatient(
+                id,
+                patient.name,
+                patient.age
+              );
+            }}
+          />
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between gap-4">
+                <span className="text-text-secondary">
+                  Nome
+                </span>
 
-              <span className="text-text-primary">
-                {appointment.patientName}
-              </span>
+                <span className="text-right text-text-primary">
+                  {appointment.patientName}
+                </span>
+              </div>
+
+              <div className="flex justify-between gap-4">
+                <span className="text-text-secondary">
+                  Idade
+                </span>
+
+                <span className="text-text-primary">
+                  {appointment.patientAge ?? "—"} anos
+                </span>
+              </div>
+
+              <div className="flex justify-between gap-4">
+                <span className="text-text-secondary">
+                  Disciplina
+                </span>
+
+                <span className="text-right text-text-primary">
+                  {appointment.discipline || "—"}
+                </span>
+              </div>
+
+              <div className="flex justify-between gap-4">
+                <span className="text-text-secondary">
+                  Professor avaliador
+                </span>
+
+                <span className="text-right text-text-primary">
+                  {appointment.professor || "—"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-text-secondary">
+                  Dupla
+                </span>
+
+                <Badge variant="primary">
+                  Junior e Gabriel
+                </Badge>
+              </div>
             </div>
 
-            <div className="flex justify-between">
-              <span className="text-text-secondary">
-                Idade
-              </span>
+            {appointment.procedures &&
+              appointment.procedures.length > 0 && (
+                <div className="border-t border-border pt-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <ClipboardList className="h-4 w-4 text-primary" />
 
-              <span className="text-text-primary">
-                {appointment.patientAge ?? "—"} anos
-              </span>
-            </div>
+                    <span className="text-sm font-medium text-text-primary">
+                      Procedimentos do paciente
+                    </span>
+                  </div>
 
-            <div className="flex justify-between">
-              <span className="text-text-secondary">
-                Disciplina
-              </span>
+                  <div className="space-y-2">
+                    {appointment.procedures.map(
+                      (procedure) => (
+                        <button
+                          key={procedure.id}
+                          type="button"
+                          onClick={() =>
+                            onSelectProcedure?.(
+                              procedure
+                            )
+                          }
+                          className="w-full rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/50 hover:bg-primary/5"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-medium text-text-primary">
+                                {procedure.procedure}
+                              </p>
 
-              <span className="text-text-primary">
-                {appointment.discipline}
-              </span>
-            </div>
+                              {procedure.tooth && (
+                                <p className="mt-1 text-xs text-text-secondary">
+                                  Dente:{" "}
+                                  {procedure.tooth}
+                                </p>
+                              )}
 
-            <div className="flex justify-between">
-              <span className="text-text-secondary">
-                Professor avaliador
-              </span>
+                              {procedure.region && (
+                                <p className="text-xs text-text-secondary">
+                                  Região:{" "}
+                                  {procedure.region}
+                                </p>
+                              )}
 
-              <span className="text-text-primary">
-                {appointment.professor}
-              </span>
-            </div>
+                              {procedure.details && (
+                                <p className="mt-1 text-xs text-text-muted">
+                                  {
+                                    procedure.details
+                                  }
+                                </p>
+                              )}
+                            </div>
 
-            <div className="flex items-center justify-between">
-              <span className="text-text-secondary">
-                Dupla
-              </span>
+                            <Badge
+                              variant={
+                                procedure.status ===
+                                "CONCLUIDO"
+                                  ? "success"
+                                  : procedure.status ===
+                                    "EM_ANDAMENTO"
+                                  ? "warning"
+                                  : "primary"
+                              }
+                            >
+                              {procedure.status ===
+                              "CONCLUIDO"
+                                ? "Concluído"
+                                : procedure.status ===
+                                  "EM_ANDAMENTO"
+                                ? "Em andamento"
+                                : "Planejado"}
+                            </Badge>
+                          </div>
+                        </button>
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
 
-              <Badge variant="primary">
-                Junior e Gabriel
-              </Badge>
-            </div>
-          </div>
-
-          <div className="border-t border-border pt-4">
-            <div className="mb-2 flex items-center gap-2">
-              <ClipboardList className="h-4 w-4 text-primary" />
-
-              <span className="font-medium text-text-primary">
-                Procedimento
-              </span>
-            </div>
-
-            {procedures.length === 0 ? (
-              <div className="rounded-lg border border-border bg-card p-3">
-                <p className="text-sm text-text-secondary">
-                  Este paciente ainda não possui
-                  procedimentos cadastrados.
-                </p>
-
-                <p className="mt-1 text-xs text-text-muted">
-                  Cadastre um procedimento no cadastro
-                  do paciente antes de iniciar o
-                  atendimento.
+            {(!appointment.procedures ||
+              appointment.procedures.length === 0) && (
+              <div className="rounded-lg border border-dashed border-border p-3 text-center">
+                <p className="text-xs text-text-muted">
+                  Nenhum procedimento cadastrado
+                  para este paciente.
                 </p>
               </div>
-            ) : (
-              <Select
-                value={
-                  appointment.procedureId ?? undefined
-                }
-                onValueChange={(procedureId) => {
-                  const procedure =
-                    procedures.find(
-                      (p) => p.id === procedureId
-                    );
-
-                  if (!procedure) return;
-
-                  onSelectProcedure?.(
-                    procedure.id,
-                    procedure.procedure
-                  );
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o procedimento" />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {procedures.map((procedure) => (
-                    <SelectItem
-                      key={procedure.id}
-                      value={procedure.id}
-                    >
-                      {procedure.procedure}
-                      {procedure.tooth
-                        ? ` — Dente ${procedure.tooth}`
-                        : ""}
-                      {procedure.region
-                        ? ` — ${procedure.region}`
-                        : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             )}
           </div>
-
-          {appointment.procedureId && (
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
-              <p className="text-xs text-text-muted">
-                Procedimento selecionado
-              </p>
-
-              <p className="mt-1 font-medium text-text-primary">
-                {appointment.procedure}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </CardContent>
     </Card>
   );
 }
