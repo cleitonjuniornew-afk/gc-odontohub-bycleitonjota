@@ -2,13 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+
 import {
   Stethoscope,
   PlayCircle,
   Clock,
   CheckCircle2,
   ClipboardList,
+  Trash2,
 } from "lucide-react";
 
 import {
@@ -38,26 +41,51 @@ import {
   type ClinicalProcedure,
 } from "@/repositories/clinical-procedures.repository";
 
+import {
+  appointmentsRepository,
+} from "@/repositories/appointments.repository";
+
 export default function CasosClinicosPage() {
   const router = useRouter();
+
+  const queryClient =
+    useQueryClient();
 
   const {
     appointments,
     isLoading: appointmentsLoading,
-  } = useAppointmentsList();
+  } =
+    useAppointmentsList();
 
-  const [procedures, setProcedures] = useState<
-    ClinicalProcedure[]
-  >([]);
+  const [
+    procedures,
+    setProcedures,
+  ] =
+    useState<ClinicalProcedure[]>(
+      []
+    );
 
-  const [proceduresLoading, setProceduresLoading] =
+  const [
+    proceduresLoading,
+    setProceduresLoading,
+  ] =
     useState(true);
+
+  const [
+    deletingId,
+    setDeletingId,
+  ] =
+    useState<string | null>(
+      null
+    );
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadProcedures() {
-      setProceduresLoading(true);
+      setProceduresLoading(
+        true
+      );
 
       try {
         const data =
@@ -77,7 +105,9 @@ export default function CasosClinicosPage() {
         }
       } finally {
         if (!cancelled) {
-          setProceduresLoading(false);
+          setProceduresLoading(
+            false
+          );
         }
       }
     }
@@ -109,6 +139,48 @@ export default function CasosClinicosPage() {
     );
   }
 
+  async function excluirAtendimento(
+    appointmentId: string
+  ) {
+    const confirmed =
+      window.confirm(
+        "Tem certeza que deseja excluir este atendimento?\n\nEle será removido do histórico."
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingId(
+        appointmentId
+      );
+
+      await appointmentsRepository.delete(
+        appointmentId
+      );
+
+      await queryClient.invalidateQueries(
+        {
+          queryKey: [
+            "appointments",
+          ],
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Erro ao excluir atendimento:",
+        error
+      );
+
+      window.alert(
+        "Não foi possível excluir o atendimento. Tente novamente."
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -117,7 +189,9 @@ export default function CasosClinicosPage() {
         action={
           <Button
             onClick={() =>
-              router.push("/modo-atendimento")
+              router.push(
+                "/modo-atendimento"
+              )
             }
           >
             <PlayCircle className="mr-2 h-4 w-4" />
@@ -134,20 +208,23 @@ export default function CasosClinicosPage() {
           </h2>
 
           <p className="text-sm text-text-secondary">
-            Selecione o procedimento para carregar
-            automaticamente sua revisão, checklist e
-            protocolo clínico.
+            Selecione o procedimento para
+            carregar automaticamente sua
+            revisão, checklist e protocolo
+            clínico.
           </p>
         </div>
 
         {proceduresLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((item) => (
-              <Skeleton
-                key={item}
-                className="h-44 w-full"
-              />
-            ))}
+            {[1, 2, 3].map(
+              (item) => (
+                <Skeleton
+                  key={item}
+                  className="h-52 w-full"
+                />
+              )
+            )}
           </div>
         ) : procedures.length === 0 ? (
           <Card>
@@ -156,12 +233,14 @@ export default function CasosClinicosPage() {
 
               <div>
                 <h3 className="font-medium text-text-primary">
-                  Nenhum procedimento cadastrado
+                  Nenhum procedimento
+                  cadastrado
                 </h3>
 
                 <p className="mt-1 text-sm text-text-secondary">
-                  Cadastre os protocolos clínicos no
-                  Supabase para começar.
+                  Cadastre os protocolos
+                  clínicos no Supabase
+                  para começar.
                 </p>
               </div>
             </div>
@@ -173,75 +252,101 @@ export default function CasosClinicosPage() {
             animate="visible"
             className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
           >
-            {procedures.map((procedure) => (
-              <motion.div
-                key={procedure.id}
-                variants={fadeInUp}
-              >
-                <Card className="h-full transition hover:-translate-y-0.5">
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <CardTitle className="text-base">
-                          {procedure.nome}
-                        </CardTitle>
+            {procedures.map(
+              (procedure) => (
+                <motion.div
+                  key={procedure.id}
+                  variants={fadeInUp}
+                  className="min-w-0"
+                >
+                  <Card className="h-full min-w-0 overflow-hidden transition hover:-translate-y-0.5">
+                    <CardHeader className="min-w-0">
+                      <div className="flex min-w-0 items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="break-words text-base leading-snug">
+                            {procedure.nome}
+                          </CardTitle>
 
-                        {procedure.disciplina && (
-                          <p className="mt-1 text-xs text-text-muted">
-                            {procedure.disciplina}
-                          </p>
+                          {procedure.disciplina && (
+                            <p className="mt-1 break-words text-xs text-text-muted">
+                              {procedure.disciplina}
+                            </p>
+                          )}
+                        </div>
+
+                        <Badge
+                          variant="primary"
+                          className="shrink-0 whitespace-nowrap"
+                        >
+                          Protocolo
+                        </Badge>
+                      </div>
+
+                      {procedure.descricao && (
+                        <p className="mt-2 break-words text-sm leading-relaxed text-text-secondary">
+                          {procedure.descricao}
+                        </p>
+                      )}
+
+                      <div className="mt-3 flex min-w-0 flex-wrap gap-x-3 gap-y-1.5 text-xs text-text-muted">
+                        {procedure.checklist.length >
+                          0 && (
+                          <span className="whitespace-nowrap">
+                            ✓{" "}
+                            {
+                              procedure
+                                .checklist
+                                .length
+                            }{" "}
+                            checklist
+                          </span>
+                        )}
+
+                        {procedure.passoAPasso.length >
+                          0 && (
+                          <span className="whitespace-nowrap">
+                            ✓{" "}
+                            {
+                              procedure
+                                .passoAPasso
+                                .length
+                            }{" "}
+                            etapas
+                          </span>
+                        )}
+
+                        {procedure.materiais.length >
+                          0 && (
+                          <span className="whitespace-nowrap">
+                            ✓{" "}
+                            {
+                              procedure
+                                .materiais
+                                .length
+                            }{" "}
+                            materiais
+                          </span>
                         )}
                       </div>
 
-                      <Badge variant="primary">
-                        Protocolo
-                      </Badge>
-                    </div>
-
-                    {procedure.descricao && (
-                      <p className="mt-2 text-sm text-text-secondary">
-                        {procedure.descricao}
-                      </p>
-                    )}
-
-                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-text-muted">
-                      {procedure.checklist.length > 0 && (
-                        <span>
-                          ✓ {procedure.checklist.length}{" "}
-                          checklist
+                      <Button
+                        className="mt-4 w-full"
+                        onClick={() =>
+                          iniciarProcedimento(
+                            procedure
+                          )
+                        }
+                      >
+                        <PlayCircle className="mr-2 h-4 w-4 shrink-0" />
+                        <span className="truncate">
+                          Iniciar procedimento
                         </span>
-                      )}
-
-                      {procedure.passoAPasso.length > 0 && (
-                        <span>
-                          ✓ {procedure.passoAPasso.length}{" "}
-                          etapas
-                        </span>
-                      )}
-
-                      {procedure.materiais.length > 0 && (
-                        <span>
-                          ✓ {procedure.materiais.length}{" "}
-                          materiais
-                        </span>
-                      )}
-                    </div>
-
-                    <Button
-                      className="mt-4 w-full"
-                      onClick={() =>
-                        iniciarProcedimento(
-                          procedure
-                        )
-                      }
-                    >
-                      <PlayCircle className="mr-2 h-4 w-4" />
-                      Iniciar procedimento
-                    </Button>
-                  </CardHeader>
-                </Card>
-              </motion.div>
-            ))}
+                      </Button>
+                    </CardHeader>
+                  </Card>
+                </motion.div>
+              )
+            )}
           </motion.div>
         )}
       </section>
@@ -254,19 +359,22 @@ export default function CasosClinicosPage() {
           </h2>
 
           <p className="text-sm text-text-secondary">
-            Continue atendimentos em andamento ou
-            consulte os que já foram finalizados.
+            Continue atendimentos em andamento
+            ou consulte os que já foram
+            finalizados.
           </p>
         </div>
 
         {appointmentsLoading ? (
           <div className="grid gap-4 sm:grid-cols-2">
-            {[1, 2].map((item) => (
-              <Skeleton
-                key={item}
-                className="h-36 w-full"
-              />
-            ))}
+            {[1, 2].map(
+              (item) => (
+                <Skeleton
+                  key={item}
+                  className="h-44 w-full"
+                />
+              )
+            )}
           </div>
         ) : appointments.length === 0 ? (
           <EmptyState
@@ -279,71 +387,120 @@ export default function CasosClinicosPage() {
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
-            className="grid gap-4 sm:grid-cols-2"
+            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
           >
-            {appointments.map((appointment) => (
-              <motion.div
-                key={appointment.id}
-                variants={fadeInUp}
-              >
-                <Card className="h-full">
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <CardTitle className="text-base">
-                          {appointment.patientName ||
-                            "Paciente não selecionado"}
-                        </CardTitle>
+            {appointments.map(
+              (appointment) => {
+                const isDeleting =
+                  deletingId ===
+                  appointment.id;
 
-                        <p className="mt-1 text-sm text-text-secondary">
-                          {appointment.procedure ||
-                            "Procedimento clínico"}
-                        </p>
-                      </div>
+                return (
+                  <motion.div
+                    key={appointment.id}
+                    variants={fadeInUp}
+                    className="min-w-0"
+                  >
+                    <Card className="h-full min-w-0 overflow-hidden">
+                      <CardHeader className="min-w-0">
+                        {/* CABEÇALHO */}
+                        <div className="flex min-w-0 items-start gap-3">
+                          <div className="min-w-0 flex-1">
+                            <CardTitle className="break-words text-base leading-snug">
+                              {appointment.patientName ||
+                                "Paciente não selecionado"}
+                            </CardTitle>
 
-                      {appointment.status ===
-                      "FINALIZADO" ? (
-                        <Badge variant="success">
-                          <CheckCircle2 className="mr-1 h-3 w-3" />
-                          Finalizado
-                        </Badge>
-                      ) : (
-                        <Badge variant="warning">
-                          Em andamento
-                        </Badge>
-                      )}
-                    </div>
+                            <p className="mt-1 break-words text-sm leading-snug text-text-secondary">
+                              {appointment.procedure ||
+                                "Procedimento clínico"}
+                            </p>
+                          </div>
 
-                    <div className="mt-3 flex items-center gap-1.5 text-xs text-text-muted">
-                      <Clock className="h-3.5 w-3.5" />
+                          <div className="shrink-0">
+                            {appointment.status ===
+                            "FINALIZADO" ? (
+                              <Badge
+                                variant="success"
+                                className="whitespace-nowrap"
+                              >
+                                <CheckCircle2 className="mr-1 h-3 w-3" />
+                                Finalizado
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="warning"
+                                className="whitespace-nowrap"
+                              >
+                                Em andamento
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
 
-                      {new Date(
-                        appointment.startedAt
-                      ).toLocaleDateString(
-                        "pt-BR"
-                      )}
-                    </div>
+                        {/* DATA */}
+                        <div className="mt-3 flex items-center gap-1.5 text-xs text-text-muted">
+                          <Clock className="h-3.5 w-3.5 shrink-0" />
 
-                    <div className="mt-4">
-                      <Button
-                        variant="secondary"
-                        className="w-full"
-                        onClick={() =>
-                          continuarAtendimento(
-                            appointment.id
-                          )
-                        }
-                      >
-                        {appointment.status ===
-                        "FINALIZADO"
-                          ? "Ver atendimento"
-                          : "Continuar atendimento"}
-                      </Button>
-                    </div>
-                  </CardHeader>
-                </Card>
-              </motion.div>
-            ))}
+                          <span>
+                            {new Date(
+                              appointment.startedAt
+                            ).toLocaleDateString(
+                              "pt-BR"
+                            )}
+                          </span>
+                        </div>
+
+                        {/* BOTÕES */}
+                        <div className="mt-4 flex min-w-0 flex-col gap-2 sm:flex-row">
+                          <Button
+                            variant="secondary"
+                            className="min-w-0 flex-1"
+                            disabled={
+                              isDeleting
+                            }
+                            onClick={() =>
+                              continuarAtendimento(
+                                appointment.id
+                              )
+                            }
+                          >
+                            <span className="truncate">
+                              {appointment.status ===
+                              "FINALIZADO"
+                                ? "Ver atendimento"
+                                : "Continuar atendimento"}
+                            </span>
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            className="shrink-0 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                            disabled={
+                              isDeleting
+                            }
+                            title="Excluir atendimento"
+                            onClick={() =>
+                              excluirAtendimento(
+                                appointment.id
+                              )
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+
+                            <span className="ml-2 sm:hidden">
+                              {isDeleting
+                                ? "Excluindo..."
+                                : "Excluir"}
+                            </span>
+                          </Button>
+                        </div>
+                      </CardHeader>
+                    </Card>
+                  </motion.div>
+                );
+              }
+            )}
           </motion.div>
         )}
       </section>
