@@ -29,9 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 
-import {
-useAppointmentsList,
-} from "@/features/modo-clinica/hooks/use-appointments-list";
+import { useAppointmentsList } from "@/features/modo-clinica/hooks/use-appointments-list";
 
 import {
 clinicalProceduresRepository,
@@ -46,13 +44,8 @@ appointments,
 isLoading: appointmentsLoading,
 } = useAppointmentsList();
 
-const [procedures, setProcedures] = useState<
-ClinicalProcedure[]
-
-> ([]);
-
-const [proceduresLoading, setProceduresLoading] =
-useState(true);
+const [procedures, setProcedures] = useState<ClinicalProcedure[]>([]);
+const [proceduresLoading, setProceduresLoading] = useState(true);
 
 useEffect(() => {
 let cancelled = false;
@@ -62,8 +55,7 @@ async function loadProcedures() {
   setProceduresLoading(true);
 
   try {
-    const data =
-      await clinicalProceduresRepository.list();
+    const data = await clinicalProceduresRepository.list();
 
     if (!cancelled) {
       setProcedures(data);
@@ -93,9 +85,7 @@ return () => {
 
 }, []);
 
-function iniciarProcedimento(
-procedure: ClinicalProcedure
-) {
+function iniciarProcedimento(procedure: ClinicalProcedure) {
 router.push(
 `/modo-atendimento?procedureId=${encodeURIComponent(
         procedure.id
@@ -103,9 +93,7 @@ router.push(
 );
 }
 
-function continuarAtendimento(
-appointmentId: string
-) {
+function continuarAtendimento(appointmentId: string) {
 router.push(
 `/modo-atendimento?id=${encodeURIComponent(
         appointmentId
@@ -119,16 +107,13 @@ title="Casos Clínicos"
 description="Escolha um procedimento para iniciar um atendimento ou continue um atendimento já iniciado."
 action={
 <Button
-onClick={() =>
-router.push("/modo-atendimento")
-}
+onClick={() => router.push("/modo-atendimento")}
 > <PlayCircle className="mr-2 h-4 w-4" />
 Iniciar Atendimento </Button>
 }
 />
 
 ```
-  {/* PROCEDIMENTOS PREDEFINIDOS */}
   <section className="space-y-4">
     <div>
       <h2 className="text-lg font-semibold text-text-primary">
@@ -136,9 +121,8 @@ Iniciar Atendimento </Button>
       </h2>
 
       <p className="text-sm text-text-secondary">
-        Selecione o procedimento para carregar
-        automaticamente sua revisão, checklist e
-        protocolo clínico.
+        Selecione um procedimento para carregar automaticamente
+        sua revisão, checklist e protocolo clínico.
       </p>
     </div>
 
@@ -162,8 +146,8 @@ Iniciar Atendimento </Button>
             </h3>
 
             <p className="mt-1 text-sm text-text-secondary">
-              Cadastre os protocolos clínicos no
-              Supabase para começar.
+              Cadastre os protocolos clínicos no Supabase
+              para começar.
             </p>
           </div>
         </div>
@@ -209,22 +193,19 @@ Iniciar Atendimento </Button>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs text-text-muted">
                   {procedure.checklist.length > 0 && (
                     <span>
-                      ✓ {procedure.checklist.length}{" "}
-                      checklist
+                      ✓ {procedure.checklist.length} checklist
                     </span>
                   )}
 
                   {procedure.passoAPasso.length > 0 && (
                     <span>
-                      ✓ {procedure.passoAPasso.length}{" "}
-                      etapas
+                      ✓ {procedure.passoAPasso.length} etapas
                     </span>
                   )}
 
                   {procedure.materiais.length > 0 && (
                     <span>
-                      ✓ {procedure.materiais.length}{" "}
-                      materiais
+                      ✓ {procedure.materiais.length} materiais
                     </span>
                   )}
                 </div>
@@ -232,9 +213,7 @@ Iniciar Atendimento </Button>
                 <Button
                   className="mt-4 w-full"
                   onClick={() =>
-                    iniciarProcedimento(
-                      procedure
-                    )
+                    iniciarProcedimento(procedure)
                   }
                 >
                   <PlayCircle className="mr-2 h-4 w-4" />
@@ -248,7 +227,6 @@ Iniciar Atendimento </Button>
     )}
   </section>
 
-  {/* HISTÓRICO */}
   <section className="space-y-4">
     <div>
       <h2 className="text-lg font-semibold text-text-primary">
@@ -256,8 +234,8 @@ Iniciar Atendimento </Button>
       </h2>
 
       <p className="text-sm text-text-secondary">
-        Continue atendimentos em andamento ou
-        consulte os que já foram finalizados.
+        Continue atendimentos em andamento ou consulte os
+        que já foram finalizados.
       </p>
     </div>
 
@@ -303,8 +281,7 @@ Iniciar Atendimento </Button>
                     </p>
                   </div>
 
-                  {appointment.status ===
-                  "FINALIZADO" ? (
+                  {appointment.status === "FINALIZADO" ? (
                     <Badge variant="success">
                       <CheckCircle2 className="mr-1 h-3 w-3" />
                       Finalizado
@@ -321,9 +298,7 @@ Iniciar Atendimento </Button>
 
                   {new Date(
                     appointment.startedAt
-                  ).toLocaleDateString(
-                    "pt-BR"
-                  )}
+                  ).toLocaleDateString("pt-BR")}
                 </div>
 
                 <div className="mt-4">
@@ -336,8 +311,7 @@ Iniciar Atendimento </Button>
                       )
                     }
                   >
-                    {appointment.status ===
-                    "FINALIZADO"
+                    {appointment.status === "FINALIZADO"
                       ? "Ver atendimento"
                       : "Continuar atendimento"}
                   </Button>
