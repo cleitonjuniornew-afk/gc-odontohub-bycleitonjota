@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-
 import {
   Stethoscope,
   PlayCircle,
@@ -48,44 +46,27 @@ import {
 export default function CasosClinicosPage() {
   const router = useRouter();
 
-  const queryClient =
-    useQueryClient();
-
   const {
     appointments,
     isLoading: appointmentsLoading,
-  } =
-    useAppointmentsList();
+    refetch: refetchAppointments,
+  } = useAppointmentsList();
 
-  const [
-    procedures,
-    setProcedures,
-  ] =
-    useState<ClinicalProcedure[]>(
-      []
-    );
+  const [procedures, setProcedures] = useState<
+    ClinicalProcedure[]
+  >([]);
 
-  const [
-    proceduresLoading,
-    setProceduresLoading,
-  ] =
+  const [proceduresLoading, setProceduresLoading] =
     useState(true);
 
-  const [
-    deletingId,
-    setDeletingId,
-  ] =
-    useState<string | null>(
-      null
-    );
+  const [deletingAppointmentId, setDeletingAppointmentId] =
+    useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadProcedures() {
-      setProceduresLoading(
-        true
-      );
+      setProceduresLoading(true);
 
       try {
         const data =
@@ -105,9 +86,7 @@ export default function CasosClinicosPage() {
         }
       } finally {
         if (!cancelled) {
-          setProceduresLoading(
-            false
-          );
+          setProceduresLoading(false);
         }
       }
     }
@@ -142,31 +121,22 @@ export default function CasosClinicosPage() {
   async function excluirAtendimento(
     appointmentId: string
   ) {
-    const confirmed =
-      window.confirm(
-        "Tem certeza que deseja excluir este atendimento?\n\nEle será removido do histórico."
-      );
+    const confirmed = window.confirm(
+      "Tem certeza que deseja excluir este atendimento?\n\nEssa ação irá removê-lo do histórico."
+    );
 
     if (!confirmed) {
       return;
     }
 
     try {
-      setDeletingId(
-        appointmentId
-      );
+      setDeletingAppointmentId(appointmentId);
 
       await appointmentsRepository.delete(
         appointmentId
       );
 
-      await queryClient.invalidateQueries(
-        {
-          queryKey: [
-            "appointments",
-          ],
-        }
-      );
+      await refetchAppointments();
     } catch (error) {
       console.error(
         "Erro ao excluir atendimento:",
@@ -174,24 +144,22 @@ export default function CasosClinicosPage() {
       );
 
       window.alert(
-        "Não foi possível excluir o atendimento. Tente novamente."
+        "Não foi possível excluir o atendimento."
       );
     } finally {
-      setDeletingId(null);
+      setDeletingAppointmentId(null);
     }
   }
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 w-full space-y-8 overflow-hidden">
       <PageHeader
         title="Casos Clínicos"
         description="Escolha um procedimento para iniciar um atendimento ou continue um atendimento já iniciado."
         action={
           <Button
             onClick={() =>
-              router.push(
-                "/modo-atendimento"
-              )
+              router.push("/modo-atendimento")
             }
           >
             <PlayCircle className="mr-2 h-4 w-4" />
@@ -200,47 +168,42 @@ export default function CasosClinicosPage() {
         }
       />
 
-      {/* PROCEDIMENTOS PREDEFINIDOS */}
-      <section className="space-y-4">
-        <div>
+      {/* PROCEDIMENTOS CLÍNICOS */}
+      <section className="min-w-0 w-full space-y-4">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-text-primary">
             Procedimentos Clínicos
           </h2>
 
-          <p className="text-sm text-text-secondary">
-            Selecione o procedimento para
-            carregar automaticamente sua
-            revisão, checklist e protocolo
-            clínico.
+          <p className="mt-1 text-sm text-text-secondary">
+            Selecione o procedimento para carregar
+            automaticamente sua revisão, checklist e
+            protocolo clínico.
           </p>
         </div>
 
         {proceduresLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map(
-              (item) => (
-                <Skeleton
-                  key={item}
-                  className="h-52 w-full"
-                />
-              )
-            )}
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((item) => (
+              <Skeleton
+                key={item}
+                className="h-56 w-full"
+              />
+            ))}
           </div>
         ) : procedures.length === 0 ? (
-          <Card>
-            <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
-              <ClipboardList className="h-10 w-10 text-text-muted" />
+          <Card className="min-w-0 overflow-hidden">
+            <div className="flex min-w-0 flex-col items-center justify-center gap-3 p-8 text-center">
+              <ClipboardList className="h-10 w-10 shrink-0 text-text-muted" />
 
-              <div>
+              <div className="min-w-0 max-w-full">
                 <h3 className="font-medium text-text-primary">
-                  Nenhum procedimento
-                  cadastrado
+                  Nenhum procedimento cadastrado
                 </h3>
 
                 <p className="mt-1 text-sm text-text-secondary">
-                  Cadastre os protocolos
-                  clínicos no Supabase
-                  para começar.
+                  Cadastre os protocolos clínicos no
+                  Supabase para começar.
                 </p>
               </div>
             </div>
@@ -250,87 +213,70 @@ export default function CasosClinicosPage() {
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
-            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
           >
-            {procedures.map(
-              (procedure) => (
-                <motion.div
-                  key={procedure.id}
-                  variants={fadeInUp}
-                  className="min-w-0"
-                >
-                  <Card className="h-full min-w-0 overflow-hidden transition hover:-translate-y-0.5">
-                    <CardHeader className="min-w-0">
-                      <div className="flex min-w-0 items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <CardTitle className="break-words text-base leading-snug">
-                            {procedure.nome}
-                          </CardTitle>
+            {procedures.map((procedure) => (
+              <motion.div
+                key={procedure.id}
+                variants={fadeInUp}
+                className="min-w-0 w-full"
+              >
+                <Card className="flex h-full min-w-0 w-full flex-col overflow-hidden">
+                  <CardHeader className="flex min-w-0 w-full flex-1 flex-col p-5">
+                    {/* CABEÇALHO DO PROCEDIMENTO */}
+                    <div className="flex min-w-0 w-full items-start gap-3">
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="block w-full min-w-0 break-words text-base leading-snug">
+                          {procedure.nome}
+                        </CardTitle>
 
-                          {procedure.disciplina && (
-                            <p className="mt-1 break-words text-xs text-text-muted">
-                              {procedure.disciplina}
-                            </p>
-                          )}
-                        </div>
-
-                        <Badge
-                          variant="primary"
-                          className="shrink-0 whitespace-nowrap"
-                        >
-                          Protocolo
-                        </Badge>
+                        {procedure.disciplina && (
+                          <p className="mt-1 w-full min-w-0 break-words text-xs text-text-muted">
+                            {procedure.disciplina}
+                          </p>
+                        )}
                       </div>
 
-                      {procedure.descricao && (
-                        <p className="mt-2 break-words text-sm leading-relaxed text-text-secondary">
-                          {procedure.descricao}
-                        </p>
+                      <Badge
+                        variant="primary"
+                        className="shrink-0 whitespace-nowrap"
+                      >
+                        Protocolo
+                      </Badge>
+                    </div>
+
+                    {/* DESCRIÇÃO */}
+                    {procedure.descricao && (
+                      <p className="mt-3 w-full min-w-0 break-words text-sm leading-relaxed text-text-secondary">
+                        {procedure.descricao}
+                      </p>
+                    )}
+
+                    {/* INFORMAÇÕES */}
+                    <div className="mt-4 flex min-w-0 w-full flex-wrap gap-x-3 gap-y-2 text-xs text-text-muted">
+                      {procedure.checklist.length > 0 && (
+                        <span className="whitespace-nowrap">
+                          ✓ {procedure.checklist.length} checklist
+                        </span>
                       )}
 
-                      <div className="mt-3 flex min-w-0 flex-wrap gap-x-3 gap-y-1.5 text-xs text-text-muted">
-                        {procedure.checklist.length >
-                          0 && (
-                          <span className="whitespace-nowrap">
-                            ✓{" "}
-                            {
-                              procedure
-                                .checklist
-                                .length
-                            }{" "}
-                            checklist
-                          </span>
-                        )}
+                      {procedure.passoAPasso.length > 0 && (
+                        <span className="whitespace-nowrap">
+                          ✓ {procedure.passoAPasso.length} etapas
+                        </span>
+                      )}
 
-                        {procedure.passoAPasso.length >
-                          0 && (
-                          <span className="whitespace-nowrap">
-                            ✓{" "}
-                            {
-                              procedure
-                                .passoAPasso
-                                .length
-                            }{" "}
-                            etapas
-                          </span>
-                        )}
+                      {procedure.materiais.length > 0 && (
+                        <span className="whitespace-nowrap">
+                          ✓ {procedure.materiais.length} materiais
+                        </span>
+                      )}
+                    </div>
 
-                        {procedure.materiais.length >
-                          0 && (
-                          <span className="whitespace-nowrap">
-                            ✓{" "}
-                            {
-                              procedure
-                                .materiais
-                                .length
-                            }{" "}
-                            materiais
-                          </span>
-                        )}
-                      </div>
-
+                    {/* BOTÃO */}
+                    <div className="mt-auto pt-5">
                       <Button
-                        className="mt-4 w-full"
+                        className="w-full"
                         onClick={() =>
                           iniciarProcedimento(
                             procedure
@@ -342,39 +288,36 @@ export default function CasosClinicosPage() {
                           Iniciar procedimento
                         </span>
                       </Button>
-                    </CardHeader>
-                  </Card>
-                </motion.div>
-              )
-            )}
+                    </div>
+                  </CardHeader>
+                </Card>
+              </motion.div>
+            ))}
           </motion.div>
         )}
       </section>
 
       {/* HISTÓRICO */}
-      <section className="space-y-4">
-        <div>
+      <section className="min-w-0 w-full space-y-4">
+        <div className="min-w-0">
           <h2 className="text-lg font-semibold text-text-primary">
             Histórico de Atendimentos
           </h2>
 
-          <p className="text-sm text-text-secondary">
-            Continue atendimentos em andamento
-            ou consulte os que já foram
-            finalizados.
+          <p className="mt-1 text-sm text-text-secondary">
+            Continue atendimentos em andamento ou
+            consulte os que já foram finalizados.
           </p>
         </div>
 
         {appointmentsLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {[1, 2].map(
-              (item) => (
-                <Skeleton
-                  key={item}
-                  className="h-44 w-full"
-                />
-              )
-            )}
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+            {[1, 2].map((item) => (
+              <Skeleton
+                key={item}
+                className="h-44 w-full"
+              />
+            ))}
           </div>
         ) : appointments.length === 0 ? (
           <EmptyState
@@ -387,120 +330,110 @@ export default function CasosClinicosPage() {
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
-            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2"
           >
-            {appointments.map(
-              (appointment) => {
-                const isDeleting =
-                  deletingId ===
-                  appointment.id;
+            {appointments.map((appointment) => (
+              <motion.div
+                key={appointment.id}
+                variants={fadeInUp}
+                className="min-w-0 w-full"
+              >
+                <Card className="flex h-full min-w-0 w-full flex-col overflow-hidden">
+                  <CardHeader className="flex min-w-0 w-full flex-1 flex-col p-5">
+                    {/* CABEÇALHO */}
+                    <div className="flex min-w-0 w-full items-start gap-3">
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="block w-full min-w-0 break-words text-base leading-snug">
+                          {appointment.patientName ||
+                            "Paciente não selecionado"}
+                        </CardTitle>
 
-                return (
-                  <motion.div
-                    key={appointment.id}
-                    variants={fadeInUp}
-                    className="min-w-0"
-                  >
-                    <Card className="h-full min-w-0 overflow-hidden">
-                      <CardHeader className="min-w-0">
-                        {/* CABEÇALHO */}
-                        <div className="flex min-w-0 items-start gap-3">
-                          <div className="min-w-0 flex-1">
-                            <CardTitle className="break-words text-base leading-snug">
-                              {appointment.patientName ||
-                                "Paciente não selecionado"}
-                            </CardTitle>
+                        <p className="mt-1 w-full min-w-0 break-words text-sm leading-snug text-text-secondary">
+                          {appointment.procedure ||
+                            "Procedimento clínico"}
+                        </p>
+                      </div>
 
-                            <p className="mt-1 break-words text-sm leading-snug text-text-secondary">
-                              {appointment.procedure ||
-                                "Procedimento clínico"}
-                            </p>
-                          </div>
-
-                          <div className="shrink-0">
-                            {appointment.status ===
-                            "FINALIZADO" ? (
-                              <Badge
-                                variant="success"
-                                className="whitespace-nowrap"
-                              >
-                                <CheckCircle2 className="mr-1 h-3 w-3" />
-                                Finalizado
-                              </Badge>
-                            ) : (
-                              <Badge
-                                variant="warning"
-                                className="whitespace-nowrap"
-                              >
-                                Em andamento
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* DATA */}
-                        <div className="mt-3 flex items-center gap-1.5 text-xs text-text-muted">
-                          <Clock className="h-3.5 w-3.5 shrink-0" />
-
-                          <span>
-                            {new Date(
-                              appointment.startedAt
-                            ).toLocaleDateString(
-                              "pt-BR"
-                            )}
-                          </span>
-                        </div>
-
-                        {/* BOTÕES */}
-                        <div className="mt-4 flex min-w-0 flex-col gap-2 sm:flex-row">
-                          <Button
-                            variant="secondary"
-                            className="min-w-0 flex-1"
-                            disabled={
-                              isDeleting
-                            }
-                            onClick={() =>
-                              continuarAtendimento(
-                                appointment.id
-                              )
-                            }
+                      <div className="shrink-0">
+                        {appointment.status ===
+                        "FINALIZADO" ? (
+                          <Badge
+                            variant="success"
+                            className="whitespace-nowrap"
                           >
-                            <span className="truncate">
-                              {appointment.status ===
-                              "FINALIZADO"
-                                ? "Ver atendimento"
-                                : "Continuar atendimento"}
-                            </span>
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            className="shrink-0 text-red-400 hover:bg-red-500/10 hover:text-red-300"
-                            disabled={
-                              isDeleting
-                            }
-                            title="Excluir atendimento"
-                            onClick={() =>
-                              excluirAtendimento(
-                                appointment.id
-                              )
-                            }
+                            <CheckCircle2 className="mr-1 h-3 w-3" />
+                            Finalizado
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="warning"
+                            className="whitespace-nowrap"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            Em andamento
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
 
-                            <span className="ml-2 sm:hidden">
-                              {isDeleting
-                                ? "Excluindo..."
-                                : "Excluir"}
-                            </span>
-                          </Button>
-                        </div>
-                      </CardHeader>
-                    </Card>
-                  </motion.div>
-                );
-              }
-            )}
+                    {/* DATA */}
+                    <div className="mt-4 flex min-w-0 items-center gap-1.5 text-xs text-text-muted">
+                      <Clock className="h-3.5 w-3.5 shrink-0" />
+
+                      <span className="truncate">
+                        {new Date(
+                          appointment.startedAt
+                        ).toLocaleDateString(
+                          "pt-BR"
+                        )}
+                      </span>
+                    </div>
+
+                    {/* BOTÕES */}
+                    <div className="mt-auto grid grid-cols-1 gap-2 pt-5 sm:grid-cols-[1fr_auto]">
+                      <Button
+                        variant="secondary"
+                        className="w-full min-w-0"
+                        onClick={() =>
+                          continuarAtendimento(
+                            appointment.id
+                          )
+                        }
+                      >
+                        <span className="truncate">
+                          {appointment.status ===
+                          "FINALIZADO"
+                            ? "Ver atendimento"
+                            : "Continuar atendimento"}
+                        </span>
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        className="w-full sm:w-auto"
+                        disabled={
+                          deletingAppointmentId ===
+                          appointment.id
+                        }
+                        onClick={() =>
+                          void excluirAtendimento(
+                            appointment.id
+                          )
+                        }
+                      >
+                        <Trash2 className="mr-2 h-4 w-4 shrink-0" />
+
+                        <span>
+                          {deletingAppointmentId ===
+                          appointment.id
+                            ? "Excluindo..."
+                            : "Excluir"}
+                        </span>
+                      </Button>
+                    </div>
+                  </CardHeader>
+                </Card>
+              </motion.div>
+            ))}
           </motion.div>
         )}
       </section>
