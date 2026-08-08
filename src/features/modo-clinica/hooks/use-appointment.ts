@@ -250,8 +250,7 @@ export function useAppointment(
               "",
 
             professor:
-              procedureData?.professor ??
-              "",
+              professor: "",
 
             procedure:
               procedureData?.nome ??
