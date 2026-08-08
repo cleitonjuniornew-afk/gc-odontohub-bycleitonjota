@@ -1,5 +1,3 @@
-"use client";
-
 /* eslint-disable @typescript-eslint/no-explicit-any -- mapeadores do Supabase */
 
 import { createClient } from "@/lib/supabase/client";
@@ -9,6 +7,7 @@ import type { PatientProcedure } from "@/types";
 
 type LocalRow = PatientProcedure & {
   patientId: string;
+  deletedAt?: string | null;
 };
 
 const localStore = createLocalStore<LocalRow>([]);
@@ -46,7 +45,11 @@ export const patientProceduresRepository = {
       const rows = await localStore.list();
 
       return rows
-        .filter((row) => row.patientId === patientId)
+        .filter(
+          (row) =>
+            row.patientId === patientId &&
+            !row.deletedAt
+        )
         .map((row) => ({
           id: row.id,
           procedure: row.procedure,
@@ -61,6 +64,7 @@ export const patientProceduresRepository = {
       .from("paciente_procedimentos")
       .select("*")
       .eq("paciente_id", patientId)
+      .is("deleted_at", null)
       .order("created_at", {
         ascending: false,
       });
@@ -79,6 +83,7 @@ export const patientProceduresRepository = {
     if (!isSupabaseConfigured) {
       const created = await localStore.create({
         patientId,
+        deletedAt: null,
         ...input,
       });
 
@@ -170,13 +175,33 @@ export const patientProceduresRepository = {
 
   async delete(id: string): Promise<void> {
     if (!isSupabaseConfigured) {
-      await localStore.delete(id);
+      await localStore.softDelete(id);
       return;
     }
 
     const { error } = await createClient()
       .from("paciente_procedimentos")
-      .delete()
+      .update({
+        deleted_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) {
+      throw error;
+    }
+  },
+
+  async restore(id: string): Promise<void> {
+    if (!isSupabaseConfigured) {
+      await localStore.restore(id);
+      return;
+    }
+
+    const { error } = await createClient()
+      .from("paciente_procedimentos")
+      .update({
+        deleted_at: null,
+      })
       .eq("id", id);
 
     if (error) {
