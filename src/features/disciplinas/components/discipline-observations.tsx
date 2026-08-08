@@ -70,9 +70,7 @@ export function DisciplineObservations({
     const supabase = createClient();
 
     const {
-      data: {
-        user,
-      },
+      data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) {
@@ -177,9 +175,7 @@ export function DisciplineObservations({
                 className="mt-1.5"
                 placeholder="Ex: Conteúdo importante para a prova"
                 value={titulo}
-                onChange={(event) =>
-                  setTitulo(event.target.value)
-                }
+                onChange={(event) => setTitulo(event.target.value)}
               />
             </div>
 
@@ -196,9 +192,7 @@ export function DisciplineObservations({
                 className="mt-1.5 min-h-28"
                 placeholder="Escreva sua observação..."
                 value={conteudo}
-                onChange={(event) =>
-                  setConteudo(event.target.value)
-                }
+                onChange={(event) => setConteudo(event.target.value)}
               />
             </div>
 
@@ -247,7 +241,7 @@ export function DisciplineObservations({
           </p>
 
           <p className="mt-1 text-xs text-text-secondary">
-            Clique em "Nova observação" para adicionar a primeira.
+            Clique no botão Nova observação para adicionar a primeira.
           </p>
 
           <Button
@@ -295,9 +289,7 @@ export function DisciplineObservations({
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() =>
-                    deleteObservation(observation.id)
-                  }
+                  onClick={() => deleteObservation(observation.id)}
                   title="Excluir observação"
                 >
                   <Trash2 className="h-4 w-4" />
