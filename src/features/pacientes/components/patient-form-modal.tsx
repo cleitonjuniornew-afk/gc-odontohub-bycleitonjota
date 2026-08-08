@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+
 import {
   patientSchema,
   type PatientFormInput,
@@ -95,9 +96,7 @@ export function PatientFormModal({
       birthDate: data.birthDate || undefined,
       age: calculateAge(data.birthDate),
       professor: data.professor || undefined,
-
       procedures: data.procedures ?? [],
-
       nextReturn: data.nextReturn || undefined,
       notes: data.notes || undefined,
     });
@@ -118,9 +117,14 @@ export function PatientFormModal({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(submit)} className="space-y-5">
+        <form
+          onSubmit={handleSubmit(submit)}
+          className="space-y-5"
+        >
           <div>
-            <Label htmlFor="name">Nome</Label>
+            <Label htmlFor="name">
+              Nome
+            </Label>
 
             <Input
               id="name"
@@ -138,7 +142,9 @@ export function PatientFormModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="phone">Telefone</Label>
+              <Label htmlFor="phone">
+                Telefone
+              </Label>
 
               <Input
                 id="phone"
@@ -146,16 +152,12 @@ export function PatientFormModal({
                 className="mt-1.5"
                 {...register("phone")}
               />
-
-              {errors.phone && (
-                <p className="mt-1 text-xs text-error">
-                  {errors.phone.message}
-                </p>
-              )}
             </div>
 
             <div>
-              <Label htmlFor="birthDate">Nascimento</Label>
+              <Label htmlFor="birthDate">
+                Nascimento
+              </Label>
 
               <Input
                 id="birthDate"
@@ -186,21 +188,18 @@ export function PatientFormModal({
           </div>
 
           <div>
-            <Label>Procedimentos</Label>
+            <Label>
+              Procedimentos
+            </Label>
 
-            <div className="mt-2 rounded-lg border border-border bg-card/40 p-3">
-              <p className="text-sm font-medium text-text-primary">
-                Procedimentos serão vinculados ao paciente
+            <div className="mt-1.5 rounded-lg border border-border bg-card p-3">
+              <p className="text-sm text-text-secondary">
+                Os procedimentos serão cadastrados individualmente,
+                com dente/região e detalhes clínicos.
               </p>
 
-              <p className="mt-1 text-xs leading-relaxed text-text-muted">
-                O cadastro estruturado de procedimentos, incluindo
-                procedimento, dente/região, detalhes e status, será
-                utilizado posteriormente no Modo Clínica.
-              </p>
-
-              <p className="mt-2 text-xs text-text-secondary">
-                Nenhum procedimento cadastrado neste momento.
+              <p className="mt-1 text-xs text-text-muted">
+                Essa área será integrada ao cadastro clínico do paciente.
               </p>
             </div>
           </div>
