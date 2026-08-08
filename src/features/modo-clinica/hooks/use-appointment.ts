@@ -86,11 +86,7 @@ interface AddPhotoMeta {
   description?: string;
 }
 
-type UpdateableAppointmentField = keyof Appointment;
-
-function normalizeChecklist(
-  checklist: unknown
-): ChecklistItem[] {
+function normalizeChecklist(checklist: unknown): ChecklistItem[] {
   if (!Array.isArray(checklist)) {
     return DEFAULT_CHECKLIST.map((item) => ({
       ...item,
@@ -107,10 +103,7 @@ function normalizeChecklist(
         };
       }
 
-      if (
-        item &&
-        typeof item === "object"
-      ) {
+      if (item && typeof item === "object") {
         const data = item as {
           id?: string;
           label?: string;
@@ -119,10 +112,7 @@ function normalizeChecklist(
           concluido?: boolean;
         };
 
-        const label =
-          data.label ??
-          data.nome ??
-          "";
+        const label = data.label ?? data.nome ?? "";
 
         if (!label) {
           return null;
@@ -143,9 +133,7 @@ function normalizeChecklist(
       return null;
     })
     .filter(
-      (
-        item
-      ): item is ChecklistItem =>
+      (item): item is ChecklistItem =>
         item !== null
     );
 
@@ -209,9 +197,7 @@ function normalizeMaterials(
       return null;
     })
     .filter(
-      (
-        item
-      ): item is MaterialItem =>
+      (item): item is MaterialItem =>
         item !== null
     );
 }
@@ -249,6 +235,9 @@ export function useAppointment(
   const [appointment, setAppointment] =
     useState<Appointment | null>(null);
 
+  const [procedure, setProcedure] =
+    useState<ClinicalProcedure | null>(null);
+
   const [loading, setLoading] =
     useState(true);
 
@@ -256,12 +245,7 @@ export function useAppointment(
     useState(false);
 
   const saveTimeout =
-    useRef<ReturnType<
-      typeof setTimeout
-    > | null>(null);
-
-  const procedureRef =
-    useRef<ClinicalProcedure | null>(
+    useRef<ReturnType<typeof setTimeout> | null>(
       null
     );
 
@@ -273,8 +257,7 @@ export function useAppointment(
 
       try {
         /*
-         * 1. Se já existe um atendimento,
-         * simplesmente carregamos ele.
+         * ATENDIMENTO EXISTENTE
          */
         if (appointmentId) {
           const existing =
@@ -284,14 +267,44 @@ export function useAppointment(
 
           if (!cancelled) {
             setAppointment(existing);
+
+            /*
+             * Se o atendimento possuir procedureId,
+             * carregamos também o protocolo clínico.
+             */
+            const existingProcedureId =
+              existing?.procedureId;
+
+            if (existingProcedureId) {
+              try {
+                const procedureData =
+                  await clinicalProceduresRepository.get(
+                    existingProcedureId
+                  );
+
+                if (!cancelled) {
+                  setProcedure(
+                    procedureData
+                  );
+                }
+              } catch (error) {
+                console.error(
+                  "Erro ao carregar protocolo do atendimento:",
+                  error
+                );
+
+                if (!cancelled) {
+                  setProcedure(null);
+                }
+              }
+            }
           }
 
           return;
         }
 
         /*
-         * 2. Se foi escolhido um procedimento
-         * predefinido, carregamos o protocolo.
+         * NOVO ATENDIMENTO
          */
         let procedureData:
           | ClinicalProcedure
@@ -311,13 +324,10 @@ export function useAppointment(
           }
         }
 
-        procedureRef.current =
-          procedureData;
+        if (!cancelled) {
+          setProcedure(procedureData);
+        }
 
-        /*
-         * 3. Dados vindos do procedimento
-         * predefinido.
-         */
         const procedureName =
           procedureData?.nome ??
           "Procedimento clínico";
@@ -337,54 +347,55 @@ export function useAppointment(
           );
 
         /*
-         * 4. Criamos o atendimento já com
-         * procedimento, checklist e materiais.
+         * Cria o atendimento já carregando:
+         * - procedimento
+         * - disciplina
+         * - checklist
+         * - materiais
+         * - descrição
          */
         const created =
-          await appointmentsRepository.create(
-            {
-              discipline:
-                disciplineName,
+          await appointmentsRepository.create({
+            discipline:
+              disciplineName,
 
-              professor: "",
+            professor: "",
 
-              procedure:
-                procedureName,
+            procedure:
+              procedureName,
 
-              procedureId:
-                procedureData?.id ??
-                procedureId,
+            procedureId:
+              procedureData?.id ??
+              procedureId,
 
-              status:
-                "EM_ANDAMENTO",
+            status:
+              "EM_ANDAMENTO",
 
-              checklist,
+            checklist,
 
-              materials,
+            materials,
 
-              patientName:
-                "Paciente não selecionado",
+            patientName:
+              "Paciente não selecionado",
 
-              clinicalNotes:
-                procedureData?.descricao ??
-                "",
+            clinicalNotes:
+              procedureData?.descricao ??
+              "",
 
-              timeline: [
-                {
-                  id:
-                    crypto.randomUUID(),
+            timeline: [
+              {
+                id:
+                  crypto.randomUUID(),
 
-                  time:
-                    nowLabel(),
+                time:
+                  nowLabel(),
 
-                  description:
-                    procedureId
-                      ? `Atendimento iniciado — ${procedureName}`
-                      : "Atendimento iniciado",
-                },
-              ],
-            }
-          );
+                description: procedureId
+                  ? `Atendimento iniciado — ${procedureName}`
+                  : "Atendimento iniciado",
+              },
+            ],
+          });
 
         if (!cancelled) {
           setAppointment(created);
@@ -414,16 +425,21 @@ export function useAppointment(
     };
   }, [appointmentId, procedureId]);
 
+  /*
+   * SALVAMENTO AUTOMÁTICO
+   */
   const persist = useCallback(
     (patch: Partial<Appointment>) => {
-      setAppointment((prev) =>
-        prev
-          ? {
-              ...prev,
-              ...patch,
-            }
-          : prev
-      );
+      setAppointment((prev) => {
+        if (!prev) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          ...patch,
+        };
+      });
 
       if (saveTimeout.current) {
         clearTimeout(
@@ -433,31 +449,34 @@ export function useAppointment(
 
       saveTimeout.current =
         setTimeout(async () => {
-          setAppointment(
-            (current) => {
-              if (!current) {
-                return current;
-              }
+          setSaving(true);
 
-              setSaving(true);
+          try {
+            setAppointment(
+              (current) => {
+                if (!current) {
+                  return current;
+                }
 
-              void appointmentsRepository
-                .update(
+                void appointmentsRepository.update(
                   current.id,
                   patch
-                )
-                .finally(() => {
-                  setSaving(false);
-                });
+                );
 
-              return current;
-            }
-          );
+                return current;
+              }
+            );
+          } finally {
+            setSaving(false);
+          }
         }, 500);
     },
     []
   );
 
+  /*
+   * TIMELINE
+   */
   const addTimelineEntry =
     useCallback(
       (description: string) => {
@@ -495,38 +514,47 @@ export function useAppointment(
       []
     );
 
+  /*
+   * CHECKLIST
+   */
   const toggleChecklistItem =
-    useCallback((id: string) => {
-      setAppointment((prev) => {
-        if (!prev) {
-          return prev;
-        }
+    useCallback(
+      (id: string) => {
+        setAppointment((prev) => {
+          if (!prev) {
+            return prev;
+          }
 
-        const checklist =
-          prev.checklist.map(
-            (item) =>
-              item.id === id
-                ? {
-                    ...item,
-                    done: !item.done,
-                  }
-                : item
+          const checklist =
+            prev.checklist.map(
+              (item) =>
+                item.id === id
+                  ? {
+                      ...item,
+                      done: !item.done,
+                    }
+                  : item
+            );
+
+          void appointmentsRepository.update(
+            prev.id,
+            {
+              checklist,
+            }
           );
 
-        void appointmentsRepository.update(
-          prev.id,
-          {
+          return {
+            ...prev,
             checklist,
-          }
-        );
+          };
+        });
+      },
+      []
+    );
 
-        return {
-          ...prev,
-          checklist,
-        };
-      });
-    }, []);
-
+  /*
+   * ADICIONAR MATERIAL
+   */
   const addMaterial =
     useCallback(
       (
@@ -569,40 +597,47 @@ export function useAppointment(
       [addTimelineEntry]
     );
 
+  /*
+   * REMOVER MATERIAL
+   */
   const removeMaterial =
-    useCallback((id: string) => {
-      setAppointment((prev) => {
-        if (!prev) {
-          return prev;
-        }
+    useCallback(
+      (id: string) => {
+        setAppointment((prev) => {
+          if (!prev) {
+            return prev;
+          }
 
-        const materials =
-          prev.materials.filter(
-            (material) =>
-              material.id !== id
+          const materials =
+            prev.materials.filter(
+              (material) =>
+                material.id !== id
+            );
+
+          void appointmentsRepository.update(
+            prev.id,
+            {
+              materials,
+            }
           );
 
-        void appointmentsRepository.update(
-          prev.id,
-          {
+          return {
+            ...prev,
             materials,
-          }
-        );
+          };
+        });
+      },
+      []
+    );
 
-        return {
-          ...prev,
-          materials,
-        };
-      });
-    }, []);
-
+  /*
+   * ATUALIZAR CAMPOS
+   */
   const updateField =
     useCallback(
-      (
-        field: UpdateableAppointmentField,
-        value: Appointment[
-          UpdateableAppointmentField
-        ]
+      <K extends keyof Appointment>(
+        field: K,
+        value: Appointment[K]
       ) => {
         persist({
           [field]: value,
@@ -611,6 +646,9 @@ export function useAppointment(
       [persist]
     );
 
+  /*
+   * SELECIONAR PACIENTE
+   */
   const selectPatient =
     useCallback(
       (
@@ -628,9 +666,15 @@ export function useAppointment(
           `Paciente selecionado: ${patientName}`
         );
       },
-      [persist, addTimelineEntry]
+      [
+        persist,
+        addTimelineEntry,
+      ]
     );
 
+  /*
+   * ADICIONAR FOTO
+   */
   const addPhoto =
     useCallback(
       async (
@@ -683,6 +727,9 @@ export function useAppointment(
       ]
     );
 
+  /*
+   * FINALIZAR ATENDIMENTO
+   */
   const finish =
     useCallback(
       async (
@@ -743,6 +790,9 @@ export function useAppointment(
       [appointment]
     );
 
+  /*
+   * PROGRESSO DO CHECKLIST
+   */
   const checklistProgress =
     useMemo(() => {
       if (!appointment) {
@@ -766,6 +816,7 @@ export function useAppointment(
 
   return {
     appointment,
+    procedure,
     loading,
     saving,
     checklistProgress,
@@ -777,7 +828,5 @@ export function useAppointment(
     addPhoto,
     addTimelineEntry,
     finish,
-    procedure:
-      procedureRef.current,
   };
 }
