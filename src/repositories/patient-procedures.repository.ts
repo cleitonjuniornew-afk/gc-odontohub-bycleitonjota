@@ -1,3 +1,5 @@
+"use client";
+
 /* eslint-disable @typescript-eslint/no-explicit-any -- mapeadores do Supabase */
 
 import { createClient } from "@/lib/supabase/client";
@@ -14,25 +16,11 @@ const localStore = createLocalStore<LocalRow>([]);
 function fromRow(row: any): PatientProcedure {
   return {
     id: row.id,
-    procedure:
-      row.procedimento ??
-      row.procedure ??
-      "",
-    status:
-      row.status ??
-      "PLANEJADO",
-    tooth:
-      row.dente ??
-      row.tooth ??
-      undefined,
-    region:
-      row.regiao ??
-      row.region ??
-      undefined,
-    details:
-      row.detalhes ??
-      row.details ??
-      undefined,
+    procedure: row.procedimento ?? row.procedure ?? "",
+    status: row.status ?? "PLANEJADO",
+    tooth: row.dente ?? row.tooth ?? undefined,
+    region: row.regiao ?? row.region ?? undefined,
+    details: row.detalhes ?? row.details ?? undefined,
   };
 }
 
@@ -77,7 +65,9 @@ export const patientProceduresRepository = {
         ascending: false,
       });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return (data ?? []).map(fromRow);
   },
@@ -88,7 +78,6 @@ export const patientProceduresRepository = {
   ): Promise<PatientProcedure> {
     if (!isSupabaseConfigured) {
       const created = await localStore.create({
-        id: crypto.randomUUID(),
         patientId,
         ...input,
       });
@@ -116,7 +105,9 @@ export const patientProceduresRepository = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return fromRow(data);
   },
@@ -170,7 +161,9 @@ export const patientProceduresRepository = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return fromRow(data);
   },
@@ -186,6 +179,8 @@ export const patientProceduresRepository = {
       .delete()
       .eq("id", id);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   },
 };
