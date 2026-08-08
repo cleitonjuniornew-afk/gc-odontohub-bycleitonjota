@@ -96,7 +96,7 @@ export function PatientFormModal({
       birthDate: data.birthDate || undefined,
       age: calculateAge(data.birthDate),
       professor: data.professor || undefined,
-      procedures: data.procedures ?? [],
+      procedures: data.procedures,
       nextReturn: data.nextReturn || undefined,
       notes: data.notes || undefined,
     });
