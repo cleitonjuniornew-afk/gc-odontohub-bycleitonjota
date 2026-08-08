@@ -10,13 +10,15 @@ import {
 
 import { appointmentsRepository } from "@/repositories/appointments.repository";
 import { photosRepository } from "@/repositories/photos.repository";
-import { clinicalProceduresRepository } from "@/repositories/clinical-procedures.repository";
+import {
+  clinicalProceduresRepository,
+  type ClinicalProcedure,
+} from "@/repositories/clinical-procedures.repository";
 
 import type {
   Appointment,
   ChecklistItem,
   MaterialItem,
-  PhotoItem,
 } from "@/types";
 
 const DEFAULT_CHECKLIST: ChecklistItem[] = [
@@ -84,50 +86,74 @@ interface AddPhotoMeta {
   description?: string;
 }
 
-interface ProtocolMaterial {
-  id?: string;
-  nome?: string;
-  name?: string;
-  quantidade?: number;
-  quantity?: number;
-}
+type UpdateableAppointmentField = keyof Appointment;
 
 function normalizeChecklist(
-  items: unknown
+  checklist: unknown
 ): ChecklistItem[] {
-  if (!Array.isArray(items)) {
-    return [];
+  if (!Array.isArray(checklist)) {
+    return DEFAULT_CHECKLIST.map((item) => ({
+      ...item,
+    }));
   }
 
-  return items.map((item, index) => {
-    if (
-      typeof item === "object" &&
-      item !== null
-    ) {
-      const data = item as {
-        id?: string;
-        label?: string;
-        nome?: string;
-      };
+  const normalized = checklist
+    .map((item, index) => {
+      if (typeof item === "string") {
+        return {
+          id: `protocol-checklist-${index + 1}`,
+          label: item,
+          done: false,
+        };
+      }
 
-      return {
-        id:
-          data.id ??
-          `protocol-checklist-${index + 1}`,
-        label:
+      if (
+        item &&
+        typeof item === "object"
+      ) {
+        const data = item as {
+          id?: string;
+          label?: string;
+          nome?: string;
+          done?: boolean;
+          concluido?: boolean;
+        };
+
+        const label =
           data.label ??
           data.nome ??
-          `Etapa ${index + 1}`,
-        done: false,
-      };
-    }
+          "";
 
-    return {
-      id: `protocol-checklist-${index + 1}`,
-      label: String(item),
-      done: false,
-    };
-  });
+        if (!label) {
+          return null;
+        }
+
+        return {
+          id:
+            data.id ??
+            `protocol-checklist-${index + 1}`,
+          label,
+          done:
+            data.done ??
+            data.concluido ??
+            false,
+        };
+      }
+
+      return null;
+    })
+    .filter(
+      (
+        item
+      ): item is ChecklistItem =>
+        item !== null
+    );
+
+  return normalized.length > 0
+    ? normalized
+    : DEFAULT_CHECKLIST.map((item) => ({
+        ...item,
+      }));
 }
 
 function normalizeMaterials(
@@ -137,43 +163,83 @@ function normalizeMaterials(
     return [];
   }
 
-  return materials.map((material, index) => {
-    if (typeof material === "string") {
-      return {
-        id: `protocol-material-${index + 1}`,
-        name: material,
-        quantity: 1,
-      };
-    }
+  return materials
+    .map((material, index) => {
+      if (typeof material === "string") {
+        return {
+          id: `protocol-material-${index + 1}`,
+          name: material,
+          quantity: 1,
+        };
+      }
 
-    if (
-      typeof material === "object" &&
-      material !== null
-    ) {
-      const data =
-        material as ProtocolMaterial;
+      if (
+        material &&
+        typeof material === "object"
+      ) {
+        const data = material as {
+          id?: string;
+          nome?: string;
+          name?: string;
+          quantidade?: number;
+          quantity?: number;
+        };
 
-      return {
-        id:
-          data.id ??
-          `protocol-material-${index + 1}`,
-        name:
+        const name =
           data.nome ??
           data.name ??
-          `Material ${index + 1}`,
-        quantity:
-          data.quantidade ??
-          data.quantity ??
-          1,
-      };
-    }
+          "";
 
-    return {
-      id: `protocol-material-${index + 1}`,
-      name: `Material ${index + 1}`,
-      quantity: 1,
-    };
-  });
+        if (!name) {
+          return null;
+        }
+
+        return {
+          id:
+            data.id ??
+            `protocol-material-${index + 1}`,
+          name,
+          quantity:
+            data.quantidade ??
+            data.quantity ??
+            1,
+        };
+      }
+
+      return null;
+    })
+    .filter(
+      (
+        item
+      ): item is MaterialItem =>
+        item !== null
+    );
+}
+
+function getProcedureChecklist(
+  procedure: ClinicalProcedure | null
+): ChecklistItem[] {
+  if (!procedure) {
+    return DEFAULT_CHECKLIST.map((item) => ({
+      ...item,
+    }));
+  }
+
+  return normalizeChecklist(
+    procedure.checklist
+  );
+}
+
+function getProcedureMaterials(
+  procedure: ClinicalProcedure | null
+): MaterialItem[] {
+  if (!procedure) {
+    return [];
+  }
+
+  return normalizeMaterials(
+    procedure.materiais
+  );
 }
 
 export function useAppointment(
@@ -190,7 +256,12 @@ export function useAppointment(
     useState(false);
 
   const saveTimeout =
-    useRef<ReturnType<typeof setTimeout> | null>(
+    useRef<ReturnType<
+      typeof setTimeout
+    > | null>(null);
+
+  const procedureRef =
+    useRef<ClinicalProcedure | null>(
       null
     );
 
@@ -201,6 +272,10 @@ export function useAppointment(
       setLoading(true);
 
       try {
+        /*
+         * 1. Se já existe um atendimento,
+         * simplesmente carregamos ele.
+         */
         if (appointmentId) {
           const existing =
             await appointmentsRepository.get(
@@ -214,76 +289,111 @@ export function useAppointment(
           return;
         }
 
+        /*
+         * 2. Se foi escolhido um procedimento
+         * predefinido, carregamos o protocolo.
+         */
         let procedureData:
-          | Awaited<
-              ReturnType<
-                typeof clinicalProceduresRepository.get
-              >
-            >
+          | ClinicalProcedure
           | null = null;
 
         if (procedureId) {
-          procedureData =
-            await clinicalProceduresRepository.get(
-              procedureId
+          try {
+            procedureData =
+              await clinicalProceduresRepository.get(
+                procedureId
+              );
+          } catch (error) {
+            console.error(
+              "Erro ao carregar procedimento clínico:",
+              error
             );
+          }
         }
 
-        const protocolChecklist =
-          normalizeChecklist(
-            procedureData?.checklist
+        procedureRef.current =
+          procedureData;
+
+        /*
+         * 3. Dados vindos do procedimento
+         * predefinido.
+         */
+        const procedureName =
+          procedureData?.nome ??
+          "Procedimento clínico";
+
+        const disciplineName =
+          procedureData?.disciplina ??
+          "";
+
+        const checklist =
+          getProcedureChecklist(
+            procedureData
           );
 
-        const protocolMaterials =
-          normalizeMaterials(
-            procedureData?.materiais
+        const materials =
+          getProcedureMaterials(
+            procedureData
           );
 
+        /*
+         * 4. Criamos o atendimento já com
+         * procedimento, checklist e materiais.
+         */
         const created =
-          await appointmentsRepository.create({
-            procedureId:
-              procedureData?.id ??
-              procedureId,
+          await appointmentsRepository.create(
+            {
+              discipline:
+                disciplineName,
 
-            discipline:
-              procedureData?.disciplina ??
-              "",
-
-            professor:
               professor: "",
 
-            procedure:
-              procedureData?.nome ??
-              "Procedimento clínico",
+              procedure:
+                procedureName,
 
-            checklist:
-              protocolChecklist.length > 0
-                ? protocolChecklist
-                : DEFAULT_CHECKLIST,
+              procedureId:
+                procedureData?.id ??
+                procedureId,
 
-            materials:
-              protocolMaterials,
+              status:
+                "EM_ANDAMENTO",
 
-            clinicalNotes:
-              procedureData?.revisao ??
-              "",
+              checklist,
 
-            patientName:
-              "Paciente não selecionado",
-          });
+              materials,
+
+              patientName:
+                "Paciente não selecionado",
+
+              clinicalNotes:
+                procedureData?.descricao ??
+                "",
+
+              timeline: [
+                {
+                  id:
+                    crypto.randomUUID(),
+
+                  time:
+                    nowLabel(),
+
+                  description:
+                    procedureId
+                      ? `Atendimento iniciado — ${procedureName}`
+                      : "Atendimento iniciado",
+                },
+              ],
+            }
+          );
 
         if (!cancelled) {
           setAppointment(created);
         }
       } catch (error) {
         console.error(
-          "Erro ao carregar atendimento:",
+          "Erro ao inicializar atendimento:",
           error
         );
-
-        if (!cancelled) {
-          setAppointment(null);
-        }
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -297,7 +407,9 @@ export function useAppointment(
       cancelled = true;
 
       if (saveTimeout.current) {
-        clearTimeout(saveTimeout.current);
+        clearTimeout(
+          saveTimeout.current
+        );
       }
     };
   }, [appointmentId, procedureId]);
@@ -314,61 +426,74 @@ export function useAppointment(
       );
 
       if (saveTimeout.current) {
-        clearTimeout(saveTimeout.current);
+        clearTimeout(
+          saveTimeout.current
+        );
       }
 
-      saveTimeout.current = setTimeout(
-        async () => {
-          setAppointment((current) => {
-            if (!current) {
+      saveTimeout.current =
+        setTimeout(async () => {
+          setAppointment(
+            (current) => {
+              if (!current) {
+                return current;
+              }
+
+              setSaving(true);
+
+              void appointmentsRepository
+                .update(
+                  current.id,
+                  patch
+                )
+                .finally(() => {
+                  setSaving(false);
+                });
+
               return current;
             }
-
-            void appointmentsRepository.update(
-              current.id,
-              patch
-            );
-
-            return current;
-          });
-        },
-        500
-      );
+          );
+        }, 500);
     },
     []
   );
 
-  const addTimelineEntry = useCallback(
-    (description: string) => {
-      setAppointment((prev) => {
-        if (!prev) {
-          return prev;
-        }
-
-        const timeline = [
-          ...prev.timeline,
-          {
-            id: crypto.randomUUID(),
-            time: nowLabel(),
-            description,
-          },
-        ];
-
-        void appointmentsRepository.update(
-          prev.id,
-          {
-            timeline,
+  const addTimelineEntry =
+    useCallback(
+      (description: string) => {
+        setAppointment((prev) => {
+          if (!prev) {
+            return prev;
           }
-        );
 
-        return {
-          ...prev,
-          timeline,
-        };
-      });
-    },
-    []
-  );
+          const timeline = [
+            ...prev.timeline,
+            {
+              id:
+                crypto.randomUUID(),
+
+              time:
+                nowLabel(),
+
+              description,
+            },
+          ];
+
+          void appointmentsRepository.update(
+            prev.id,
+            {
+              timeline,
+            }
+          );
+
+          return {
+            ...prev,
+            timeline,
+          };
+        });
+      },
+      []
+    );
 
   const toggleChecklistItem =
     useCallback((id: string) => {
@@ -378,13 +503,14 @@ export function useAppointment(
         }
 
         const checklist =
-          prev.checklist.map((item) =>
-            item.id === id
-              ? {
-                  ...item,
-                  done: !item.done,
-                }
-              : item
+          prev.checklist.map(
+            (item) =>
+              item.id === id
+                ? {
+                    ...item,
+                    done: !item.done,
+                  }
+                : item
           );
 
         void appointmentsRepository.update(
@@ -401,43 +527,50 @@ export function useAppointment(
       });
     }, []);
 
-  const addMaterial = useCallback(
-    (material: Omit<MaterialItem, "id">) => {
-      setAppointment((prev) => {
-        if (!prev) {
-          return prev;
-        }
-
-        const materials = [
-          ...prev.materials,
-          {
-            ...material,
-            id: crypto.randomUUID(),
-          },
-        ];
-
-        void appointmentsRepository.update(
-          prev.id,
-          {
-            materials,
+  const addMaterial =
+    useCallback(
+      (
+        material: Omit<
+          MaterialItem,
+          "id"
+        >
+      ) => {
+        setAppointment((prev) => {
+          if (!prev) {
+            return prev;
           }
+
+          const materials = [
+            ...prev.materials,
+            {
+              ...material,
+              id:
+                crypto.randomUUID(),
+            },
+          ];
+
+          void appointmentsRepository.update(
+            prev.id,
+            {
+              materials,
+            }
+          );
+
+          return {
+            ...prev,
+            materials,
+          };
+        });
+
+        addTimelineEntry(
+          `Material adicionado: ${material.name}`
         );
+      },
+      [addTimelineEntry]
+    );
 
-        return {
-          ...prev,
-          materials,
-        };
-      });
-
-      addTimelineEntry(
-        `Material adicionado: ${material.name}`
-      );
-    },
-    [addTimelineEntry]
-  );
-
-  const removeMaterial = useCallback(
-    (id: string) => {
+  const removeMaterial =
+    useCallback((id: string) => {
       setAppointment((prev) => {
         if (!prev) {
           return prev;
@@ -461,137 +594,154 @@ export function useAppointment(
           materials,
         };
       });
-    },
-    []
-  );
+    }, []);
 
-  const updateField = useCallback(
-    <K extends keyof Appointment>(
-      field: K,
-      value: Appointment[K]
-    ) => {
-      persist({
-        [field]: value,
-      } as Partial<Appointment>);
-    },
-    [persist]
-  );
+  const updateField =
+    useCallback(
+      (
+        field: UpdateableAppointmentField,
+        value: Appointment[
+          UpdateableAppointmentField
+        ]
+      ) => {
+        persist({
+          [field]: value,
+        } as Partial<Appointment>);
+      },
+      [persist]
+    );
 
-  const selectPatient = useCallback(
-    (
-      patientId: string,
-      patientName: string,
-      patientAge?: number
-    ) => {
-      persist({
-        patientId,
-        patientName,
-        patientAge,
-      });
-
-      addTimelineEntry(
-        `Paciente selecionado: ${patientName}`
-      );
-    },
-    [persist, addTimelineEntry]
-  );
-
-  const addPhoto = useCallback(
-    async (
-      file: File,
-      meta: AddPhotoMeta
-    ): Promise<PhotoItem> => {
-      if (!appointment) {
-        throw new Error(
-          "Nenhum atendimento está carregado."
-        );
-      }
-
-      const photo =
-        await photosRepository.upload(file, {
-          description:
-            meta.description,
-
-          phase: meta.phase,
-
-          disciplineId:
-            meta.disciplineId,
-
-          patientId:
-            meta.patientId ??
-            appointment.patientId,
-
-          appointmentId:
-            meta.appointmentId ??
-            appointment.id,
+  const selectPatient =
+    useCallback(
+      (
+        patientId: string,
+        patientName: string,
+        patientAge?: number
+      ) => {
+        persist({
+          patientId,
+          patientName,
+          patientAge,
         });
 
-      const phaseLabel = {
-        antes: "Antes",
-        durante: "Durante",
-        depois: "Depois",
-      }[meta.phase];
+        addTimelineEntry(
+          `Paciente selecionado: ${patientName}`
+        );
+      },
+      [persist, addTimelineEntry]
+    );
 
-      addTimelineEntry(
-        `Foto adicionada — ${phaseLabel}`
-      );
+  const addPhoto =
+    useCallback(
+      async (
+        file: File,
+        meta: AddPhotoMeta
+      ) => {
+        if (!appointment) {
+          throw new Error(
+            "Nenhum atendimento está carregado."
+          );
+        }
 
-      return photo;
-    },
-    [appointment, addTimelineEntry]
-  );
+        const photo =
+          await photosRepository.upload(
+            file,
+            {
+              description:
+                meta.description,
 
-  const finish = useCallback(
-    async (
-      summary: Pick<
-        Appointment,
-        | "resumoComoFoi"
-        | "resumoAprendizado"
-        | "resumoFariaDiferente"
-        | "resumoDificuldade"
-      >
-    ) => {
-      if (!appointment) {
-        return;
-      }
+              phase: meta.phase,
 
-      const finishedAt =
-        new Date().toISOString();
+              disciplineId:
+                meta.disciplineId,
 
-      const timeline = [
-        ...appointment.timeline,
-        {
-          id: crypto.randomUUID(),
-          time: nowLabel(),
-          description:
-            "Atendimento finalizado",
-        },
-      ];
+              patientId:
+                meta.patientId ??
+                appointment.patientId,
 
-      const patch = {
-        ...summary,
-        status:
-          "FINALIZADO" as const,
-        finishedAt,
-        timeline,
-      };
-
-      await appointmentsRepository.update(
-        appointment.id,
-        patch
-      );
-
-      setAppointment((prev) =>
-        prev
-          ? {
-              ...prev,
-              ...patch,
+              appointmentId:
+                meta.appointmentId ??
+                appointment.id,
             }
-          : prev
-      );
-    },
-    [appointment]
-  );
+          );
+
+        const phaseLabel = {
+          antes: "Antes",
+          durante: "Durante",
+          depois: "Depois",
+        }[meta.phase];
+
+        addTimelineEntry(
+          `Foto adicionada — ${phaseLabel}`
+        );
+
+        return photo;
+      },
+      [
+        appointment,
+        addTimelineEntry,
+      ]
+    );
+
+  const finish =
+    useCallback(
+      async (
+        summary: Pick<
+          Appointment,
+          | "resumoComoFoi"
+          | "resumoAprendizado"
+          | "resumoFariaDiferente"
+          | "resumoDificuldade"
+        >
+      ) => {
+        if (!appointment) {
+          return;
+        }
+
+        const finishedAt =
+          new Date().toISOString();
+
+        const timeline = [
+          ...appointment.timeline,
+          {
+            id:
+              crypto.randomUUID(),
+
+            time:
+              nowLabel(),
+
+            description:
+              "Atendimento finalizado",
+          },
+        ];
+
+        const patch = {
+          ...summary,
+
+          status:
+            "FINALIZADO" as const,
+
+          finishedAt,
+
+          timeline,
+        };
+
+        await appointmentsRepository.update(
+          appointment.id,
+          patch
+        );
+
+        setAppointment((prev) =>
+          prev
+            ? {
+                ...prev,
+                ...patch,
+              }
+            : prev
+        );
+      },
+      [appointment]
+    );
 
   const checklistProgress =
     useMemo(() => {
@@ -627,5 +777,7 @@ export function useAppointment(
     addPhoto,
     addTimelineEntry,
     finish,
+    procedure:
+      procedureRef.current,
   };
 }
