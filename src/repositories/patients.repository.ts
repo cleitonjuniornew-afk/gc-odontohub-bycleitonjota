@@ -1,77 +1,159 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- mapeadores de linha do Supabase */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { createClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createLocalStore } from "@/lib/local-store";
 import { patients as seedPatients } from "@/lib/mock-data";
-import type { Patient, PatientProcedure } from "@/types";
+
+import type {
+  Patient,
+  PatientProcedure,
+} from "@/types";
 
 type LocalRow = Patient & {
   deletedAt?: string | null;
 };
 
-const localStore = createLocalStore<LocalRow>(
-  seedPatients.map((p) => ({
-    ...p,
+const localStore = createLocalStore(
+  seedPatients.map((patient) => ({
+    ...patient,
     deletedAt: null,
   }))
 );
 
-function fromProcedureRow(row: any): PatientProcedure {
+function fromProcedureRow(
+  row: any
+): PatientProcedure {
   return {
     id: row.id,
-    procedure: row.procedimento ?? row.procedure ?? "",
-    status: row.status ?? "PLANEJADO",
-    tooth: row.dente ?? row.tooth ?? undefined,
-    region: row.regiao ?? row.region ?? undefined,
-    details: row.detalhes ?? row.details ?? undefined,
+    procedure:
+      row.procedimento ??
+      row.procedure ??
+      "",
+    status:
+      row.status ??
+      "PLANEJADO",
+    tooth:
+      row.dente ??
+      row.tooth ??
+      undefined,
+    region:
+      row.regiao ??
+      row.region ??
+      undefined,
+    details:
+      row.detalhes ??
+      row.details ??
+      undefined,
   };
 }
 
 function fromRow(row: any): Patient {
   return {
     id: row.id,
-    name: row.nome ?? row.name ?? "",
-    age: row.idade ?? row.age ?? undefined,
-    professor: row.professor ?? undefined,
-    procedures: Array.isArray(row.paciente_procedimentos)
-      ? row.paciente_procedimentos.map(fromProcedureRow)
-      : row.procedimentos ?? row.procedures ?? [],
-    nextReturn: row.proximo_retorno ?? row.nextReturn ?? undefined,
-    notes: row.observacoes ?? row.notes ?? undefined,
-    phone: row.telefone ?? row.phone ?? undefined,
-    birthDate: row.nascimento ?? row.birthDate ?? undefined,
+
+    name:
+      row.nome ??
+      row.name ??
+      "",
+
+    age:
+      row.idade ??
+      row.age ??
+      undefined,
+
+    professor:
+      row.professor ??
+      undefined,
+
+    procedures:
+      Array.isArray(
+        row.paciente_procedimentos
+      )
+        ? row.paciente_procedimentos.map(
+            fromProcedureRow
+          )
+        : Array.isArray(
+            row.procedimentos
+          )
+        ? row.procedimentos
+        : Array.isArray(
+            row.procedures
+          )
+        ? row.procedures
+        : [],
+
+    nextReturn:
+      row.proximo_retorno ??
+      row.nextReturn ??
+      undefined,
+
+    notes:
+      row.observacoes ??
+      row.notes ??
+      undefined,
+
+    phone:
+      row.telefone ??
+      row.phone ??
+      undefined,
+
+    birthDate:
+      row.nascimento ??
+      row.birthDate ??
+      undefined,
   };
 }
 
-function patientToRow(input: Partial<Patient>) {
-  const row: Record<string, unknown> = {};
+function patientToRow(
+  input: Partial<Patient>
+) {
+  const row: Record<
+    string,
+    unknown
+  > = {};
 
   if (input.name !== undefined) {
     row.nome = input.name;
   }
 
   if (input.phone !== undefined) {
-    row.telefone = input.phone || null;
+    row.telefone =
+      input.phone || null;
   }
 
-  if (input.birthDate !== undefined) {
-    row.nascimento = input.birthDate || null;
+  if (
+    input.birthDate !==
+    undefined
+  ) {
+    row.nascimento =
+      input.birthDate || null;
   }
 
   if (input.age !== undefined) {
-    row.idade = input.age ?? null;
+    row.idade =
+      input.age ?? null;
   }
 
-  if (input.professor !== undefined) {
-    row.professor = input.professor || null;
+  if (
+    input.professor !==
+    undefined
+  ) {
+    row.professor =
+      input.professor || null;
   }
 
-  if (input.nextReturn !== undefined) {
-    row.proximo_retorno = input.nextReturn || null;
+  if (
+    input.nextReturn !==
+    undefined
+  ) {
+    row.proximo_retorno =
+      input.nextReturn || null;
   }
 
   if (input.notes !== undefined) {
-    row.observacoes = input.notes || null;
+    row.observacoes =
+      input.notes || null;
   }
 
   return row;
@@ -84,13 +166,27 @@ function procedureToRow(
 ) {
   return {
     id: procedure.id,
-    paciente_id: patientId,
-    user_id: userId ?? null,
-    procedimento: procedure.procedure,
-    status: procedure.status,
-    dente: procedure.tooth || null,
-    regiao: procedure.region || null,
-    detalhes: procedure.details || null,
+
+    paciente_id:
+      patientId,
+
+    user_id:
+      userId ?? null,
+
+    procedimento:
+      procedure.procedure,
+
+    status:
+      procedure.status,
+
+    dente:
+      procedure.tooth || null,
+
+    regiao:
+      procedure.region || null,
+
+    detalhes:
+      procedure.details || null,
   };
 }
 
@@ -100,129 +196,56 @@ export const patientsRepository = {
       return localStore.list();
     }
 
-    const supabase = createClient();
+    const supabase =
+      createClient();
 
-    const { data, error } = await supabase
+    const {
+      data,
+      error,
+    } = await supabase
       .from("pacientes")
       .select(`
         *,
         paciente_procedimentos (*)
       `)
-      .is("deleted_at", null)
+      .is(
+        "deleted_at",
+        null
+      )
       .order("nome");
 
     if (error) {
       throw error;
     }
 
-    return (data ?? []).map(fromRow);
+    return (data ?? []).map(
+      fromRow
+    );
   },
 
-  async create(input: Omit<Patient, "id">): Promise<Patient> {
-    if (!isSupabaseConfigured) {
-      return localStore.create({
-        ...input,
-        procedures: input.procedures ?? [],
-      } as LocalRow);
-    }
-
-    const supabase = createClient();
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const { data, error } = await supabase
-      .from("pacientes")
-      .insert({
-        ...patientToRow(input),
-        user_id: user?.id ?? null,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
-    const patient = fromRow(data);
-
-    if (input.procedures?.length) {
-      const procedureRows = input.procedures.map((procedure) =>
-        procedureToRow(procedure, patient.id, user?.id)
-      );
-
-      const { error: procedureError } = await supabase
-        .from("paciente_procedimentos")
-        .insert(procedureRows);
-
-      if (procedureError) {
-        throw procedureError;
-      }
-    }
-
-    return {
-      ...patient,
-      procedures: input.procedures ?? [],
-    };
-  },
-
-  async update(
-    id: string,
-    input: Partial<Patient>
+  async get(
+    id: string
   ): Promise<Patient> {
     if (!isSupabaseConfigured) {
-      return localStore.update(
-        id,
-        input as Partial<LocalRow>
-      );
+      const patient =
+        await localStore.get(id);
+
+      if (!patient) {
+        throw new Error(
+          "Paciente não encontrado."
+        );
+      }
+
+      return patient;
     }
 
-    const supabase = createClient();
+    const supabase =
+      createClient();
 
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const patientFields = patientToRow(input);
-
-    if (Object.keys(patientFields).length > 0) {
-      const { error } = await supabase
-        .from("pacientes")
-        .update(patientFields)
-        .eq("id", id);
-
-      if (error) {
-        throw error;
-      }
-    }
-
-    if (input.procedures !== undefined) {
-      const { error: deleteError } = await supabase
-        .from("paciente_procedimentos")
-        .delete()
-        .eq("paciente_id", id);
-
-      if (deleteError) {
-        throw deleteError;
-      }
-
-      if (input.procedures.length > 0) {
-        const procedureRows = input.procedures.map((procedure) =>
-          procedureToRow(procedure, id, user?.id)
-        );
-
-        const { error: insertError } = await supabase
-          .from("paciente_procedimentos")
-          .insert(procedureRows);
-
-        if (insertError) {
-          throw insertError;
-        }
-      }
-    }
-
-    const { data, error } = await supabase
+      data,
+      error,
+    } = await supabase
       .from("pacientes")
       .select(`
         *,
@@ -238,17 +261,204 @@ export const patientsRepository = {
     return fromRow(data);
   },
 
-  async softDelete(id: string): Promise<void> {
+  async create(
+    input: Omit<Patient, "id">
+  ): Promise<Patient> {
     if (!isSupabaseConfigured) {
-      return localStore.softDelete(id);
+      return localStore.create({
+        ...input,
+        procedures:
+          input.procedures ?? [],
+      } as LocalRow);
     }
 
-    const supabase = createClient();
+    const supabase =
+      createClient();
 
-    const { error } = await supabase
+    const {
+      data: {
+        user,
+      },
+    } =
+      await supabase.auth.getUser();
+
+    const {
+      data,
+      error,
+    } = await supabase
+      .from("pacientes")
+      .insert({
+        ...patientToRow(input),
+        user_id:
+          user?.id ?? null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    const patient =
+      fromRow(data);
+
+    if (
+      input.procedures &&
+      input.procedures.length >
+        0
+    ) {
+      const procedureRows =
+        input.procedures.map(
+          (procedure) =>
+            procedureToRow(
+              procedure,
+              patient.id,
+              user?.id
+            )
+        );
+
+      const {
+        error:
+          procedureError,
+      } = await supabase
+        .from(
+          "paciente_procedimentos"
+        )
+        .insert(
+          procedureRows
+        );
+
+      if (procedureError) {
+        throw procedureError;
+      }
+    }
+
+    return {
+      ...patient,
+      procedures:
+        input.procedures ?? [],
+    };
+  },
+
+  async update(
+    id: string,
+    input: Partial<Patient>
+  ): Promise<Patient> {
+    if (!isSupabaseConfigured) {
+      return localStore.update(
+        id,
+        input
+      );
+    }
+
+    const supabase =
+      createClient();
+
+    const {
+      data: {
+        user,
+      },
+    } =
+      await supabase.auth.getUser();
+
+    const patientFields =
+      patientToRow(input);
+
+    if (
+      Object.keys(
+        patientFields
+      ).length > 0
+    ) {
+      const {
+        error,
+      } = await supabase
+        .from("pacientes")
+        .update(
+          patientFields
+        )
+        .eq("id", id);
+
+      if (error) {
+        throw error;
+      }
+    }
+
+    if (
+      input.procedures !==
+      undefined
+    ) {
+      const {
+        error:
+          deleteError,
+      } = await supabase
+        .from(
+          "paciente_procedimentos"
+        )
+        .delete()
+        .eq(
+          "paciente_id",
+          id
+        );
+
+      if (deleteError) {
+        throw deleteError;
+      }
+
+      if (
+        input.procedures.length >
+        0
+      ) {
+        const procedureRows =
+          input.procedures.map(
+            (procedure) =>
+              procedureToRow(
+                procedure,
+                id,
+                user?.id
+              )
+          );
+
+        const {
+          error:
+            insertError,
+        } = await supabase
+          .from(
+            "paciente_procedimentos"
+          )
+          .insert(
+            procedureRows
+          );
+
+        if (insertError) {
+          throw insertError;
+        }
+      }
+    }
+
+    return this.get(id);
+  },
+
+  async softDelete(
+    id: string
+  ): Promise<void> {
+    if (!isSupabaseConfigured) {
+      await localStore.softDelete(
+        id
+      );
+
+      return;
+    }
+
+    const supabase =
+      createClient();
+
+    const {
+      error,
+    } = await supabase
       .from("pacientes")
       .update({
-        deleted_at: new Date().toISOString(),
+        deleted_at:
+          new Date().toISOString(),
       })
       .eq("id", id);
 
@@ -257,14 +467,23 @@ export const patientsRepository = {
     }
   },
 
-  async restore(id: string): Promise<void> {
+  async restore(
+    id: string
+  ): Promise<void> {
     if (!isSupabaseConfigured) {
-      return localStore.restore(id);
+      await localStore.restore(
+        id
+      );
+
+      return;
     }
 
-    const supabase = createClient();
+    const supabase =
+      createClient();
 
-    const { error } = await supabase
+    const {
+      error,
+    } = await supabase
       .from("pacientes")
       .update({
         deleted_at: null,
