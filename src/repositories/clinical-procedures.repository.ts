@@ -97,11 +97,7 @@ function fromRow(row: any): ClinicalProcedure {
 export const clinicalProceduresRepository = {
   async list(): Promise<ClinicalProcedure[]> {
     if (!isSupabaseConfigured) {
-      const rows = await localStore.list();
-
-      return rows.filter(
-        (item) => item.ativo !== false
-      );
+      return localStore.list();
     }
 
     const supabase = createClient();
@@ -161,12 +157,9 @@ export const clinicalProceduresRepository = {
     id: string
   ): Promise<void> {
     if (!isSupabaseConfigured) {
-      await localStore.update(
-        id,
-        {
-          ativo: false,
-        } as Partial<LocalRow>
-      );
+      await localStore.update(id, {
+        ativo: false,
+      });
 
       return;
     }
