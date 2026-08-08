@@ -10,41 +10,51 @@ import type {
   PatientProcedure,
 } from "@/types";
 
-type LocalRow = Patient & {
-  deletedAt?: string | null;
+/*
+ * O armazenamento local usa deletedAt como null.
+ * Mantemos exatamente o mesmo formato usado na criação
+ * do localStore para evitar conflitos de tipagem.
+ */
+type LocalPatient = Patient & {
+  deletedAt: null;
 };
 
 const localStore = createLocalStore(
   seedPatients.map((patient) => ({
     ...patient,
-    deletedAt: null,
+    deletedAt: null as null,
   }))
 );
 
-/* =========================================================
-   MAPEADORES
-   ========================================================= */
-
+/*
+ * Converte uma linha de paciente_procedimentos
+ * do Supabase para o formato usado pela aplicação.
+ */
 function fromProcedureRow(
   row: any
 ): PatientProcedure {
   return {
     id: row.id,
+
     procedure:
       row.procedimento ??
       row.procedure ??
       "",
+
     status:
       row.status ??
       "PLANEJADO",
+
     tooth:
       row.dente ??
       row.tooth ??
       undefined,
+
     region:
       row.regiao ??
       row.region ??
       undefined,
+
     details:
       row.detalhes ??
       row.details ??
@@ -52,6 +62,9 @@ function fromProcedureRow(
   };
 }
 
+/*
+ * Converte uma linha do Supabase para Patient.
+ */
 function fromRow(row: any): Patient {
   return {
     id: row.id,
@@ -78,14 +91,14 @@ function fromRow(row: any): Patient {
             fromProcedureRow
           )
         : Array.isArray(
-            row.procedimentos
-          )
-        ? row.procedimentos
-        : Array.isArray(
-            row.procedures
-          )
-        ? row.procedures
-        : [],
+              row.procedimentos
+            )
+          ? row.procedimentos
+          : Array.isArray(
+                row.procedures
+              )
+            ? row.procedures
+            : [],
 
     nextReturn:
       row.proximo_retorno ??
@@ -109,14 +122,17 @@ function fromRow(row: any): Patient {
   };
 }
 
-/* =========================================================
-   PACIENTE -> ROW SUPABASE
-   ========================================================= */
-
+/*
+ * Converte os campos do frontend
+ * para os nomes usados no Supabase.
+ */
 function patientToRow(
   input: Partial<Patient>
-): Record<string, unknown> {
-  const row: Record<string, unknown> = {};
+) {
+  const row: Record<
+    string,
+    unknown
+  > = {};
 
   if (input.name !== undefined) {
     row.nome = input.name;
@@ -164,10 +180,10 @@ function patientToRow(
   return row;
 }
 
-/* =========================================================
-   PROCEDIMENTO -> ROW SUPABASE
-   ========================================================= */
-
+/*
+ * Converte um procedimento do paciente
+ * para uma linha da tabela paciente_procedimentos.
+ */
 function procedureToRow(
   procedure: PatientProcedure,
   patientId: string,
@@ -189,44 +205,43 @@ function procedureToRow(
       procedure.status,
 
     dente:
-      procedure.tooth ||
-      null,
+      procedure.tooth || null,
 
     regiao:
-      procedure.region ||
-      null,
+      procedure.region || null,
 
     detalhes:
-      procedure.details ||
-      null,
+      procedure.details || null,
   };
 }
 
-/* =========================================================
-   REPOSITÓRIO
-   ========================================================= */
-
 export const patientsRepository = {
-
-  /* =======================================================
-     LISTAR PACIENTES
-     ======================================================= */
-
+  /*
+   * LISTAR PACIENTES
+   */
   async list(): Promise<Patient[]> {
+    /*
+     * Modo local
+     */
     if (!isSupabaseConfigured) {
       const patients =
         await localStore.list();
 
-      return patients
-        .filter(
-          (patient) =>
-            !patient.deletedAt
-        )
-        .map((patient) =>
-          fromRow(patient)
-        );
+      return patients.map(
+        (patient) => {
+          const {
+            deletedAt: _deletedAt,
+            ...cleanPatient
+          } = patient;
+
+          return cleanPatient;
+        }
+      );
     }
 
+    /*
+     * Supabase
+     */
     const supabase =
       createClient();
 
@@ -254,29 +269,18 @@ export const patientsRepository = {
     );
   },
 
-  /* =======================================================
-     BUSCAR UM PACIENTE
-     ======================================================= */
-
+  /*
+   * BUSCAR UM PACIENTE
+   */
   async get(
     id: string
   ): Promise<Patient> {
-
     /*
-     * MODO LOCAL
-     *
-     * createLocalStore não possui .get().
-     * Então buscamos pelo list().
+     * Modo local
      */
     if (!isSupabaseConfigured) {
-      const patients =
-        await localStore.list();
-
       const patient =
-        patients.find(
-          (item) =>
-            item.id === id
-        );
+        await localStore.get(id);
 
       if (!patient) {
         throw new Error(
@@ -284,11 +288,16 @@ export const patientsRepository = {
         );
       }
 
-      return fromRow(patient);
+      const {
+        deletedAt: _deletedAt,
+        ...cleanPatient
+      } = patient;
+
+      return cleanPatient;
     }
 
     /*
-     * SUPABASE
+     * Supabase
      */
     const supabase =
       createClient();
@@ -302,10 +311,7 @@ export const patientsRepository = {
         *,
         paciente_procedimentos (*)
       `)
-      .eq(
-        "id",
-        id
-      )
+      .eq("id", id)
       .single();
 
     if (error) {
@@ -315,16 +321,17 @@ export const patientsRepository = {
     return fromRow(data);
   },
 
-  /* =======================================================
-     CRIAR PACIENTE
-     ======================================================= */
-
+  /*
+   * CRIAR PACIENTE
+   */
   async create(
-    input: Omit<Patient, "id">
+    input: Omit<
+      Patient,
+      "id"
+    >
   ): Promise<Patient> {
-
     /*
-     * MODO LOCAL
+     * Modo local
      */
     if (!isSupabaseConfigured) {
       const created =
@@ -334,13 +341,25 @@ export const patientsRepository = {
           procedures:
             input.procedures ??
             [],
-        } as LocalRow);
 
-      return fromRow(created);
+          /*
+           * IMPORTANTE:
+           * o localStore espera deletedAt
+           * exatamente como null.
+           */
+          deletedAt: null,
+        });
+
+      const {
+        deletedAt: _deletedAt,
+        ...cleanPatient
+      } = created;
+
+      return cleanPatient;
     }
 
     /*
-     * SUPABASE
+     * Supabase
      */
     const supabase =
       createClient();
@@ -352,20 +371,26 @@ export const patientsRepository = {
     } =
       await supabase.auth.getUser();
 
+    /*
+     * Cria o paciente.
+     */
     const {
       data,
       error,
-    } = await supabase
-      .from("pacientes")
-      .insert({
-        ...patientToRow(input),
+    } =
+      await supabase
+        .from("pacientes")
+        .insert({
+          ...patientToRow(
+            input
+          ),
 
-        user_id:
-          user?.id ??
-          null,
-      })
-      .select()
-      .single();
+          user_id:
+            user?.id ??
+            null,
+        })
+        .select()
+        .single();
 
     if (error) {
       throw error;
@@ -380,7 +405,8 @@ export const patientsRepository = {
      */
     if (
       input.procedures &&
-      input.procedures.length > 0
+      input.procedures.length >
+        0
     ) {
       const procedureRows =
         input.procedures.map(
@@ -410,28 +436,27 @@ export const patientsRepository = {
     }
 
     /*
-     * Retorna o paciente completo
-     * com os procedimentos.
+     * Retorna o paciente completo,
+     * incluindo seus procedimentos.
      */
     return {
       ...patient,
+
       procedures:
         input.procedures ??
         [],
     };
   },
 
-  /* =======================================================
-     ATUALIZAR PACIENTE
-     ======================================================= */
-
+  /*
+   * ATUALIZAR PACIENTE
+   */
   async update(
     id: string,
     input: Partial<Patient>
   ): Promise<Patient> {
-
     /*
-     * MODO LOCAL
+     * Modo local
      */
     if (!isSupabaseConfigured) {
       const updated =
@@ -440,11 +465,16 @@ export const patientsRepository = {
           input
         );
 
-      return fromRow(updated);
+      const {
+        deletedAt: _deletedAt,
+        ...cleanPatient
+      } = updated;
+
+      return cleanPatient;
     }
 
     /*
-     * SUPABASE
+     * Supabase
      */
     const supabase =
       createClient();
@@ -457,7 +487,7 @@ export const patientsRepository = {
       await supabase.auth.getUser();
 
     /*
-     * Atualiza os dados básicos
+     * Atualiza os dados principais
      * do paciente.
      */
     const patientFields =
@@ -487,17 +517,13 @@ export const patientsRepository = {
     }
 
     /*
-     * Se os procedimentos foram
-     * enviados, substituímos a lista
-     * pelos procedimentos atuais.
+     * Se os procedimentos foram enviados,
+     * substituímos a lista antiga pela nova.
      */
     if (
       input.procedures !==
       undefined
     ) {
-      /*
-       * Remove os antigos.
-       */
       const {
         error:
           deleteError,
@@ -516,9 +542,6 @@ export const patientsRepository = {
         throw deleteError;
       }
 
-      /*
-       * Insere os novos.
-       */
       if (
         input.procedures.length >
         0
@@ -552,8 +575,7 @@ export const patientsRepository = {
     }
 
     /*
-     * Busca novamente para garantir
-     * que retornamos o paciente completo.
+     * Busca novamente o paciente completo.
      */
     const {
       data,
@@ -578,16 +600,15 @@ export const patientsRepository = {
     return fromRow(data);
   },
 
-  /* =======================================================
-     EXCLUIR PACIENTE
-     ======================================================= */
-
+  /*
+   * EXCLUIR PACIENTE
+   * (exclusão lógica)
+   */
   async softDelete(
     id: string
   ): Promise<void> {
-
     /*
-     * MODO LOCAL
+     * Modo local
      */
     if (!isSupabaseConfigured) {
       await localStore.softDelete(
@@ -598,7 +619,7 @@ export const patientsRepository = {
     }
 
     /*
-     * SUPABASE
+     * Supabase
      */
     const supabase =
       createClient();
@@ -622,16 +643,14 @@ export const patientsRepository = {
     }
   },
 
-  /* =======================================================
-     RESTAURAR PACIENTE
-     ======================================================= */
-
+  /*
+   * RESTAURAR PACIENTE
+   */
   async restore(
     id: string
   ): Promise<void> {
-
     /*
-     * MODO LOCAL
+     * Modo local
      */
     if (!isSupabaseConfigured) {
       await localStore.restore(
@@ -642,7 +661,7 @@ export const patientsRepository = {
     }
 
     /*
-     * SUPABASE
+     * Supabase
      */
     const supabase =
       createClient();
@@ -653,8 +672,7 @@ export const patientsRepository = {
       await supabase
         .from("pacientes")
         .update({
-          deleted_at:
-            null,
+          deleted_at: null,
         })
         .eq(
           "id",
