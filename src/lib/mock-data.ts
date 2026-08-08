@@ -3,7 +3,6 @@
 // Dados reais devem vir dos repositories/Supabase.
 // Não utilizar estes IDs para salvar no banco.
 // ==========================================================
-
 import type {
   Task,
   Discipline,
@@ -199,7 +198,7 @@ export const libraryItems: LibraryItem[] = [
 export const photos: PhotoItem[] = [
   {
     id: "p1",
-    url: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=600",
+    url: "[https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=600](https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=600)",
     description: "Caso de restauração classe II",
     phase: "depois",
     disciplineId: "d1",
@@ -207,7 +206,7 @@ export const photos: PhotoItem[] = [
   },
   {
     id: "p2",
-    url: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=600",
+    url: "[https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=600](https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=600)",
     description: "Radiografia inicial",
     phase: "antes",
     disciplineId: "d3",
@@ -221,7 +220,18 @@ export const patients: Patient[] = [
     name: "Marcos Vinícius",
     age: 34,
     professor: "Dra. Ana Militão",
-    procedures: ["Restauração Classe II", "Profilaxia"],
+    procedures: [
+      {
+        id: "proc-pt1-1",
+        procedure: "Restauração Classe II",
+        status: "CONCLUIDO",
+      },
+      {
+        id: "proc-pt1-2",
+        procedure: "Profilaxia",
+        status: "CONCLUIDO",
+      },
+    ],
     nextReturn: "2026-08-20",
   },
   {
@@ -229,7 +239,13 @@ export const patients: Patient[] = [
     name: "Luísa Andrade",
     age: 27,
     professor: "Dr. Rafael Souza",
-    procedures: ["Exodontia"],
+    procedures: [
+      {
+        id: "proc-pt2-1",
+        procedure: "Exodontia",
+        status: "PLANEJADO",
+      },
+    ],
     nextReturn: undefined,
   },
 ];
