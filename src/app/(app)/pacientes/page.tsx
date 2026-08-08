@@ -5,7 +5,6 @@ import { PageHeader } from "@/components/shared/page-header";
 import { PatientList } from "@/features/pacientes/components/patient-list";
 import { PatientFormModal } from "@/features/pacientes/components/patient-form-modal";
 import { usePatients } from "@/features/pacientes/hooks/use-patients";
-import { Button } from "@/components/ui/button";
 import type { Patient } from "@/types";
 
 export default function PacientesPage() {
@@ -16,30 +15,44 @@ export default function PacientesPage() {
     isCreating,
     updatePatient,
     isUpdating,
+    deletePatient,
   } = usePatients();
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
 
   function handleNewPatient() {
-    setSelectedPatient(null);
-    setModalOpen(true);
+    setEditingPatient(null);
+    setFormOpen(true);
   }
 
-  function handleSelectPatient(patient: Patient) {
-    setSelectedPatient(patient);
-    setModalOpen(true);
+  function handleEditPatient(patient: Patient) {
+    setEditingPatient(patient);
+    setFormOpen(true);
   }
 
   async function handleSubmit(data: Omit<Patient, "id">) {
-    if (selectedPatient) {
+    if (editingPatient) {
       await updatePatient({
-        id: selectedPatient.id,
+        id: editingPatient.id,
         input: data,
       });
     } else {
       await createPatient(data);
     }
+
+    setFormOpen(false);
+    setEditingPatient(null);
+  }
+
+  function handleDeletePatient(patient: Patient) {
+    const confirmed = window.confirm(
+      `Tem certeza que deseja excluir o paciente "${patient.name}"?`
+    );
+
+    if (!confirmed) return;
+
+    deletePatient(patient.id);
   }
 
   return (
@@ -47,30 +60,29 @@ export default function PacientesPage() {
       <PageHeader
         title="Pacientes"
         description="Cadastro completo com procedimentos, retornos e observações."
-        action={
-          <Button onClick={handleNewPatient}>
-            + Cadastrar paciente
-          </Button>
-        }
       />
 
-      {isLoading ? (
-        <div className="py-10 text-center text-sm text-muted-foreground">
-          Carregando pacientes...
-        </div>
-      ) : (
-        <PatientList
-          patients={patients}
-          onSelect={handleSelectPatient}
-        />
-      )}
+      <PatientList
+        patients={patients}
+        isLoading={isLoading}
+        onAdd={handleNewPatient}
+        onSelect={handleEditPatient}
+        onEdit={handleEditPatient}
+        onDelete={handleDeletePatient}
+      />
 
       <PatientFormModal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
+        open={formOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open);
+
+          if (!open) {
+            setEditingPatient(null);
+          }
+        }}
         onSubmit={handleSubmit}
         submitting={isCreating || isUpdating}
-        initialData={selectedPatient}
+        initialData={editingPatient}
       />
     </div>
   );
