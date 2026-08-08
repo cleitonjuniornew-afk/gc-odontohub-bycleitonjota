@@ -39,12 +39,10 @@ import type { LibraryItem } from "@/types";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-
   onSubmit: (
     data: Omit<LibraryItem, "id" | "date">,
     file?: File
   ) => Promise<void> | void;
-
   submitting?: boolean;
 }
 
@@ -109,7 +107,6 @@ export function LibraryUploadModal({
           onSubmit={handleSubmit(submit)}
           className="space-y-5"
         >
-          {/* ARQUIVO */}
           <div>
             <Label htmlFor="file">
               Arquivo
@@ -155,7 +152,6 @@ export function LibraryUploadModal({
             )}
           </div>
 
-          {/* TÍTULO */}
           <div>
             <Label htmlFor="title">
               Título
@@ -175,7 +171,6 @@ export function LibraryUploadModal({
             )}
           </div>
 
-          {/* TIPO + DISCIPLINA */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>
@@ -250,13 +245,12 @@ export function LibraryUploadModal({
                         </SelectItem>
                       ))}
                     </SelectContent>
-                  </SelectContent>
+                  </Select>
                 )}
               />
             </div>
           </div>
 
-          {/* PROFESSOR + ASSUNTO */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="professor">
@@ -285,7 +279,6 @@ export function LibraryUploadModal({
             </div>
           </div>
 
-          {/* BOTÕES */}
           <div className="flex justify-end gap-3">
             <Button
               type="button"
