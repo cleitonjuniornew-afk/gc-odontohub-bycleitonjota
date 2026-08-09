@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   ClipboardList,
   Trash2,
-  Search,
 } from "lucide-react";
 
 import {
@@ -55,9 +54,10 @@ export default function CasosClinicosPage() {
 
   const [procedures, setProcedures] = useState<ClinicalProcedure[]>([]);
   const [proceduresLoading, setProceduresLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+
   const [deletingAppointmentId, setDeletingAppointmentId] =
     useState<string | null>(null);
+
   const [deletingProcedureId, setDeletingProcedureId] =
     useState<string | null>(null);
 
@@ -106,7 +106,9 @@ export default function CasosClinicosPage() {
 
   function continuarAtendimento(appointmentId: string) {
     router.push(
-      `/modo-atendimento?id=${encodeURIComponent(appointmentId)}`
+      `/modo-atendimento?id=${encodeURIComponent(
+        appointmentId
+      )}`
     );
   }
 
@@ -143,7 +145,7 @@ export default function CasosClinicosPage() {
     procedure: ClinicalProcedure
   ) {
     const confirmed = window.confirm(
-      `Tem certeza que deseja excluir o procedimento "${procedure.nome}"?\n\nO procedimento será removido da lista de Procedimentos Clínicos.`
+      `Tem certeza que deseja excluir o procedimento ${procedure.nome}?\n\nO procedimento será removido da lista de Procedimentos Clínicos.`
     );
 
     if (!confirmed) {
@@ -176,108 +178,73 @@ export default function CasosClinicosPage() {
     }
   }
 
+  /*
+   * Mostra somente procedimentos que possuem checklist.
+   * Isso deixa a página compacta e mantém apenas o que
+   * realmente pode ser usado como protocolo clínico.
+   */
   const proceduresWithChecklist = procedures.filter(
     (procedure) =>
       Array.isArray(procedure.checklist) &&
       procedure.checklist.length > 0
   );
 
-  const filteredProcedures = proceduresWithChecklist.filter(
-    (procedure) => {
-      const search = searchTerm.trim().toLowerCase();
-
-      if (!search) {
-        return true;
-      }
-
-      const nome = procedure.nome?.toLowerCase() ?? "";
-      const disciplina =
-        procedure.disciplina?.toLowerCase() ?? "";
-
-      return (
-        nome.includes(search) ||
-        disciplina.includes(search)
-      );
-    }
-  );
-
   return (
-    <div className="min-w-0 w-full space-y-8">
+    <div className="space-y-8">
       <PageHeader
         title="Casos Clínicos"
         description="Escolha um procedimento para iniciar um atendimento ou continue um atendimento já iniciado."
         action={
           <Button
-            onClick={() => router.push("/modo-atendimento")}
+            onClick={() =>
+              router.push("/modo-atendimento")
+            }
           >
+            <PlayCircle className="mr-2 h-4 w-4" />
             Iniciar Atendimento
           </Button>
         }
       />
 
-      <section className="min-w-0 w-full space-y-4">
+      {/* PROCEDIMENTOS CLÍNICOS */}
+      <section className="min-w-0 w-full space-y-3">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-text-primary">
-            Procedimentos com Checklist
+            Procedimentos Clínicos
           </h2>
 
           <p className="mt-1 text-sm text-text-secondary">
-            Selecione um procedimento para iniciar
-            seu checklist clínico.
+            Procedimentos com checklist disponíveis para
+            iniciar um atendimento.
           </p>
         </div>
 
-        {!proceduresLoading &&
-          proceduresWithChecklist.length > 0 && (
-            <div className="relative w-full">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(event) =>
-                  setSearchTerm(event.target.value)
-                }
-                placeholder="Buscar procedimento..."
-                className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-4 text-sm text-text-primary outline-none transition placeholder:text-text-muted focus:border-primary"
-              />
-            </div>
-          )}
-
         {proceduresLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3, 4].map((item) => (
-              <Skeleton
-                key={item}
-                className="h-14 w-full"
-              />
-            ))}
-          </div>
+          <Card className="overflow-hidden">
+            <div className="space-y-3 p-4">
+              {[1, 2, 3, 4].map((item) => (
+                <Skeleton
+                  key={item}
+                  className="h-12 w-full"
+                />
+              ))}
+            </div>
+          </Card>
         ) : proceduresWithChecklist.length === 0 ? (
-          <Card className="min-w-0 overflow-hidden">
-            <div className="flex min-w-0 flex-col items-center justify-center gap-3 p-8 text-center">
-              <ClipboardList className="h-10 w-10 shrink-0 text-text-muted" />
+          <Card className="overflow-hidden">
+            <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
+              <ClipboardList className="h-8 w-8 text-text-muted" />
 
-              <div className="min-w-0 max-w-full">
+              <div>
                 <h3 className="font-medium text-text-primary">
-                  Nenhum checklist cadastrado
+                  Nenhum procedimento disponível
                 </h3>
 
                 <p className="mt-1 text-sm text-text-secondary">
                   Cadastre procedimentos com checklist
-                  para utilizá-los durante os
-                  atendimentos.
+                  para utilizá-los nos atendimentos.
                 </p>
               </div>
-            </div>
-          </Card>
-        ) : filteredProcedures.length === 0 ? (
-          <Card className="min-w-0 overflow-hidden">
-            <div className="p-6 text-center">
-              <p className="text-sm text-text-secondary">
-                Nenhum procedimento encontrado para "
-                {searchTerm}".
-              </p>
             </div>
           </Card>
         ) : (
@@ -285,94 +252,89 @@ export default function CasosClinicosPage() {
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
-            className="space-y-2"
+            className="overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface"
           >
-            {filteredProcedures.map((procedure) => (
-              <motion.div
-                key={procedure.id}
-                variants={fadeInUp}
-                className="min-w-0 w-full"
-              >
-                <Card className="min-w-0 w-full overflow-hidden">
-                  <CardHeader className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-                    <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                        <ClipboardList className="h-4 w-4 text-primary" />
-                      </div>
+            {proceduresWithChecklist.map(
+              (procedure, index) => (
+                <motion.div
+                  key={procedure.id}
+                  variants={fadeInUp}
+                  className={`flex min-w-0 items-center gap-3 px-4 py-3 ${
+                    index !==
+                    proceduresWithChecklist.length - 1
+                      ? "border-b border-border"
+                      : ""
+                  }`}
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <ClipboardList className="h-4 w-4 text-primary" />
+                  </div>
 
-                      <div className="min-w-0 flex-1">
-                        <CardTitle className="block min-w-0 break-words text-sm font-medium leading-snug">
-                          {procedure.nome}
-                        </CardTitle>
-
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-muted">
-                          {procedure.disciplina && (
-                            <span>
-                              {procedure.disciplina}
-                            </span>
-                          )}
-
-                          <span>
-                            • {procedure.checklist.length}{" "}
-                            {procedure.checklist.length === 1
-                              ? "item"
-                              : "itens"}{" "}
-                            no checklist
-                          </span>
-                        </div>
-                      </div>
-
-                      <Badge
-                        variant="primary"
-                        className="hidden shrink-0 whitespace-nowrap sm:flex"
-                      >
-                        Checklist
-                      </Badge>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      iniciarProcedimento(procedure)
+                    }
+                    className="min-w-0 flex-1 text-left transition-colors hover:text-primary"
+                  >
+                    <div className="truncate text-sm font-medium text-text-primary">
+                      {procedure.nome}
                     </div>
 
-                    <div className="flex w-full shrink-0 gap-2 sm:w-auto">
-                      <Button
-                        className="flex-1 sm:flex-none"
-                        onClick={() =>
-                          iniciarProcedimento(procedure)
-                        }
-                      >
-                        <PlayCircle className="mr-2 h-4 w-4 shrink-0" />
+                    {procedure.disciplina && (
+                      <div className="mt-0.5 truncate text-xs text-text-muted">
+                        {procedure.disciplina}
+                      </div>
+                    )}
+                  </button>
 
-                        <span>Iniciar</span>
-                      </Button>
+                  <Badge
+                    variant="primary"
+                    className="hidden shrink-0 whitespace-nowrap sm:flex"
+                  >
+                    Checklist
+                  </Badge>
 
-                      <Button
-                        variant="ghost"
-                        className="shrink-0"
-                        disabled={
-                          deletingProcedureId ===
-                          procedure.id
-                        }
-                        onClick={() =>
-                          void excluirProcedimento(
-                            procedure
-                          )
-                        }
-                      >
-                        <Trash2 className="h-4 w-4" />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() =>
+                      iniciarProcedimento(procedure)
+                    }
+                    className="shrink-0"
+                  >
+                    <PlayCircle className="mr-1.5 h-4 w-4" />
+                    <span className="hidden sm:inline">
+                      Iniciar
+                    </span>
+                  </Button>
 
-                        <span className="sr-only">
-                          {deletingProcedureId ===
-                          procedure.id
-                            ? "Excluindo procedimento"
-                            : `Excluir ${procedure.nome}`}
-                        </span>
-                      </Button>
-                    </div>
-                  </CardHeader>
-                </Card>
-              </motion.div>
-            ))}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0"
+                    disabled={
+                      deletingProcedureId ===
+                      procedure.id
+                    }
+                    onClick={() =>
+                      void excluirProcedimento(
+                        procedure
+                      )
+                    }
+                    aria-label={`Excluir ${procedure.nome}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </motion.div>
+              )
+            )}
           </motion.div>
         )}
       </section>
 
+      {/* HISTÓRICO */}
       <section className="min-w-0 w-full space-y-4">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-text-primary">
@@ -455,7 +417,9 @@ export default function CasosClinicosPage() {
                       <span className="truncate">
                         {new Date(
                           appointment.startedAt
-                        ).toLocaleDateString("pt-BR")}
+                        ).toLocaleDateString(
+                          "pt-BR"
+                        )}
                       </span>
                     </div>
 
