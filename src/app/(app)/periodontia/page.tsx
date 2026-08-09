@@ -14,14 +14,16 @@ import {
   Activity,
   CalendarDays,
   ClipboardList,
-  Download,
   FileText,
   Plus,
-  Save,
   Stethoscope,
   UserRound,
 } from "lucide-react";
+
 import { Odontogram } from "./components/odontogram";
+
+import { usePatients } from "@/features/pacientes/hooks/use-patients";
+
 import {
   usePeriodontia,
   type PeriodontalExam,
@@ -34,89 +36,57 @@ const TOOTH_NUMBERS = [
   31, 32, 33, 34, 35, 36, 37, 38,
 ];
 
-interface Patient {
-  id: string;
-  nome?: string;
-  name?: string;
-}
-
 export default function PeriodontiaPage() {
   const {
+    patients,
+    isLoading: isLoadingPatients,
+  } = usePatients();
+
+  const {
     exams,
-    isLoading,
     createExam,
     initializeTeeth,
     isCreatingExam,
     isInitializingTeeth,
   } = usePeriodontia();
 
-  const [patients, setPatients] = useState<Patient[]>([]);
   const [patientId, setPatientId] = useState("");
   const [examStarted, setExamStarted] = useState(false);
   const [currentExam, setCurrentExam] =
     useState<PeriodontalExam | null>(null);
-  const [loadingPatients, setLoadingPatients] = useState(true);
 
   const selectedPatient = useMemo(
-    () => patients.find((patient) => patient.id === patientId),
+    () =>
+      patients.find(
+        (patient) => patient.id === patientId
+      ),
     [patients, patientId]
   );
 
   useEffect(() => {
-    async function loadPatients() {
-      try {
-        setLoadingPatients(true);
-
-        /*
-         * Busca os pacientes já cadastrados no Supabase.
-         *
-         * Mantemos essa busca isolada aqui para não alterar
-         * nenhum módulo já existente da aplicação.
-         */
-        const response = await fetch("/api/pacientes");
-
-        if (!response.ok) {
-          throw new Error("Não foi possível carregar os pacientes.");
-        }
-
-        const data = await response.json();
-
-        setPatients(
-          Array.isArray(data)
-            ? data
-            : Array.isArray(data?.patients)
-              ? data.patients
-              : []
-        );
-      } catch {
-        setPatients([]);
-      } finally {
-        setLoadingPatients(false);
-      }
+    if (!patientId) {
+      setCurrentExam(null);
+      setExamStarted(false);
+      return;
     }
 
-    loadPatients();
-  }, []);
-
-  useEffect(() => {
-    if (!patientId || exams.length === 0) return;
-
-    const patientExam = exams.find(
+    const existingExam = exams.find(
       (exam) =>
         exam.patientId === patientId &&
         exam.status === "EM_ANDAMENTO"
     );
 
-    if (patientExam) {
-      setCurrentExam(patientExam);
+    if (existingExam) {
+      setCurrentExam(existingExam);
       setExamStarted(true);
+    } else {
+      setCurrentExam(null);
+      setExamStarted(false);
     }
   }, [patientId, exams]);
 
   async function handleStartExam() {
-    if (!patientId) {
-      return;
-    }
+    if (!patientId) return;
 
     try {
       const exam = await createExam({
@@ -132,12 +102,18 @@ export default function PeriodontiaPage() {
         toothNumbers: TOOTH_NUMBERS,
       });
     } catch {
-      // O hook já apresenta a mensagem de erro.
+      // O hook já exibe a mensagem de erro.
     }
   }
 
   function handleSelectPatient(value: string) {
     setPatientId(value);
+
+    if (!value) {
+      setCurrentExam(null);
+      setExamStarted(false);
+      return;
+    }
 
     const existingExam = exams.find(
       (exam) =>
@@ -154,9 +130,18 @@ export default function PeriodontiaPage() {
     }
   }
 
+  function handleChangePatient() {
+    setPatientId("");
+    setCurrentExam(null);
+    setExamStarted(false);
+  }
+
   function handleExportPdf() {
     window.print();
   }
+
+  const patientName =
+    selectedPatient?.name ?? "Paciente";
 
   return (
     <div className="space-y-6">
@@ -164,254 +149,317 @@ export default function PeriodontiaPage() {
         title="Periodontia"
         description="Exame periodontal completo, odontograma e acompanhamento da saúde periodontal."
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {examStarted && (
               <Button
                 type="button"
                 variant="secondary"
                 onClick={handleExportPdf}
               >
-                <Download className="mr-2 h-4 w-4" />
                 Exportar PDF
               </Button>
             )}
 
-            <Button
-              type="button"
-              onClick={handleStartExam}
-              disabled={
-                !patientId ||
-                isCreatingExam ||
-                isInitializingTeeth
-              }
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              {isCreatingExam
-                ? "Criando..."
-                : "Novo exame"}
-            </Button>
+            {examStarted && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleChangePatient}
+              >
+                Trocar paciente
+              </Button>
+            )}
+
+            {!examStarted && patientId && (
+              <Button
+                type="button"
+                onClick={handleStartExam}
+                disabled={
+                  isCreatingExam ||
+                  isInitializingTeeth
+                }
+              >
+                <Plus className="mr-2 h-4 w-4" />
+
+                {isCreatingExam
+                  ? "Criando..."
+                  : isInitializingTeeth
+                    ? "Preparando dentes..."
+                    : "Novo exame"}
+              </Button>
+            )}
           </div>
         }
       />
 
-      {/* RESUMO */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <UserRound className="h-5 w-5 text-primary" />
-            </div>
+      {/* SELEÇÃO DO PACIENTE */}
 
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-text-muted">
-                Paciente
-              </p>
+      {!examStarted && (
+        <Card className="border-primary/20">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
+                <UserRound className="h-5 w-5 text-primary" />
+              </div>
 
-              {!examStarted ? (
-                <select
-                  value={patientId}
-                  onChange={(event) =>
-                    handleSelectPatient(event.target.value)
-                  }
-                  disabled={loadingPatients}
-                  className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-text-primary outline-none focus:border-primary"
-                >
-                  <option value="">
-                    {loadingPatients
-                      ? "Carregando..."
-                      : "Selecione um paciente"}
-                  </option>
+              <div>
+                <CardTitle>
+                  Selecione o paciente
+                </CardTitle>
 
-                  {patients.map((patient) => (
-                    <option
-                      key={patient.id}
-                      value={patient.id}
-                    >
-                      {patient.nome ??
-                        patient.name ??
-                        "Paciente sem nome"}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <p className="truncate text-sm font-semibold text-text-primary">
-                  {selectedPatient?.nome ??
-                    selectedPatient?.name ??
-                    "Paciente selecionado"}
+                <p className="mt-1 text-sm text-text-secondary">
+                  Escolha primeiro o paciente para
+                  iniciar o exame periodontal.
                 </p>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            <div className="max-w-xl">
+              <label className="mb-2 block text-sm font-medium text-text-primary">
+                Paciente
+              </label>
+
+              <select
+                value={patientId}
+                onChange={(event) =>
+                  handleSelectPatient(
+                    event.target.value
+                  )
+                }
+                disabled={isLoadingPatients}
+                className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm text-text-primary outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/20"
+              >
+                <option value="">
+                  {isLoadingPatients
+                    ? "Carregando pacientes..."
+                    : "Selecione um paciente"}
+                </option>
+
+                {patients.map((patient) => (
+                  <option
+                    key={patient.id}
+                    value={patient.id}
+                  >
+                    {patient.name}
+                    {patient.phone
+                      ? ` — ${patient.phone}`
+                      : ""}
+                  </option>
+                ))}
+              </select>
+
+              {!isLoadingPatients &&
+                patients.length === 0 && (
+                  <div className="mt-3 rounded-lg border border-dashed border-border bg-card p-4">
+                    <p className="text-sm font-medium text-text-primary">
+                      Nenhum paciente cadastrado
+                    </p>
+
+                    <p className="mt-1 text-sm text-text-secondary">
+                      Cadastre o paciente primeiro
+                      na área de Pacientes.
+                    </p>
+                  </div>
+                )}
+
+              {patientId && (
+                <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <div className="flex items-start gap-3">
+                    <UserRound className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+
+                    <div>
+                      <p className="font-medium text-text-primary">
+                        {patientName}
+                      </p>
+
+                      {selectedPatient?.phone && (
+                        <p className="mt-1 text-sm text-text-secondary">
+                          {selectedPatient.phone}
+                        </p>
+                      )}
+
+                      <p className="mt-2 text-sm text-text-secondary">
+                        Agora clique em{" "}
+                        <strong>Novo exame</strong>{" "}
+                        para iniciar o periodontograma
+                        deste paciente.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </CardContent>
         </Card>
+      )}
 
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <CalendarDays className="h-5 w-5 text-primary" />
-            </div>
+      {/* RESUMO DO EXAME */}
 
-            <div>
-              <p className="text-xs text-text-muted">
-                Data do exame
-              </p>
+      {examStarted && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardContent className="flex items-center gap-3 p-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                  <UserRound className="h-5 w-5 text-primary" />
+                </div>
 
-              <p className="text-sm font-semibold text-text-primary">
-                {currentExam
-                  ? new Date(
-                      `${currentExam.date}T00:00:00`
-                    ).toLocaleDateString("pt-BR")
-                  : new Date().toLocaleDateString(
-                      "pt-BR"
-                    )}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+                <div className="min-w-0">
+                  <p className="text-xs text-text-muted">
+                    Paciente
+                  </p>
 
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <ClipboardList className="h-5 w-5 text-primary" />
-            </div>
+                  <p className="truncate text-sm font-semibold text-text-primary">
+                    {patientName}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
 
-            <div>
-              <p className="text-xs text-text-muted">
-                Status
-              </p>
+            <Card>
+              <CardContent className="flex items-center gap-3 p-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                  <CalendarDays className="h-5 w-5 text-primary" />
+                </div>
 
-              <Badge
-                variant={
-                  examStarted
-                    ? "success"
-                    : "secondary"
-                }
-              >
-                {examStarted
-                  ? "Em andamento"
-                  : "Aguardando exame"}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+                <div>
+                  <p className="text-xs text-text-muted">
+                    Data do exame
+                  </p>
 
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <Activity className="h-5 w-5 text-primary" />
-            </div>
+                  <p className="text-sm font-semibold text-text-primary">
+                    {currentExam
+                      ? new Date(
+                          `${currentExam.date}T00:00:00`
+                        ).toLocaleDateString(
+                          "pt-BR"
+                        )
+                      : new Date().toLocaleDateString(
+                          "pt-BR"
+                        )}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
 
-            <div>
-              <p className="text-xs text-text-muted">
-                Exame periodontal
-              </p>
+            <Card>
+              <CardContent className="flex items-center gap-3 p-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                  <ClipboardList className="h-5 w-5 text-primary" />
+                </div>
 
-              <p className="text-sm font-semibold text-text-primary">
-                32 dentes
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                <div>
+                  <p className="text-xs text-text-muted">
+                    Status
+                  </p>
 
-      {/* ODONTOGRAMA */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <Stethoscope className="h-5 w-5 text-primary" />
-            </div>
+                  <Badge variant="success">
+                    Em andamento
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
 
-            <div>
-              <CardTitle>
-                Odontograma
-              </CardTitle>
+            <Card>
+              <CardContent className="flex items-center gap-3 p-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                  <Activity className="h-5 w-5 text-primary" />
+                </div>
 
-              <p className="mt-1 text-sm text-text-secondary">
-                Selecione um dente para iniciar a
-                avaliação periodontal.
-              </p>
-            </div>
+                <div>
+                  <p className="text-xs text-text-muted">
+                    Exame periodontal
+                  </p>
+
+                  <p className="text-sm font-semibold text-text-primary">
+                    32 dentes
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </CardHeader>
 
-        <CardContent>
-          <Odontogram />
-        </CardContent>
-      </Card>
+          {/* ODONTOGRAMA */}
 
-      {/* PERIODONTOGRAMA */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <CardTitle>
-                Periodontograma
-              </CardTitle>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                  <Stethoscope className="h-5 w-5 text-primary" />
+                </div>
 
-              <p className="mt-1 text-sm text-text-secondary">
-                Registro clínico dos seis sítios
-                periodontais de cada dente.
-              </p>
-            </div>
+                <div>
+                  <CardTitle>
+                    Odontograma periodontal
+                  </CardTitle>
 
-            <Badge
-              variant={
-                examStarted
-                  ? "success"
-                  : "secondary"
-              }
-            >
-              {examStarted
-                ? "Exame ativo"
-                : "Aguardando início"}
-            </Badge>
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          {!examStarted ? (
-            <div className="flex min-h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-border px-6 text-center">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                <FileText className="h-7 w-7 text-primary" />
+                  <p className="mt-1 text-sm text-text-secondary">
+                    Selecione um dente para iniciar
+                    a avaliação periodontal.
+                  </p>
+                </div>
               </div>
+            </CardHeader>
 
-              <h3 className="text-base font-semibold text-text-primary">
-                Selecione um paciente
-              </h3>
+            <CardContent>
+              <Odontogram
+                examId={currentExam?.id}
+                patientId={patientId}
+              />
+            </CardContent>
+          </Card>
 
-              <p className="mt-2 max-w-lg text-sm text-text-secondary">
-                Escolha um paciente já cadastrado
-                em Pacientes e clique em{" "}
-                <strong>Novo exame</strong>.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
+          {/* PERIODONTOGRAMA */}
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <CardTitle>
+                    Periodontograma
+                  </CardTitle>
+
+                  <p className="mt-1 text-sm text-text-secondary">
+                    Registro clínico dos seis sítios
+                    periodontais de cada dente.
+                  </p>
+                </div>
+
+                <Badge variant="success">
+                  Exame ativo
+                </Badge>
+              </div>
+            </CardHeader>
+
+            <CardContent>
               <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
                 <div className="flex items-start gap-3">
                   <Activity className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
 
                   <div>
                     <p className="font-medium text-text-primary">
-                      Exame periodontal em andamento
+                      Exame periodontal de{" "}
+                      {patientName}
                     </p>
 
                     <p className="mt-1 text-sm text-text-secondary">
-                      Selecione um dente no odontograma
-                      para registrar os seis sítios
-                      periodontais, sangramento,
-                      placa, supuração, mobilidade e
-                      furca.
+                      Os dados registrados no
+                      odontograma pertencem
+                      exclusivamente a este paciente
+                      e a este exame.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-xl border border-border bg-card p-4">
                   <p className="text-xs text-text-muted">
                     Profundidade de sondagem
                   </p>
+
                   <p className="mt-1 text-lg font-semibold text-text-primary">
                     —
                   </p>
@@ -421,6 +469,7 @@ export default function PeriodontiaPage() {
                   <p className="text-xs text-text-muted">
                     Recessão gengival
                   </p>
+
                   <p className="mt-1 text-lg font-semibold text-text-primary">
                     —
                   </p>
@@ -430,6 +479,7 @@ export default function PeriodontiaPage() {
                   <p className="text-xs text-text-muted">
                     Nível de inserção clínica
                   </p>
+
                   <p className="mt-1 text-lg font-semibold text-text-primary">
                     —
                   </p>
@@ -439,40 +489,38 @@ export default function PeriodontiaPage() {
                   <p className="text-xs text-text-muted">
                     Sangramento
                   </p>
+
                   <p className="mt-1 text-lg font-semibold text-text-primary">
                     —
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-border p-4">
-                <p className="text-sm font-medium text-text-primary">
-                  Seis sítios periodontais
-                </p>
+              <div className="mt-4 rounded-xl border border-border p-4">
+                <div className="flex items-start gap-3">
+                  <FileText className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
 
-                <p className="mt-1 text-sm text-text-secondary">
-                  Vestibular: mesiovestibular,
-                  vestibular central e
-                  distovestibular. Lingual/palatino:
-                  mesiolingual, lingual/palatino central
-                  e distolingual/palatino.
-                </p>
-              </div>
+                  <div>
+                    <p className="text-sm font-semibold text-text-primary">
+                      Seis sítios por dente
+                    </p>
 
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={!currentExam}
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  Dados salvos automaticamente
-                </Button>
+                    <p className="mt-1 text-sm leading-6 text-text-secondary">
+                      Vestibular: mesiovestibular,
+                      vestibular central e
+                      distovestibular.
+                      Lingual/palatino:
+                      mesiolingual,
+                      lingual/palatino central
+                      e distolingual/palatino.
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }
