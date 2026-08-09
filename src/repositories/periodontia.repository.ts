@@ -211,9 +211,7 @@ function mapSite(row: any): PeriodontalSite {
 function mapTooth(row: any): PeriodontalTooth {
   return {
     id: row.id,
-
     examId: row.exame_id,
-
     toothNumber: row.numero_dente,
 
     status:
@@ -344,12 +342,6 @@ async function listSupabase(): Promise<PeriodontalExam[]> {
 async function getSupabase(
   id: string
 ): Promise<PeriodontalExam> {
-  if (!isSupabaseConfigured) {
-    throw new Error(
-      "Supabase não está configurado."
-    );
-  }
-
   const supabase = createClient();
 
   const {
@@ -388,23 +380,12 @@ async function createExam(
   if (!isSupabaseConfigured) {
     return {
       id: crypto.randomUUID(),
-
-      patientId:
-        input.patientId,
-
-      date:
-        input.date ?? today,
-
-      observations:
-        input.observations,
-
-      diagnosis:
-        input.diagnosis,
-
+      patientId: input.patientId,
+      date: input.date ?? today,
+      observations: input.observations,
+      diagnosis: input.diagnosis,
       status:
-        input.status ??
-        "EM_ANDAMENTO",
-
+        input.status ?? "EM_ANDAMENTO",
       teeth: [],
     };
   }
@@ -421,22 +402,15 @@ async function createExam(
     .from("exames_periodontais")
     .insert({
       user_id: userId,
-
-      paciente_id:
-        input.patientId,
-
+      paciente_id: input.patientId,
       data_exame:
         input.date ?? today,
-
       observacoes:
         input.observations ?? null,
-
       diagnostico:
         input.diagnosis ?? null,
-
       status:
-        input.status ??
-        "EM_ANDAMENTO",
+        input.status ?? "EM_ANDAMENTO",
     })
     .select(EXAM_SELECT)
     .single();
@@ -464,47 +438,28 @@ async function updateExam(
 
   const supabase = createClient();
 
-  const payload: Record<
-    string,
-    unknown
-  > = {};
+  const payload: Record<string, unknown> = {};
 
   if (input.date !== undefined) {
-    payload.data_exame =
-      input.date;
+    payload.data_exame = input.date;
   }
 
-  if (
-    input.observations !==
-    undefined
-  ) {
+  if (input.observations !== undefined) {
     payload.observacoes =
       input.observations ?? null;
   }
 
-  if (
-    input.diagnosis !==
-    undefined
-  ) {
+  if (input.diagnosis !== undefined) {
     payload.diagnostico =
       input.diagnosis ?? null;
   }
 
-  if (
-    input.status !==
-    undefined
-  ) {
-    payload.status =
-      input.status;
+  if (input.status !== undefined) {
+    payload.status = input.status;
   }
 
-  if (
-    Object.keys(payload)
-      .length > 0
-  ) {
-    const {
-      error,
-    } = await supabase
+  if (Object.keys(payload).length > 0) {
+    const { error } = await supabase
       .from("exames_periodontais")
       .update(payload)
       .eq("id", id);
@@ -524,28 +479,9 @@ async function updateExam(
 async function finalizeExam(
   id: string
 ): Promise<PeriodontalExam> {
-  if (!isSupabaseConfigured) {
-    throw new Error(
-      "Finalização local de exames periodontais ainda não está disponível."
-    );
-  }
-
-  const supabase = createClient();
-
-  const {
-    error,
-  } = await supabase
-    .from("exames_periodontais")
-    .update({
-      status: "FINALIZADO",
-    })
-    .eq("id", id);
-
-  if (error) {
-    throw error;
-  }
-
-  return getSupabase(id);
+  return updateExam(id, {
+    status: "FINALIZADO",
+  });
 }
 
 // ============================================================
@@ -567,10 +503,7 @@ async function listByPatient(
   } = await supabase
     .from("exames_periodontais")
     .select(EXAM_SELECT)
-    .eq(
-      "paciente_id",
-      patientId
-    )
+    .eq("paciente_id", patientId)
     .is("deleted_at", null)
     .order("data_exame", {
       ascending: false,
@@ -609,6 +542,16 @@ async function softDelete(
   if (error) {
     throw error;
   }
+}
+
+// ============================================================
+// DELETE EXAM — COMPATIBILIDADE
+// ============================================================
+
+async function deleteExam(
+  id: string
+): Promise<void> {
+  return softDelete(id);
 }
 
 // ============================================================
@@ -652,39 +595,30 @@ async function createTooth(
   if (!isSupabaseConfigured) {
     return {
       id: crypto.randomUUID(),
-
-      examId:
-        input.examId,
-
+      examId: input.examId,
       toothNumber:
         input.toothNumber,
 
       status:
-        input.status ??
-        "PRESENTE",
+        input.status ?? "PRESENTE",
 
       mobility:
         input.mobility ?? 0,
 
       buccalFurcation:
-        input.furcationBuccal ??
-        null,
+        input.furcationBuccal ?? null,
 
       lingualFurcation:
-        input.furcationLingual ??
-        null,
+        input.furcationLingual ?? null,
 
       suppuration:
-        input.suppuration ??
-        false,
+        input.suppuration ?? false,
 
       plaque:
-        input.plaque ??
-        false,
+        input.plaque ?? false,
 
       observations:
-        input.observations ??
-        null,
+        input.observations ?? null,
 
       sites: [],
     };
@@ -696,9 +630,7 @@ async function createTooth(
     data,
     error,
   } = await supabase
-    .from(
-      "periodontograma_dentes"
-    )
+    .from("periodontograma_dentes")
     .upsert(
       {
         exame_id:
@@ -708,31 +640,25 @@ async function createTooth(
           input.toothNumber,
 
         status:
-          input.status ??
-          "PRESENTE",
+          input.status ?? "PRESENTE",
 
         mobilidade:
           input.mobility ?? 0,
 
         furca_vestibular:
-          input.furcationBuccal ??
-          null,
+          input.furcationBuccal ?? null,
 
         furca_lingual:
-          input.furcationLingual ??
-          null,
+          input.furcationLingual ?? null,
 
         supuracao:
-          input.suppuration ??
-          false,
+          input.suppuration ?? false,
 
         placa:
-          input.plaque ??
-          false,
+          input.plaque ?? false,
 
         observacoes:
-          input.observations ??
-          null,
+          input.observations ?? null,
       },
       {
         onConflict:
@@ -768,80 +694,48 @@ async function updateTooth(
 
   const supabase = createClient();
 
-  const payload: Record<
-    string,
-    unknown
-  > = {};
+  const payload: Record<string, unknown> = {};
 
-  if (
-    input.status !==
-    undefined
-  ) {
+  if (input.status !== undefined) {
     payload.status =
       input.status;
   }
 
-  if (
-    input.mobility !==
-    undefined
-  ) {
+  if (input.mobility !== undefined) {
     payload.mobilidade =
       input.mobility;
   }
 
-  if (
-    input.furcationBuccal !==
-    undefined
-  ) {
+  if (input.furcationBuccal !== undefined) {
     payload.furca_vestibular =
-      input.furcationBuccal ??
-      null;
+      input.furcationBuccal ?? null;
   }
 
-  if (
-    input.furcationLingual !==
-    undefined
-  ) {
+  if (input.furcationLingual !== undefined) {
     payload.furca_lingual =
-      input.furcationLingual ??
-      null;
+      input.furcationLingual ?? null;
   }
 
-  if (
-    input.suppuration !==
-    undefined
-  ) {
+  if (input.suppuration !== undefined) {
     payload.supuracao =
       input.suppuration;
   }
 
-  if (
-    input.plaque !==
-    undefined
-  ) {
+  if (input.plaque !== undefined) {
     payload.placa =
       input.plaque;
   }
 
-  if (
-    input.observations !==
-    undefined
-  ) {
+  if (input.observations !== undefined) {
     payload.observacoes =
-      input.observations ??
-      null;
+      input.observations ?? null;
   }
 
-  if (
-    Object.keys(payload)
-      .length > 0
-  ) {
+  if (Object.keys(payload).length > 0) {
     const {
       error,
     } = await supabase
-      .from(
-        "periodontograma_dentes"
-      )
+      .from("periodontograma_dentes")
       .update(payload)
       .eq("id", id);
 
@@ -854,9 +748,7 @@ async function updateTooth(
     data,
     error,
   } = await supabase
-    .from(
-      "periodontograma_dentes"
-    )
+    .from("periodontograma_dentes")
     .select(`
       *,
       periodontograma_sitios (*)
@@ -924,9 +816,7 @@ async function deleteTooth(
   const {
     error,
   } = await supabase
-    .from(
-      "periodontograma_dentes"
-    )
+    .from("periodontograma_dentes")
     .delete()
     .eq("id", id);
 
@@ -968,20 +858,16 @@ async function upsertSite(
         undefined,
 
       bleeding:
-        input.bleeding ??
-        false,
+        input.bleeding ?? false,
 
       plaque:
-        input.plaque ??
-        false,
+        input.plaque ?? false,
 
       suppuration:
-        input.suppuration ??
-        false,
+        input.suppuration ?? false,
 
       observations:
-        input.observations ??
-        null,
+        input.observations ?? null,
     };
   }
 
@@ -991,9 +877,7 @@ async function upsertSite(
     data,
     error,
   } = await supabase
-    .from(
-      "periodontograma_sitios"
-    )
+    .from("periodontograma_sitios")
     .upsert(
       {
         dente_id:
@@ -1006,8 +890,7 @@ async function upsertSite(
           input.point,
 
         profundidade_sondagem:
-          input.probingDepth ??
-          null,
+          input.probingDepth ?? null,
 
         recessao_gengival:
           input.gingivalRecession ??
@@ -1018,20 +901,16 @@ async function upsertSite(
           null,
 
         sangramento:
-          input.bleeding ??
-          false,
+          input.bleeding ?? false,
 
         placa:
-          input.plaque ??
-          false,
+          input.plaque ?? false,
 
         supuracao:
-          input.suppuration ??
-          false,
+          input.suppuration ?? false,
 
         observacoes:
-          input.observations ??
-          null,
+          input.observations ?? null,
       },
       {
         onConflict:
@@ -1064,97 +943,60 @@ async function updateSite(
 
   const supabase = createClient();
 
-  const payload: Record<
-    string,
-    unknown
-  > = {};
+  const payload: Record<string, unknown> = {};
 
-  if (
-    input.surface !==
-    undefined
-  ) {
+  if (input.surface !== undefined) {
     payload.superficie =
       input.surface;
   }
 
-  if (
-    input.point !==
-    undefined
-  ) {
+  if (input.point !== undefined) {
     payload.ponto =
       input.point;
   }
 
-  if (
-    input.probingDepth !==
-    undefined
-  ) {
+  if (input.probingDepth !== undefined) {
     payload.profundidade_sondagem =
-      input.probingDepth ??
-      null;
+      input.probingDepth ?? null;
   }
 
-  if (
-    input.gingivalRecession !==
-    undefined
-  ) {
+  if (input.gingivalRecession !== undefined) {
     payload.recessao_gengival =
       input.gingivalRecession ??
       null;
   }
 
-  if (
-    input.clinicalAttachmentLevel !==
-    undefined
-  ) {
+  if (input.clinicalAttachmentLevel !== undefined) {
     payload.nivel_insercao_clinica =
       input.clinicalAttachmentLevel ??
       null;
   }
 
-  if (
-    input.bleeding !==
-    undefined
-  ) {
+  if (input.bleeding !== undefined) {
     payload.sangramento =
       input.bleeding;
   }
 
-  if (
-    input.plaque !==
-    undefined
-  ) {
+  if (input.plaque !== undefined) {
     payload.placa =
       input.plaque;
   }
 
-  if (
-    input.suppuration !==
-    undefined
-  ) {
+  if (input.suppuration !== undefined) {
     payload.supuracao =
       input.suppuration;
   }
 
-  if (
-    input.observations !==
-    undefined
-  ) {
+  if (input.observations !== undefined) {
     payload.observacoes =
-      input.observations ??
-      null;
+      input.observations ?? null;
   }
 
-  if (
-    Object.keys(payload)
-      .length > 0
-  ) {
+  if (Object.keys(payload).length > 0) {
     const {
       error,
     } = await supabase
-      .from(
-        "periodontograma_sitios"
-      )
+      .from("periodontograma_sitios")
       .update(payload)
       .eq("id", id);
 
@@ -1167,9 +1009,7 @@ async function updateSite(
     data,
     error,
   } = await supabase
-    .from(
-      "periodontograma_sitios"
-    )
+    .from("periodontograma_sitios")
     .select()
     .eq("id", id)
     .single();
@@ -1211,16 +1051,13 @@ async function saveSite(
       null,
 
     bleeding:
-      site.bleeding ??
-      false,
+      site.bleeding ?? false,
 
     plaque:
-      site.plaque ??
-      false,
+      site.plaque ?? false,
 
     suppuration:
-      site.suppuration ??
-      false,
+      site.suppuration ?? false,
 
     observations:
       site.observations ??
@@ -1244,9 +1081,7 @@ async function deleteSite(
   const {
     error,
   } = await supabase
-    .from(
-      "periodontograma_sitios"
-    )
+    .from("periodontograma_sitios")
     .delete()
     .eq("id", id);
 
@@ -1265,26 +1100,15 @@ async function initializeExamTeeth(
 ): Promise<PeriodontalTooth[]> {
   const results: PeriodontalTooth[] = [];
 
-  for (
-    const toothNumber of toothNumbers
-  ) {
+  for (const toothNumber of toothNumbers) {
     const tooth =
       await createTooth({
         examId,
-
         toothNumber,
-
-        status:
-          "PRESENTE",
-
-        mobility:
-          0,
-
-        suppuration:
-          false,
-
-        plaque:
-          false,
+        status: "PRESENTE",
+        mobility: 0,
+        suppuration: false,
+        plaque: false,
       });
 
     results.push(tooth);
@@ -1299,55 +1123,38 @@ async function initializeExamTeeth(
 
 export const periodontiaRepository = {
   // Exames
-  list:
-    listSupabase,
+  list: listSupabase,
+  listExams: listSupabase,
 
-  listExams:
-    listSupabase,
-
-  get:
-    getSupabase,
-
-  getExam:
-    getSupabase,
+  get: getSupabase,
+  getExam: getSupabase,
 
   listByPatient,
 
-  create:
-    createExam,
-
+  create: createExam,
   createExam,
 
-  update:
-    updateExam,
-
+  update: updateExam,
   updateExam,
 
   finalizeExam,
 
   softDelete,
-
-  delete:
-    softDelete,
+  delete: softDelete,
+  deleteExam,
 
   restore,
 
   // Dentes
   createTooth,
-
   saveTooth,
-
   updateTooth,
-
   deleteTooth,
 
   // Sites
   upsertSite,
-
   saveSite,
-
   updateSite,
-
   deleteSite,
 
   // Inicialização
