@@ -9,8 +9,8 @@ import {
   Save,
   CircleAlert,
   Check,
+  Loader2,
 } from "lucide-react";
-import { toast } from "sonner";
 
 import {
   Card,
@@ -21,8 +21,9 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
-import { usePeriodontia } from "@/hooks/use-periodontia";
+import { usePeriodontia } from "@/features/periodontia/hooks/usePeriodontia";
 
 type ToothStatus = "PRESENTE" | "AUSENTE" | "IMPLANTE";
 type Surface = "VESTIBULAR" | "LINGUAL";
@@ -80,7 +81,7 @@ function emptySite(): SiteData {
   };
 }
 
-function createSites() {
+function createSites(): Tooth["sites"] {
   return {
     VESTIBULAR: {
       MESIAL: emptySite(),
@@ -225,6 +226,12 @@ export function Odontogram({
   examId,
   patientId,
 }: OdontogramProps) {
+  const {
+    createTooth,
+    updateTooth,
+    saveSite,
+  } = usePeriodontia();
+
   const [teeth, setTeeth] = useState<Tooth[]>(() => [
     ...createTeeth(upperTeeth),
     ...createTeeth(lowerTeeth),
@@ -236,19 +243,8 @@ export function Odontogram({
   const [surface, setSurface] =
     useState<Surface>("VESTIBULAR");
 
-  const {
-    createTooth,
-    saveSite,
-    finalizeExam,
-    isCreatingTooth,
-    isSavingSite,
-    isFinalizingExam,
-  } = usePeriodontia();
-
-  const isSaving =
-    isCreatingTooth ||
-    isSavingSite ||
-    isFinalizingExam;
+  const [isSaving, setIsSaving] =
+    useState(false);
 
   const selected = useMemo(
     () =>
@@ -374,92 +370,71 @@ export function Odontogram({
   async function saveExam() {
     if (!examId) {
       toast.error(
-        "Exame periodontal não encontrado."
+        "Não foi possível salvar: exame periodontal não identificado."
       );
       return;
     }
 
     if (!patientId) {
       toast.error(
-        "Paciente não encontrado."
+        "Não foi possível salvar: paciente não identificado."
       );
       return;
     }
 
     if (isSaving) return;
 
+    setIsSaving(true);
+
     try {
-      toast.loading(
-        "Salvando exame periodontal...",
-        {
-          id: "periodontia-save",
-        }
-      );
-
       /*
-       * =====================================================
-       * 1. SALVAR OS 32 DENTES
-       * =====================================================
+       * Salva TODOS os 32 dentes.
        *
-       * O createTooth do repository usa UPSERT.
-       * Portanto:
+       * O repository faz upsert por:
+       * exame_id + numero_dente
        *
-       * - se o dente ainda não existe → cria
-       * - se já existe → atualiza
-       *
-       * Assim não precisamos descobrir previamente
-       * o ID do dente.
+       * Portanto podemos chamar createTooth
+       * mesmo quando o dente já existir.
        */
-
       for (const tooth of teeth) {
         const savedTooth =
           await createTooth({
             examId,
-            toothNumber: tooth.number,
-            status: tooth.status,
-            mobility: tooth.mobility,
+            toothNumber:
+              tooth.number,
+            status:
+              tooth.status,
+          });
+
+        /*
+         * Atualiza os dados clínicos
+         * complementares do dente.
+         */
+        await updateTooth({
+          id: savedTooth.id,
+          input: {
+            status:
+              tooth.status,
+            mobility:
+              tooth.mobility,
             furcationBuccal:
               tooth.buccalFurcation,
             furcationLingual:
               tooth.lingualFurcation,
-            suppuration:
-              Object.values(
-                tooth.sites
-              ).some((surfaceSites) =>
-                Object.values(
-                  surfaceSites
-                ).some(
-                  (site) =>
-                    site.suppuration
-                )
-              ),
-            plaque:
-              Object.values(
-                tooth.sites
-              ).some((surfaceSites) =>
-                Object.values(
-                  surfaceSites
-                ).some(
-                  (site) =>
-                    site.plaque
-                )
-              ),
             observations:
               tooth.observations || null,
-          });
-
-        if (!savedTooth?.id) {
-          throw new Error(
-            `Não foi possível salvar o dente ${tooth.number}.`
-          );
-        }
+          },
+        });
 
         /*
-         * =================================================
-         * 2. SALVAR OS 6 SÍTIOS DO DENTE
-         * =================================================
+         * Salva os 6 sítios:
+         *
+         * Vestibular:
+         * M / C / D
+         *
+         * Lingual:
+         * M / C / D
          */
-
         const surfaces: Surface[] = [
           "VESTIBULAR",
           "LINGUAL",
@@ -468,7 +443,9 @@ export function Odontogram({
         for (const currentSurface of surfaces) {
           for (const point of points) {
             const site =
-              tooth.sites[currentSurface][point];
+              tooth.sites[
+                currentSurface
+              ][point];
 
             const cal =
               calculateCAL(site);
@@ -499,27 +476,13 @@ export function Odontogram({
 
               suppuration:
                 site.suppuration,
-
-              observations:
-                null,
             });
           }
         }
       }
 
-      /*
-       * =====================================================
-       * 3. FINALIZAR O EXAME
-       * =====================================================
-       */
-
-      await finalizeExam(examId);
-
       toast.success(
-        "Exame periodontal salvo e finalizado!",
-        {
-          id: "periodontia-save",
-        }
+        "Exame periodontal salvo com sucesso."
       );
     } catch (error) {
       console.error(
@@ -527,17 +490,37 @@ export function Odontogram({
         error
       );
 
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Não foi possível salvar o exame periodontal.";
+      let message =
+        "Não foi possível salvar o exame periodontal.";
+
+      if (
+        error &&
+        typeof error === "object"
+      ) {
+        const err = error as {
+          message?: string;
+          details?: string;
+          hint?: string;
+          code?: string;
+        };
+
+        message =
+          err.message ||
+          err.details ||
+          err.hint ||
+          err.code ||
+          message;
+      } else if (
+        typeof error === "string"
+      ) {
+        message = error;
+      }
 
       toast.error(
-        message,
-        {
-          id: "periodontia-save",
-        }
+        `Erro ao salvar: ${message}`
       );
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -574,14 +557,24 @@ export function Odontogram({
 
               <Button
                 type="button"
-                disabled={isSaving}
+                disabled={
+                  isSaving ||
+                  !examId ||
+                  !patientId
+                }
                 onClick={saveExam}
               >
-                <Save className="mr-2 h-4 w-4" />
-
-                {isSaving
-                  ? "Salvando..."
-                  : "Salvar exame"}
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Salvar exame
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -606,9 +599,7 @@ export function Odontogram({
                     )
                     .map((tooth) => (
                       <ToothVisual
-                        key={
-                          tooth.number
-                        }
+                        key={tooth.number}
                         tooth={tooth}
                         selected={
                           selectedTooth ===
@@ -642,9 +633,7 @@ export function Odontogram({
                     )
                     .map((tooth) => (
                       <ToothVisual
-                        key={
-                          tooth.number
-                        }
+                        key={tooth.number}
                         tooth={tooth}
                         selected={
                           selectedTooth ===
@@ -729,9 +718,7 @@ export function Odontogram({
                       type="button"
                       variant="ghost"
                       disabled={
-                        selectedIndex <=
-                          0 ||
-                        isSaving
+                        selectedIndex <= 0
                       }
                       onClick={() =>
                         goToTooth(-1)
@@ -746,9 +733,7 @@ export function Odontogram({
                       variant="ghost"
                       disabled={
                         selectedIndex >=
-                          teeth.length -
-                            1 ||
-                        isSaving
+                        teeth.length - 1
                       }
                       onClick={() =>
                         goToTooth(1)
@@ -1160,8 +1145,7 @@ export function Odontogram({
                       onChange={(event) =>
                         updateMobility(
                           Number(
-                            event.target
-                              .value
+                            event.target.value
                           )
                         )
                       }
