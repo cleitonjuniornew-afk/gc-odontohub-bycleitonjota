@@ -20,7 +20,7 @@ import {
   UserRound,
 } from "lucide-react";
 
-import { Odontogram } from "./components/odontogram";
+import Odontogram from "./components/odontogram";
 
 import { usePatients } from "@/features/pacientes/hooks/use-patients";
 
@@ -36,7 +36,8 @@ const TOOTH_NUMBERS = [
   31, 32, 33, 34, 35, 36, 37, 38,
 ];
 
-const LAST_DATE_KEY = "gc-odontohub-periodontia-last-date";
+const LAST_DATE_KEY =
+  "gc-odontohub-periodontia-last-date";
 
 function getTodayInputDate() {
   const now = new Date();
@@ -53,13 +54,13 @@ function getLastUsedDate() {
     return getTodayInputDate();
   }
 
-  const saved = localStorage.getItem(LAST_DATE_KEY);
+  const saved =
+    localStorage.getItem(LAST_DATE_KEY);
 
   if (!saved) {
     return getTodayInputDate();
   }
 
-  // Garante que o valor salvo realmente seja YYYY-MM-DD.
   if (/^\d{4}-\d{2}-\d{2}$/.test(saved)) {
     return saved;
   }
@@ -70,15 +71,16 @@ function getLastUsedDate() {
 function formatDateBR(value?: string | null) {
   if (!value) return "—";
 
-  // Caso venha diretamente como YYYY-MM-DD
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const match = value.match(
+    /^(\d{4})-(\d{2})-(\d{2})/
+  );
 
   if (match) {
     const [, year, month, day] = match;
+
     return `${day}/${month}/${year}`;
   }
 
-  // Fallback para outros formatos eventualmente vindos do banco.
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
@@ -104,7 +106,8 @@ export default function PeriodontiaPage() {
     isUpdatingExam,
   } = usePeriodontia();
 
-  const [patientId, setPatientId] = useState("");
+  const [patientId, setPatientId] =
+    useState("");
 
   const [examStarted, setExamStarted] =
     useState(false);
@@ -112,14 +115,11 @@ export default function PeriodontiaPage() {
   const [currentExam, setCurrentExam] =
     useState<PeriodontalExam | null>(null);
 
-  /*
-   * Data usada no calendário.
-   *
-   * Começa com a última data utilizada.
-   */
-  const [examDate, setExamDate] = useState(
-    getLastUsedDate
-  );
+  const [examDate, setExamDate] =
+    useState(getLastUsedDate);
+
+  const [odontogramKey, setOdontogramKey] =
+    useState(0);
 
   const selectedPatient = useMemo(
     () =>
@@ -129,10 +129,6 @@ export default function PeriodontiaPage() {
     [patients, patientId]
   );
 
-  /*
-   * Quando seleciona um paciente, procura
-   * automaticamente um exame em andamento.
-   */
   useEffect(() => {
     if (!patientId) {
       setCurrentExam(null);
@@ -150,12 +146,10 @@ export default function PeriodontiaPage() {
       setCurrentExam(existingExam);
       setExamStarted(true);
 
-      /*
-       * Se já existe exame, usa a data dele.
-       */
       if (existingExam.date) {
-        const normalizedDate =
-          String(existingExam.date).slice(0, 10);
+        const normalizedDate = String(
+          existingExam.date
+        ).slice(0, 10);
 
         if (
           /^\d{4}-\d{2}-\d{2}$/.test(
@@ -163,6 +157,7 @@ export default function PeriodontiaPage() {
           )
         ) {
           setExamDate(normalizedDate);
+
           localStorage.setItem(
             LAST_DATE_KEY,
             normalizedDate
@@ -172,32 +167,17 @@ export default function PeriodontiaPage() {
     } else {
       setCurrentExam(null);
       setExamStarted(false);
-
-      /*
-       * Novo paciente sem exame:
-       * mantém a última data utilizada.
-       */
       setExamDate(getLastUsedDate());
     }
   }, [patientId, exams]);
 
-  /*
-   * Cria um novo exame.
-   */
   async function handleStartExam() {
     if (!patientId) return;
 
     try {
-      /*
-       * Garante que temos uma data válida.
-       */
       const date =
         examDate || getLastUsedDate();
 
-      /*
-       * Salva a data para ser a última
-       * data utilizada no próximo exame.
-       */
       localStorage.setItem(
         LAST_DATE_KEY,
         date
@@ -216,57 +196,40 @@ export default function PeriodontiaPage() {
         examId: exam.id,
         toothNumbers: TOOTH_NUMBERS,
       });
+
+      setOdontogramKey(
+        (current) => current + 1
+      );
     } catch {
       // O hook já exibe a mensagem de erro.
     }
   }
 
-  /*
-   * Altera a data do calendário.
-   *
-   * A alteração é salva imediatamente
-   * no exame atual.
-   */
   async function handleChangeExamDate(
     value: string
   ) {
     if (!value) return;
 
-    /*
-     * Atualiza visualmente imediatamente.
-     */
     setExamDate(value);
 
-    /*
-     * Guarda como última data usada.
-     */
     localStorage.setItem(
       LAST_DATE_KEY,
       value
     );
 
-    /*
-     * Se ainda não existe exame,
-     * apenas atualiza o calendário.
-     *
-     * Quando clicar em "Novo exame",
-     * essa data será usada.
-     */
     if (!currentExam?.id) {
       return;
     }
 
     try {
-      const updatedExam = await updateExam({
-        id: currentExam.id,
-        input: {
-          date: value,
-        },
-      });
+      const updatedExam =
+        await updateExam({
+          id: currentExam.id,
+          input: {
+            date: value,
+          },
+        });
 
-      /*
-       * Mantém o exame local sincronizado.
-       */
       setCurrentExam((current) =>
         current
           ? {
@@ -283,7 +246,9 @@ export default function PeriodontiaPage() {
     }
   }
 
-  function handleSelectPatient(value: string) {
+  function handleSelectPatient(
+    value: string
+  ) {
     setPatientId(value);
 
     if (!value) {
@@ -304,8 +269,9 @@ export default function PeriodontiaPage() {
       setExamStarted(true);
 
       if (existingExam.date) {
-        const normalizedDate =
-          String(existingExam.date).slice(0, 10);
+        const normalizedDate = String(
+          existingExam.date
+        ).slice(0, 10);
 
         if (
           /^\d{4}-\d{2}-\d{2}$/.test(
@@ -313,6 +279,7 @@ export default function PeriodontiaPage() {
           )
         ) {
           setExamDate(normalizedDate);
+
           localStorage.setItem(
             LAST_DATE_KEY,
             normalizedDate
@@ -346,11 +313,11 @@ export default function PeriodontiaPage() {
         title="Periodontia"
         description="Exame periodontal completo, odontograma e acompanhamento da saúde periodontal."
         action={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2">
             {examStarted && (
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 onClick={handleExportPdf}
               >
                 Exportar PDF
@@ -389,8 +356,6 @@ export default function PeriodontiaPage() {
         }
       />
 
-      {/* SELEÇÃO DO PACIENTE */}
-
       {!examStarted && (
         <Card className="border-primary/20">
           <CardHeader>
@@ -405,8 +370,9 @@ export default function PeriodontiaPage() {
                 </CardTitle>
 
                 <p className="mt-1 text-sm text-text-secondary">
-                  Escolha o paciente e a data para
-                  iniciar o exame periodontal.
+                  Escolha o paciente e a data
+                  para iniciar o exame
+                  periodontal.
                 </p>
               </div>
             </div>
@@ -414,8 +380,6 @@ export default function PeriodontiaPage() {
 
           <CardContent>
             <div className="grid max-w-3xl gap-5 md:grid-cols-2">
-              {/* PACIENTE */}
-
               <div>
                 <label className="mb-2 block text-sm font-medium text-text-primary">
                   Paciente
@@ -451,8 +415,6 @@ export default function PeriodontiaPage() {
                 </select>
               </div>
 
-              {/* DATA DO EXAME */}
-
               <div>
                 <label className="mb-2 block text-sm font-medium text-text-primary">
                   Data do exame
@@ -474,8 +436,7 @@ export default function PeriodontiaPage() {
                 </div>
 
                 <p className="mt-2 text-xs text-text-muted">
-                  Última data utilizada:
-                  {" "}
+                  Última data utilizada:{" "}
                   <strong>
                     {formatDateBR(examDate)}
                   </strong>
@@ -487,12 +448,14 @@ export default function PeriodontiaPage() {
               patients.length === 0 && (
                 <div className="mt-4 rounded-lg border border-dashed border-border bg-card p-4">
                   <p className="text-sm font-medium text-text-primary">
-                    Nenhum paciente cadastrado
+                    Nenhum paciente
+                    cadastrado
                   </p>
 
                   <p className="mt-1 text-sm text-text-secondary">
-                    Cadastre o paciente primeiro
-                    na área de Pacientes.
+                    Cadastre o paciente
+                    primeiro na área de
+                    Pacientes.
                   </p>
                 </div>
               )}
@@ -514,8 +477,7 @@ export default function PeriodontiaPage() {
                     )}
 
                     <p className="mt-2 text-sm text-text-secondary">
-                      Data selecionada:
-                      {" "}
+                      Data selecionada:{" "}
                       <strong>
                         {formatDateBR(
                           examDate
@@ -526,8 +488,9 @@ export default function PeriodontiaPage() {
                     <p className="mt-2 text-sm text-text-secondary">
                       Agora clique em{" "}
                       <strong>Novo exame</strong>{" "}
-                      para iniciar o periodontograma
-                      deste paciente.
+                      para iniciar o
+                      periodontograma deste
+                      paciente.
                     </p>
                   </div>
                 </div>
@@ -537,13 +500,9 @@ export default function PeriodontiaPage() {
         </Card>
       )}
 
-      {/* RESUMO DO EXAME */}
-
       {examStarted && (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {/* PACIENTE */}
-
             <Card>
               <CardContent className="flex items-center gap-3 p-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
@@ -561,8 +520,6 @@ export default function PeriodontiaPage() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* DATA */}
 
             <Card>
               <CardContent className="p-4">
@@ -583,8 +540,6 @@ export default function PeriodontiaPage() {
                     </p>
                   </div>
                 </div>
-
-                {/* CALENDÁRIO */}
 
                 <div className="mt-3">
                   <input
@@ -608,8 +563,6 @@ export default function PeriodontiaPage() {
               </CardContent>
             </Card>
 
-            {/* STATUS */}
-
             <Card>
               <CardContent className="flex items-center gap-3 p-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
@@ -627,8 +580,6 @@ export default function PeriodontiaPage() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* DENTES */}
 
             <Card>
               <CardContent className="flex items-center gap-3 p-4">
@@ -649,8 +600,6 @@ export default function PeriodontiaPage() {
             </Card>
           </div>
 
-          {/* ODONTOGRAMA */}
-
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -664,8 +613,9 @@ export default function PeriodontiaPage() {
                   </CardTitle>
 
                   <p className="mt-1 text-sm text-text-secondary">
-                    Selecione um dente para iniciar
-                    a avaliação periodontal.
+                    Registro periodontal
+                    completo dos dentes e
+                    sítios periodontais.
                   </p>
                 </div>
               </div>
@@ -673,13 +623,10 @@ export default function PeriodontiaPage() {
 
             <CardContent>
               <Odontogram
-                examId={currentExam?.id}
-                patientId={patientId}
+                key={odontogramKey}
               />
             </CardContent>
           </Card>
-
-          {/* PERIODONTOGRAMA */}
 
           <Card>
             <CardHeader>
@@ -690,8 +637,9 @@ export default function PeriodontiaPage() {
                   </CardTitle>
 
                   <p className="mt-1 text-sm text-text-secondary">
-                    Registro clínico dos seis sítios
-                    periodontais de cada dente.
+                    Registro clínico dos seis
+                    sítios periodontais de cada
+                    dente.
                   </p>
                 </div>
 
@@ -714,9 +662,9 @@ export default function PeriodontiaPage() {
 
                     <p className="mt-1 text-sm text-text-secondary">
                       Os dados registrados no
-                      odontograma pertencem
-                      exclusivamente a este paciente
-                      e a este exame.
+                      periodontograma pertencem
+                      exclusivamente a este
+                      paciente e a este exame.
                     </p>
                   </div>
                 </div>
@@ -774,7 +722,8 @@ export default function PeriodontiaPage() {
                     </p>
 
                     <p className="mt-1 text-sm leading-6 text-text-secondary">
-                      Vestibular: mesiovestibular,
+                      Vestibular:
+                      mesiovestibular,
                       vestibular central e
                       distovestibular.
                       Lingual/palatino:
