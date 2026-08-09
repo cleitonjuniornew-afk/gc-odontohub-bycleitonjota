@@ -54,8 +54,7 @@ function getLastUsedDate() {
     return getTodayInputDate();
   }
 
-  const saved =
-    localStorage.getItem(LAST_DATE_KEY);
+  const saved = localStorage.getItem(LAST_DATE_KEY);
 
   if (!saved) {
     return getTodayInputDate();
@@ -106,11 +105,9 @@ export default function PeriodontiaPage() {
     isUpdatingExam,
   } = usePeriodontia();
 
-  const [patientId, setPatientId] =
-    useState("");
+  const [patientId, setPatientId] = useState("");
 
-  const [examStarted, setExamStarted] =
-    useState(false);
+  const [examStarted, setExamStarted] = useState(false);
 
   const [currentExam, setCurrentExam] =
     useState<PeriodontalExam | null>(null);
@@ -129,6 +126,11 @@ export default function PeriodontiaPage() {
     [patients, patientId]
   );
 
+  /*
+   * ==========================================================
+   * RECUPERA EXAME EM ANDAMENTO DO PACIENTE
+   * ==========================================================
+   */
   useEffect(() => {
     if (!patientId) {
       setCurrentExam(null);
@@ -171,6 +173,11 @@ export default function PeriodontiaPage() {
     }
   }, [patientId, exams]);
 
+  /*
+   * ==========================================================
+   * INICIAR NOVO EXAME
+   * ==========================================================
+   */
   async function handleStartExam() {
     if (!patientId) return;
 
@@ -188,15 +195,25 @@ export default function PeriodontiaPage() {
         date,
       });
 
+      /*
+       * O ID REAL DO EXAME É GUARDADO AQUI.
+       */
       setCurrentExam(exam);
       setExamStarted(true);
       setExamDate(date);
 
+      /*
+       * Inicializa os 32 dentes no exame.
+       */
       await initializeTeeth({
         examId: exam.id,
         toothNumbers: TOOTH_NUMBERS,
       });
 
+      /*
+       * Força a criação de uma nova instância
+       * do odontograma já com o examId correto.
+       */
       setOdontogramKey(
         (current) => current + 1
       );
@@ -205,6 +222,11 @@ export default function PeriodontiaPage() {
     }
   }
 
+  /*
+   * ==========================================================
+   * ALTERAR DATA DO EXAME
+   * ==========================================================
+   */
   async function handleChangeExamDate(
     value: string
   ) {
@@ -246,6 +268,11 @@ export default function PeriodontiaPage() {
     }
   }
 
+  /*
+   * ==========================================================
+   * SELECIONAR PACIENTE
+   * ==========================================================
+   */
   function handleSelectPatient(
     value: string
   ) {
@@ -293,6 +320,11 @@ export default function PeriodontiaPage() {
     }
   }
 
+  /*
+   * ==========================================================
+   * TROCAR PACIENTE
+   * ==========================================================
+   */
   function handleChangePatient() {
     setPatientId("");
     setCurrentExam(null);
@@ -300,6 +332,11 @@ export default function PeriodontiaPage() {
     setExamDate(getLastUsedDate());
   }
 
+  /*
+   * ==========================================================
+   * EXPORTAR
+   * ==========================================================
+   */
   function handleExportPdf() {
     window.print();
   }
@@ -313,13 +350,14 @@ export default function PeriodontiaPage() {
         title="Periodontia"
         description="Exame periodontal completo, odontograma e acompanhamento da saúde periodontal."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {examStarted && (
               <Button
                 type="button"
-                variant="secondary"
+                variant="ghost"
                 onClick={handleExportPdf}
               >
+                <FileText className="mr-2 h-4 w-4" />
                 Exportar PDF
               </Button>
             )}
@@ -392,7 +430,9 @@ export default function PeriodontiaPage() {
                       event.target.value
                     )
                   }
-                  disabled={isLoadingPatients}
+                  disabled={
+                    isLoadingPatients
+                  }
                   className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm text-text-primary outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/20"
                 >
                   <option value="">
@@ -622,9 +662,26 @@ export default function PeriodontiaPage() {
             </CardHeader>
 
             <CardContent>
-              <Odontogram
-                key={odontogramKey}
-              />
+              {currentExam?.id && patientId ? (
+                <Odontogram
+                  key={`${odontogramKey}-${currentExam.id}`}
+                  examId={currentExam.id}
+                  patientId={patientId}
+                />
+              ) : (
+                <div className="rounded-xl border border-error/30 bg-error/5 p-5">
+                  <p className="font-semibold text-error">
+                    Exame periodontal ainda não
+                    está vinculado corretamente.
+                  </p>
+
+                  <p className="mt-2 text-sm text-text-secondary">
+                    O exame precisa possuir um
+                    examId e um patientId antes
+                    de abrir o odontograma.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
