@@ -317,7 +317,7 @@ export default function PeriodontiaPage() {
             {examStarted && (
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={handleExportPdf}
               >
                 Exportar PDF
