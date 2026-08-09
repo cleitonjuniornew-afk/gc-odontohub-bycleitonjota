@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
@@ -21,43 +21,34 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import {
-  usePeriodontia,
-  type PeriodontalExam,
-  type PeriodontalPoint,
-  type PeriodontalStatus,
-  type PeriodontalSurface,
-  type PeriodontalTooth,
-} from "@/features/periodontia/hooks/use-periodontia";
-
-type ToothStatus = PeriodontalStatus;
-type Surface = PeriodontalSurface;
-type Point = PeriodontalPoint;
+type ToothStatus = "PRESENTE" | "AUSENTE" | "IMPLANTE";
+type Surface = "VESTIBULAR" | "LINGUAL";
+type Point = "MESIAL" | "CENTRAL" | "DISTAL";
 
 interface SiteData {
-  id?: string;
   probingDepth: number | null;
   gingivalRecession: number | null;
-  clinicalAttachmentLevel: number | null;
   bleeding: boolean;
   plaque: boolean;
   suppuration: boolean;
 }
 
 interface Tooth {
-  id?: string;
   number: number;
   status: ToothStatus;
   mobility: number;
   buccalFurcation: number | null;
   lingualFurcation: number | null;
-  suppuration: boolean;
-  plaque: boolean;
   observations: string;
   sites: {
     VESTIBULAR: Record<Point, SiteData>;
     LINGUAL: Record<Point, SiteData>;
   };
+}
+
+interface OdontogramProps {
+  examId?: string;
+  patientId?: string;
 }
 
 const upperTeeth = [
@@ -80,14 +71,13 @@ function emptySite(): SiteData {
   return {
     probingDepth: null,
     gingivalRecession: null,
-    clinicalAttachmentLevel: null,
     bleeding: false,
     plaque: false,
     suppuration: false,
   };
 }
 
-function createSites(): Tooth["sites"] {
+function createSites() {
   return {
     VESTIBULAR: {
       MESIAL: emptySite(),
@@ -109,46 +99,9 @@ function createTeeth(numbers: number[]): Tooth[] {
     mobility: 0,
     buccalFurcation: null,
     lingualFurcation: null,
-    suppuration: false,
-    plaque: false,
     observations: "",
     sites: createSites(),
   }));
-}
-
-function convertRepositoryToLocal(
-  tooth: PeriodontalTooth
-): Tooth {
-  const sites = createSites();
-
-  for (const site of tooth.sites ?? []) {
-    sites[site.surface][site.point] = {
-      id: site.id,
-      probingDepth: site.probingDepth ?? null,
-      gingivalRecession:
-        site.gingivalRecession ?? null,
-      clinicalAttachmentLevel:
-        site.clinicalAttachmentLevel ?? null,
-      bleeding: site.bleeding ?? false,
-      plaque: site.plaque ?? false,
-      suppuration: site.suppuration ?? false,
-    };
-  }
-
-  return {
-    id: tooth.id,
-    number: tooth.toothNumber,
-    status: tooth.status,
-    mobility: tooth.mobility ?? 0,
-    buccalFurcation:
-      tooth.buccalFurcation ?? null,
-    lingualFurcation:
-      tooth.lingualFurcation ?? null,
-    suppuration: tooth.suppuration ?? false,
-    plaque: tooth.plaque ?? false,
-    observations: tooth.observations ?? "",
-    sites,
-  };
 }
 
 function calculateCAL(site: SiteData) {
@@ -159,10 +112,7 @@ function calculateCAL(site: SiteData) {
     return null;
   }
 
-  return (
-    site.probingDepth +
-    site.gingivalRecession
-  );
+  return site.probingDepth + site.gingivalRecession;
 }
 
 function ToothVisual({
@@ -174,12 +124,11 @@ function ToothVisual({
   selected: boolean;
   onClick: () => void;
 }) {
-  const hasBleeding = Object.values(
-    tooth.sites
-  ).some((surface) =>
-    Object.values(surface).some(
-      (site) => site.bleeding
-    )
+  const hasBleeding = Object.values(tooth.sites).some(
+    (surface) =>
+      Object.values(surface).some(
+        (site) => site.bleeding
+      )
   );
 
   const statusClass =
@@ -272,18 +221,7 @@ function NumberInput({
 export function Odontogram({
   examId,
   patientId,
-}: {
-  examId?: string;
-  patientId: string;
-}) {
-  const {
-    exams,
-    updateTooth,
-    saveSite,
-    isSavingSite,
-    initializeTeeth,
-  } = usePeriodontia();
-
+}: OdontogramProps) {
   const [teeth, setTeeth] = useState<Tooth[]>(() => [
     ...createTeeth(upperTeeth),
     ...createTeeth(lowerTeeth),
@@ -294,53 +232,6 @@ export function Odontogram({
 
   const [surface, setSurface] =
     useState<Surface>("VESTIBULAR");
-
-  const [saving, setSaving] = useState(false);
-
-  const currentExam = useMemo<PeriodontalExam | null>(
-    () =>
-      exams.find(
-        (exam) => exam.id === examId
-      ) ?? null,
-    [exams, examId]
-  );
-
-  useEffect(() => {
-    if (!examId) {
-      setTeeth([
-        ...createTeeth(upperTeeth),
-        ...createTeeth(lowerTeeth),
-      ]);
-      setSelectedTooth(null);
-      return;
-    }
-
-    const exam = exams.find(
-      (item) => item.id === examId
-    );
-
-    if (!exam) return;
-
-    if (exam.teeth?.length) {
-      const mapped = exam.teeth.map(
-        convertRepositoryToLocal
-      );
-
-      const mappedNumbers = new Set(
-        mapped.map((tooth) => tooth.number)
-      );
-
-      const missing = [
-        ...createTeeth(upperTeeth),
-        ...createTeeth(lowerTeeth),
-      ].filter(
-        (tooth) =>
-          !mappedNumbers.has(tooth.number)
-      );
-
-      setTeeth([...mapped, ...missing]);
-    }
-  }, [examId, exams]);
 
   const selected = useMemo(
     () =>
@@ -443,7 +334,9 @@ export function Odontogram({
     setSurface("VESTIBULAR");
   }
 
-  function goToTooth(direction: -1 | 1) {
+  function goToTooth(
+    direction: -1 | 1
+  ) {
     if (selectedIndex < 0) return;
 
     const nextIndex =
@@ -461,112 +354,18 @@ export function Odontogram({
     );
   }
 
-  async function saveCurrentTooth() {
-    if (!examId || !selected) return;
-
-    try {
-      setSaving(true);
-
-      let toothId = selected.id;
-
-      if (!toothId) {
-        const created =
-          await initializeTeeth({
-            examId,
-            toothNumbers: [
-              selected.number,
-            ],
-          });
-
-        const createdTooth =
-          created.find(
-            (tooth) =>
-              tooth.toothNumber ===
-              selected.number
-          );
-
-        toothId = createdTooth?.id;
-      }
-
-      if (!toothId) {
-        throw new Error(
-          "Não foi possível identificar o dente."
-        );
-      }
-
-      await updateTooth({
-        id: toothId,
-        input: {
-          status: selected.status,
-          mobility: selected.mobility,
-          furcationBuccal:
-            selected.buccalFurcation,
-          furcationLingual:
-            selected.lingualFurcation,
-          suppuration:
-            selected.suppuration,
-          plaque: selected.plaque,
-          observations:
-            selected.observations || null,
-        },
-      });
-
-      for (const currentSurface of [
-        "VESTIBULAR",
-        "LINGUAL",
-      ] as Surface[]) {
-        for (const point of points) {
-          const site =
-            selected.sites[
-              currentSurface
-            ][point];
-
-          const hasData =
-            site.probingDepth !== null ||
-            site.gingivalRecession !== null ||
-            site.clinicalAttachmentLevel !==
-              null ||
-            site.bleeding ||
-            site.plaque ||
-            site.suppuration;
-
-          if (!hasData) continue;
-
-          await saveSite({
-            toothId,
-            surface: currentSurface,
-            point,
-            probingDepth:
-              site.probingDepth,
-            gingivalRecession:
-              site.gingivalRecession,
-            clinicalAttachmentLevel:
-              calculateCAL(site),
-            bleeding:
-              site.bleeding,
-            plaque:
-              site.plaque,
-            suppuration:
-              site.suppuration,
-          });
-        }
-      }
-    } catch (error) {
-      console.error(
-        "Erro ao salvar dente periodontal:",
-        error
-      );
-    } finally {
-      setSaving(false);
-    }
+  function saveExam() {
+    console.log("Exame periodontal:", {
+      examId,
+      patientId,
+      teeth,
+    });
   }
-
-  const isSaving =
-    saving || isSavingSite;
 
   return (
     <div className="space-y-6">
       {/* ODONTOGRAMA */}
+
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -576,9 +375,8 @@ export function Odontogram({
               </CardTitle>
 
               <p className="mt-1 text-sm text-text-secondary">
-                {patientId
-                  ? "Selecione um dente para iniciar a avaliação periodontal."
-                  : "Selecione um paciente para iniciar."}
+                Selecione um dente para iniciar
+                a avaliação periodontal.
               </p>
             </div>
 
@@ -594,17 +392,10 @@ export function Odontogram({
 
               <Button
                 type="button"
-                onClick={saveCurrentTooth}
-                disabled={
-                  !selected ||
-                  !examId ||
-                  isSaving
-                }
+                onClick={saveExam}
               >
                 <Save className="mr-2 h-4 w-4" />
-                {isSaving
-                  ? "Salvando..."
-                  : "Salvar dente"}
+                Salvar exame
               </Button>
             </div>
           </div>
@@ -614,6 +405,7 @@ export function Odontogram({
           <div className="overflow-x-auto pb-4">
             <div className="mx-auto min-w-[850px] space-y-8">
               {/* SUPERIOR */}
+
               <div>
                 <p className="mb-4 text-center text-xs font-semibold uppercase tracking-wider text-text-muted">
                   Arcada superior
@@ -647,6 +439,7 @@ export function Odontogram({
               <div className="mx-auto h-px max-w-4xl bg-border" />
 
               {/* INFERIOR */}
+
               <div>
                 <p className="mb-4 text-center text-xs font-semibold uppercase tracking-wider text-text-muted">
                   Arcada inferior
@@ -703,6 +496,7 @@ export function Odontogram({
             className="space-y-6"
           >
             {/* CABEÇALHO DO DENTE */}
+
             <Card>
               <CardHeader>
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -829,6 +623,7 @@ export function Odontogram({
             </Card>
 
             {/* SONDAGEM */}
+
             <Card>
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1008,7 +803,8 @@ export function Odontogram({
                                 className="px-3 py-3 text-center"
                               >
                                 <div className="flex h-9 items-center justify-center rounded-md border border-border bg-background text-sm font-semibold text-text-primary">
-                                  {cal ?? "—"}
+                                  {cal ??
+                                    "—"}
                                 </div>
                               </td>
                             );
@@ -1022,6 +818,7 @@ export function Odontogram({
             </Card>
 
             {/* MARCADORES */}
+
             <Card>
               <CardHeader>
                 <CardTitle>
@@ -1146,6 +943,7 @@ export function Odontogram({
             </Card>
 
             {/* MOBILIDADE E FURCA */}
+
             <Card>
               <CardHeader>
                 <CardTitle>
@@ -1228,6 +1026,7 @@ export function Odontogram({
             </Card>
 
             {/* OBSERVAÇÕES */}
+
             <Card>
               <CardHeader>
                 <CardTitle>
@@ -1254,12 +1053,6 @@ export function Odontogram({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {currentExam && (
-        <p className="text-xs text-text-muted">
-          Exame ativo: {currentExam.id}
-        </p>
-      )}
     </div>
   );
 }
