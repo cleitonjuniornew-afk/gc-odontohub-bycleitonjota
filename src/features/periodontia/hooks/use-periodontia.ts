@@ -51,10 +51,26 @@ export function usePeriodontia() {
         error
       );
 
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Erro desconhecido ao criar exame periodontal.";
+      let message =
+        "Erro desconhecido ao criar exame periodontal.";
+
+      if (error && typeof error === "object") {
+        const err = error as {
+          message?: string;
+          details?: string;
+          hint?: string;
+          code?: string;
+        };
+
+        message =
+          err.message ||
+          err.details ||
+          err.hint ||
+          err.code ||
+          JSON.stringify(error);
+      } else if (typeof error === "string") {
+        message = error;
+      }
 
       toast.error(`Erro: ${message}`);
     },
@@ -145,7 +161,9 @@ export function usePeriodontia() {
     },
 
     onError: () => {
-      toast.error("Não foi possível salvar a medição periodontal.");
+      toast.error(
+        "Não foi possível salvar a medição periodontal."
+      );
     },
   });
 
@@ -180,7 +198,9 @@ export function usePeriodontia() {
     },
 
     onError: () => {
-      toast.error("Não foi possível preparar os dentes do exame.");
+      toast.error(
+        "Não foi possível preparar os dentes do exame."
+      );
     },
   });
 
@@ -194,7 +214,9 @@ export function usePeriodontia() {
     },
 
     onError: () => {
-      toast.error("Não foi possível finalizar o exame.");
+      toast.error(
+        "Não foi possível finalizar o exame."
+      );
     },
   });
 
@@ -208,7 +230,9 @@ export function usePeriodontia() {
     },
 
     onError: () => {
-      toast.error("Não foi possível remover o exame.");
+      toast.error(
+        "Não foi possível remover o exame."
+      );
     },
   });
 
@@ -236,13 +260,16 @@ export function usePeriodontia() {
     isDeletingSite: deleteSiteMutation.isPending,
 
     initializeTeeth: initializeTeethMutation.mutateAsync,
-    isInitializingTeeth: initializeTeethMutation.isPending,
+    isInitializingTeeth:
+      initializeTeethMutation.isPending,
 
     finalizeExam: finalizeExamMutation.mutateAsync,
-    isFinalizingExam: finalizeExamMutation.isPending,
+    isFinalizingExam:
+      finalizeExamMutation.isPending,
 
     deleteExam: deleteExamMutation.mutateAsync,
-    isDeletingExam: deleteExamMutation.isPending,
+    isDeletingExam:
+      deleteExamMutation.isPending,
 
     refetch: query.refetch,
   };
