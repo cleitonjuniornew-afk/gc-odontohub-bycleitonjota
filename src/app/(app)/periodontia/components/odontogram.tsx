@@ -1,866 +1,250 @@
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  Save,
+  CircleAlert,
+  Check,
+  Loader2,
+  CheckCircle2,
+  Cloud,
+  CloudOff,
+} from "lucide-react";
 
-/* ============================================================================
- * TIPOS
- * ========================================================================== */
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
-export type ToothStatus = "PRESENTE" | "AUSENTE" | "IMPLANTE";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
-export type SiteKey = "vm" | "vc" | "vd" | "lm" | "lc" | "ld";
+import { usePeriodontia } from "@/features/periodontia/hooks/use-periodontia";
 
-export interface SiteData {
-  mg: number | null;
-  ps: number | null;
-  bop: boolean;
+import type {
+  PeriodontalStatus,
+  PeriodontalSurface,
+  PeriodontalPoint,
+} from "@/repositories/periodontia.repository";
+
+type ToothStatus = PeriodontalStatus;
+type Surface = PeriodontalSurface;
+type Point = PeriodontalPoint;
+
+interface SiteData {
+  probingDepth: number | null;
+  gingivalRecession: number | null;
+  bleeding: boolean;
   plaque: boolean;
   suppuration: boolean;
 }
 
-export interface ToothData {
+interface Tooth {
   number: number;
   status: ToothStatus;
   mobility: number;
-  buccalFurcation: number;
-  lingualFurcation: number;
-  sites: Record<SiteKey, SiteData>;
+  buccalFurcation: number | null;
+  lingualFurcation: number | null;
+  observations: string;
+  sites: {
+    VESTIBULAR: Record<Point, SiteData>;
+    LINGUAL: Record<Point, SiteData>;
+  };
 }
 
-export interface OdontogramProps {
-  initialTeeth?: ToothData[];
-  onChange?: (teeth: ToothData[]) => void;
-  teethImageBasePath?: string;
-  className?: string;
+interface OdontogramProps {
   examId?: string;
   patientId?: string;
 }
 
-/* ============================================================================
- * ARCADAS
- * ========================================================================== */
-
-const UPPER_ARCH = [
+const upperTeeth = [
   18, 17, 16, 15, 14, 13, 12, 11,
   21, 22, 23, 24, 25, 26, 27, 28,
 ];
 
-const LOWER_ARCH = [
+const lowerTeeth = [
   48, 47, 46, 45, 44, 43, 42, 41,
   31, 32, 33, 34, 35, 36, 37, 38,
 ];
 
-/* ============================================================================
- * SÍTIOS
- * ========================================================================== */
-
-const VESTIBULAR_SITES: SiteKey[] = ["vm", "vc", "vd"];
-const LINGUAL_SITES: SiteKey[] = ["lm", "lc", "ld"];
-
-const SITE_LABEL: Record<SiteKey, string> = {
-  vm: "MV",
-  vc: "V",
-  vd: "DV",
-  lm: "ML",
-  lc: "L",
-  ld: "DL",
-};
-
-/* ============================================================================
- * CORES
- * ========================================================================== */
-
-const COLORS = {
-  tooth: "#FFFDF7",
-  toothStroke: "#1F2937",
-
-  /* Linhas clássicas do periodontograma */
-  black: "#111827",
-  blue: "#2563EB",
-  red: "#DC2626",
-
-  green: "#16A34A",
-  yellow: "#EAB308",
-  orange: "#EA580C",
-
-  text: "#172033",
-  muted: "#64748B",
-  border: "#CBD5E1",
-  background: "#FFFFFF",
-  soft: "#F8FAFC",
-};
-
-function severityColor(ps: number | null) {
-  if (ps === null) return COLORS.muted;
-  if (ps <= 3) return COLORS.green;
-  if (ps <= 5) return COLORS.yellow;
-  if (ps <= 7) return COLORS.orange;
-  return COLORS.red;
-}
-
-/* ============================================================================
- * TIPO DO DENTE
- * ========================================================================== */
-
-type ToothGroup = "incisor" | "canine" | "premolar" | "molar";
-
-function getToothGroup(number: number): ToothGroup {
-  const last = number % 10;
-
-  if (last === 1 || last === 2) return "incisor";
-  if (last === 3) return "canine";
-  if (last === 4 || last === 5) return "premolar";
-
-  return "molar";
-}
-
-function isThreeRootMolar(number: number) {
-  return [16, 17, 18, 26, 27, 28].includes(number);
-}
-
-function hasFurcation(group: ToothGroup) {
-  return group === "premolar" || group === "molar";
-}
-
-/* ============================================================================
- * DADOS
- * ========================================================================== */
+const points: Point[] = [
+  "MESIAL",
+  "CENTRAL",
+  "DISTAL",
+];
 
 function emptySite(): SiteData {
   return {
-    mg: null,
-    ps: null,
-    bop: false,
+    probingDepth: null,
+    gingivalRecession: null,
+    bleeding: false,
     plaque: false,
     suppuration: false,
   };
 }
 
-function createDefaultTooth(number: number): ToothData {
+function createSites() {
   return {
-    number,
-    status: "PRESENTE",
-    mobility: 0,
-    buccalFurcation: 0,
-    lingualFurcation: 0,
-    sites: {
-      vm: emptySite(),
-      vc: emptySite(),
-      vd: emptySite(),
-      lm: emptySite(),
-      lc: emptySite(),
-      ld: emptySite(),
+    VESTIBULAR: {
+      MESIAL: emptySite(),
+      CENTRAL: emptySite(),
+      DISTAL: emptySite(),
+    },
+    LINGUAL: {
+      MESIAL: emptySite(),
+      CENTRAL: emptySite(),
+      DISTAL: emptySite(),
     },
   };
 }
 
-function createDefaultTeeth(): ToothData[] {
-  return [...UPPER_ARCH, ...LOWER_ARCH].map(createDefaultTooth);
+function createTeeth(numbers: number[]): Tooth[] {
+  return numbers.map((number) => ({
+    number,
+    status: "PRESENTE",
+    mobility: 0,
+    buccalFurcation: null,
+    lingualFurcation: null,
+    observations: "",
+    sites: createSites(),
+  }));
 }
 
-/* ============================================================================
- * NÍVEL DE INSERÇÃO
- * ========================================================================== */
-
-function computeNI(site: SiteData): number | null {
-  if (site.ps === null) return null;
-
-  const mg = site.mg ?? 0;
-
-  return site.ps + mg;
-}
-
-/* ============================================================================
- * RESUMO
- * ========================================================================== */
-
-function computeSummary(teeth: ToothData[]) {
-  let psSum = 0;
-  let psCount = 0;
-
-  let niSum = 0;
-  let niCount = 0;
-
-  let siteCount = 0;
-  let bopCount = 0;
-  let plaqueCount = 0;
-
-  for (const tooth of teeth) {
-    if (tooth.status === "AUSENTE") continue;
-
-    const sites = [
-      ...VESTIBULAR_SITES,
-      ...LINGUAL_SITES,
-    ];
-
-    for (const key of sites) {
-      const site = tooth.sites[key];
-
-      const measured =
-        site.ps !== null ||
-        site.mg !== null;
-
-      if (!measured) continue;
-
-      siteCount++;
-
-      if (site.ps !== null) {
-        psSum += site.ps;
-        psCount++;
-      }
-
-      const ni = computeNI(site);
-
-      if (ni !== null) {
-        niSum += ni;
-        niCount++;
-      }
-
-      if (site.bop) bopCount++;
-      if (site.plaque) plaqueCount++;
-    }
-  }
-
-  return {
-    avgPS: psCount > 0 ? psSum / psCount : 0,
-    avgNI: niCount > 0 ? niSum / niCount : 0,
-    bopPercent:
-      siteCount > 0
-        ? (bopCount / siteCount) * 100
-        : 0,
-    plaquePercent:
-      siteCount > 0
-        ? (plaqueCount / siteCount) * 100
-        : 0,
-  };
-}
-
-/* ============================================================================
- * SVG ANATÔMICO
- *
- * O SVG possui altura FIXA.
- * Os campos MG/PS/NI ficam fora dele.
- * Portanto, preencher NI nunca aumenta a altura do dente.
- * ========================================================================== */
-
-interface ToothSVGProps {
-  number: number;
-  type: ToothGroup;
-  upper: boolean;
-  lingual: boolean;
-  status: ToothStatus;
-}
-
-function ToothSVG({
-  number,
-  type,
-  upper,
-  lingual,
-  status,
-}: ToothSVGProps) {
-  const transform = upper
-    ? "translate(0 0)"
-    : "translate(0 118) scale(1 -1)";
-
-  const threeRoots =
-    type === "molar" &&
-    isThreeRootMolar(number);
-
-  if (status === "AUSENTE") {
-    return (
-      <svg
-        viewBox="0 0 100 118"
-        width="58"
-        height="78"
-        aria-label={`Dente ${number} ausente`}
-      >
-        <line
-          x1="22"
-          y1="45"
-          x2="78"
-          y2="45"
-          stroke="#94A3B8"
-          strokeWidth="2"
-        />
-        <line
-          x1="22"
-          y1="45"
-          x2="78"
-          y2="75"
-          stroke="#94A3B8"
-          strokeWidth="2"
-        />
-        <line
-          x1="78"
-          y1="45"
-          x2="22"
-          y2="75"
-          stroke="#94A3B8"
-          strokeWidth="2"
-        />
-      </svg>
-    );
+function calculateCAL(site: SiteData) {
+  if (
+    site.probingDepth === null ||
+    site.gingivalRecession === null
+  ) {
+    return null;
   }
 
   return (
-    <svg
-      viewBox="0 0 100 118"
-      width="58"
-      height="78"
-      preserveAspectRatio="xMidYMid meet"
-      aria-label={`Dente ${number}`}
-    >
-      <g transform={transform}>
-        {type === "incisor" && (
-          <>
-            {/* COROA */}
-            <path
-              d="
-                M30 17
-                C35 10 65 10 70 17
-                L68 52
-                C63 59 37 59 32 52
-                Z
-              "
-              fill={COLORS.tooth}
-              stroke={COLORS.black}
-              strokeWidth="1.8"
-            />
-
-            {/* LINHA CERVICAL PRETA */}
-            <path
-              d="M32 52 C40 57 60 57 68 52"
-              fill="none"
-              stroke={COLORS.black}
-              strokeWidth="1.3"
-            />
-
-            {/* RAIZ */}
-            <path
-              d="
-                M34 53
-                C36 67 39 82 43 101
-                C45 109 48 114 50 116
-                C52 114 55 109 57 101
-                C61 82 64 67 66 53
-                C58 58 42 58 34 53
-                Z
-              "
-              fill={COLORS.tooth}
-              stroke={COLORS.black}
-              strokeWidth="1.8"
-            />
-
-            {/* LINHA AZUL - MARGEM GENGIVAL */}
-            <path
-              d="M33 49 C41 54 59 54 67 49"
-              fill="none"
-              stroke={COLORS.blue}
-              strokeWidth="2"
-            />
-
-            {/* LINHA VERMELHA - REFERÊNCIA PERIODONTAL */}
-            <path
-              d="M35 55 C42 59 58 59 65 55"
-              fill="none"
-              stroke={COLORS.red}
-              strokeWidth="1.6"
-            />
-
-            {lingual && (
-              <>
-                <path
-                  d="
-                    M39 25
-                    C43 21 57 21 61 25
-                    L59 45
-                    C56 50 44 50 41 45
-                    Z
-                  "
-                  fill="none"
-                  stroke="#64748B"
-                  strokeWidth="1"
-                />
-
-                <path
-                  d="M43 47 C47 50 53 50 57 47"
-                  fill="none"
-                  stroke="#64748B"
-                  strokeWidth="1"
-                />
-              </>
-            )}
-          </>
-        )}
-
-        {type === "canine" && (
-          <>
-            {/* COROA DO CANINO - SEM PONTA EXAGERADA */}
-            <path
-              d="
-                M31 17
-                C36 11 43 10 50 14
-                C57 10 64 11 69 17
-                L66 51
-                C60 58 40 58 34 51
-                Z
-              "
-              fill={COLORS.tooth}
-              stroke={COLORS.black}
-              strokeWidth="1.8"
-            />
-
-            {/* CÚSPIDE DISCRETA */}
-            <path
-              d="M43 14 C46 12 48 11 50 14 C52 11 54 12 57 14"
-              fill="none"
-              stroke={COLORS.black}
-              strokeWidth="1.4"
-            />
-
-            {/* CERVICAL */}
-            <path
-              d="M34 51 C42 57 58 57 66 51"
-              fill="none"
-              stroke={COLORS.black}
-              strokeWidth="1.3"
-            />
-
-            {/* RAIZ */}
-            <path
-              d="
-                M36 52
-                C38 70 41 87 44 103
-                C46 111 48 115 50 117
-                C52 115 54 111 56 103
-                C59 87 62 70 64 52
-                C57 57 43 57 36 52
-                Z
-              "
-              fill={COLORS.tooth}
-              stroke={COLORS.black}
-              strokeWidth="1.8"
-            />
-
-            {/* AZUL */}
-            <path
-              d="M35 48 C43 54 57 54 65 48"
-              fill="none"
-              stroke={COLORS.blue}
-              strokeWidth="2"
-            />
-
-            {/* VERMELHA */}
-            <path
-              d="M37 54 C44 58 56 58 63 54"
-              fill="none"
-              stroke={COLORS.red}
-              strokeWidth="1.6"
-            />
-
-            {lingual && (
-              <>
-                <path
-                  d="
-                    M40 25
-                    C44 21 56 21 60 25
-                    L58 46
-                    C55 50 45 50 42 46
-                    Z
-                  "
-                  fill="none"
-                  stroke="#64748B"
-                  strokeWidth="1"
-                />
-
-                <path
-                  d="M50 26 L50 48"
-                  stroke="#64748B"
-                  strokeWidth="1"
-                />
-              </>
-            )}
-          </>
-        )}
-
-        {type === "premolar" && (
-          <>
-            {/* COROA */}
-            <path
-              d="
-                M25 25
-                C31 17 39 14 50 16
-                C61 14 69 17 75 25
-                L70 51
-                C62 58 38 58 30 51
-                Z
-              "
-              fill={COLORS.tooth}
-              stroke={COLORS.black}
-              strokeWidth="1.8"
-            />
-
-            {/* DUAS CÚSPIDES */}
-            <path
-              d="M32 25 C38 17 44 17 50 25"
-              fill="none"
-              stroke={COLORS.black}
-              strokeWidth="1.3"
-            />
-
-            <path
-              d="M50 25 C56 17 62 17 68 25"
-              fill="none"
-              stroke={COLORS.black}
-              strokeWidth="1.3"
-            />
-
-            {/* SULCO */}
-            <path
-              d="M50 24 C48 31 48 40 50 49"
-              fill="none"
-              stroke="#475569"
-              strokeWidth="1.1"
-            />
-
-            {/* CERVICAL */}
-            <path
-              d="M30 51 C40 57 60 57 70 51"
-              fill="none"
-              stroke={COLORS.black}
-              strokeWidth="1.3"
-            />
-
-            {/* RAIZ */}
-            <path
-              d="
-                M36 52
-                C38 68 41 86 44 102
-                C46 110 48 115 50 117
-                C52 115 54 110 56 102
-                C59 86 62 68 64 52
-                C56 57 44 57 36 52
-                Z
-              "
-              fill={COLORS.tooth}
-              stroke={COLORS.black}
-              strokeWidth="1.8"
-            />
-
-            {/* AZUL */}
-            <path
-              d="M31 48 C41 54 59 54 69 48"
-              fill="none"
-              stroke={COLORS.blue}
-              strokeWidth="2"
-            />
-
-            {/* VERMELHA */}
-            <path
-              d="M33 54 C42 58 58 58 67 54"
-              fill="none"
-              stroke={COLORS.red}
-              strokeWidth="1.6"
-            />
-
-            {lingual && (
-              <path
-                d="
-                  M34 26
-                  C40 20 46 21 50 27
-                  C54 21 60 20 66 26
-                  L63 47
-                  C58 52 42 52 37 47
-                  Z
-                "
-                fill="none"
-                stroke="#64748B"
-                strokeWidth="1"
-              />
-            )}
-          </>
-        )}
-
-        {type === "molar" && (
-          <>
-            {/* COROA MOLAR */}
-            <path
-              d="
-                M20 25
-                C25 17 33 14 41 18
-                C45 20 47 21 50 17
-                C53 21 55 20 59 18
-                C67 14 75 17 80 25
-                L75 51
-                C66 59 34 59 25 51
-                Z
-              "
-              fill={COLORS.tooth}
-              stroke={COLORS.black}
-              strokeWidth="1.8"
-            />
-
-            {/* CÚSPIDES */}
-            <path
-              d="M25 25 C30 18 37 18 43 25"
-              fill="none"
-              stroke={COLORS.black}
-              strokeWidth="1.2"
-            />
-
-            <path
-              d="M43 25 C47 20 48 20 50 17"
-              fill="none"
-              stroke={COLORS.black}
-              strokeWidth="1.2"
-            />
-
-            <path
-              d="M50 17 C52 20 53 20 57 25"
-              fill="none"
-              stroke={COLORS.black}
-              strokeWidth="1.2"
-            />
-
-            <path
-              d="M57 25 C63 18 70 18 75 25"
-              fill="none"
-              stroke={COLORS.black}
-              strokeWidth="1.2"
-            />
-
-            {/* SULCO CENTRAL */}
-            <path
-              d="
-                M50 18
-                C47 26 47 38 50 50
-                C53 38 53 26 50 18
-              "
-              fill="none"
-              stroke="#475569"
-              strokeWidth="1.1"
-            />
-
-            <path
-              d="M26 36 C35 33 42 35 50 42"
-              fill="none"
-              stroke="#475569"
-              strokeWidth="1"
-            />
-
-            <path
-              d="M74 36 C65 33 58 35 50 42"
-              fill="none"
-              stroke="#475569"
-              strokeWidth="1"
-            />
-
-            {/* CERVICAL */}
-            <path
-              d="M25 51 C36 58 64 58 75 51"
-              fill="none"
-              stroke={COLORS.black}
-              strokeWidth="1.3"
-            />
-
-            {threeRoots ? (
-              <>
-                {/* RAIZ MESIAL */}
-                <path
-                  d="
-                    M28 52
-                    C29 66 30 79 27 93
-                    C25 103 25 112 29 117
-                    C35 110 38 101 40 90
-                    L44 53
-                    C39 56 33 56 28 52
-                    Z
-                  "
-                  fill={COLORS.tooth}
-                  stroke={COLORS.black}
-                  strokeWidth="1.7"
-                />
-
-                {/* RAIZ PALATINA/CENTRAL */}
-                <path
-                  d="
-                    M44 53
-                    C45 67 46 81 46 95
-                    C46 106 48 113 50 117
-                    C52 113 54 106 54 95
-                    C54 81 55 67 56 53
-                    C52 56 48 56 44 53
-                    Z
-                  "
-                  fill={COLORS.tooth}
-                  stroke={COLORS.black}
-                  strokeWidth="1.7"
-                />
-
-                {/* RAIZ DISTAL */}
-                <path
-                  d="
-                    M56 53
-                    L60 90
-                    C62 101 65 110 71 117
-                    C75 112 75 103 73 93
-                    C70 79 71 66 72 52
-                    C67 56 61 56 56 53
-                    Z
-                  "
-                  fill={COLORS.tooth}
-                  stroke={COLORS.black}
-                  strokeWidth="1.7"
-                />
-              </>
-            ) : (
-              <>
-                {/* DUAS RAÍZES PARA MOLARES INFERIORES E OUTROS */}
-                <path
-                  d="
-                    M28 52
-                    C29 68 30 81 27 96
-                    C25 107 27 113 32 117
-                    C37 109 40 99 42 89
-                    L46 53
-                    C40 56 34 56 28 52
-                    Z
-                  "
-                  fill={COLORS.tooth}
-                  stroke={COLORS.black}
-                  strokeWidth="1.7"
-                />
-
-                <path
-                  d="
-                    M54 53
-                    L58 89
-                    C60 99 63 109 68 117
-                    C73 113 75 107 73 96
-                    C70 81 71 68 72 52
-                    C66 56 60 56 54 53
-                    Z
-                  "
-                  fill={COLORS.tooth}
-                  stroke={COLORS.black}
-                  strokeWidth="1.7"
-                />
-              </>
-            )}
-
-            {/* LINHA AZUL */}
-            <path
-              d="M26 48 C38 54 62 54 74 48"
-              fill="none"
-              stroke={COLORS.blue}
-              strokeWidth="2"
-            />
-
-            {/* LINHA VERMELHA */}
-            <path
-              d="M28 54 C39 59 61 59 72 54"
-              fill="none"
-              stroke={COLORS.red}
-              strokeWidth="1.6"
-            />
-
-            {lingual && (
-              <>
-                <path
-                  d="
-                    M27 27
-                    C33 20 42 21 50 28
-                    C58 21 67 20 73 27
-                    L70 47
-                    C62 53 38 53 30 47
-                    Z
-                  "
-                  fill="none"
-                  stroke="#64748B"
-                  strokeWidth="1"
-                />
-
-                <path
-                  d="M50 28 L50 49"
-                  stroke="#64748B"
-                  strokeWidth="1"
-                />
-              </>
-            )}
-          </>
-        )}
-
-        {/* IMPLANTE */}
-        {status === "IMPLANTE" && (
-          <>
-            <line
-              x1="37"
-              y1="65"
-              x2="63"
-              y2="65"
-              stroke="#7C3AED"
-              strokeWidth="2"
-            />
-            <line
-              x1="39"
-              y1="71"
-              x2="61"
-              y2="71"
-              stroke="#7C3AED"
-              strokeWidth="2"
-            />
-            <line
-              x1="40"
-              y1="77"
-              x2="60"
-              y2="77"
-              stroke="#7C3AED"
-              strokeWidth="2"
-            />
-            <line
-              x1="42"
-              y1="83"
-              x2="58"
-              y2="83"
-              stroke="#7C3AED"
-              strokeWidth="2"
-            />
-          </>
-        )}
-      </g>
-    </svg>
+    site.probingDepth +
+    site.gingivalRecession
   );
 }
 
-/* ============================================================================
- * INPUT
- * ========================================================================== */
+function ToothVisual({
+  tooth,
+  selected,
+  onClick,
+}: {
+  tooth: Tooth;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const hasBleeding = Object.values(tooth.sites).some(
+    (surface) =>
+      Object.values(surface).some(
+        (site) => site.bleeding
+      )
+  );
 
-function MiniNumberInput({
+  const hasPlaque = Object.values(tooth.sites).some(
+    (surface) =>
+      Object.values(surface).some(
+        (site) => site.plaque
+      )
+  );
+
+  const hasSuppuration = Object.values(
+    tooth.sites
+  ).some((surface) =>
+    Object.values(surface).some(
+      (site) => site.suppuration
+    )
+  );
+
+  const statusClass =
+    tooth.status === "AUSENTE"
+      ? "border-error/60 bg-error/10 opacity-60"
+      : tooth.status === "IMPLANTE"
+      ? "border-secondary bg-secondary/10"
+      : selected
+      ? "border-primary bg-primary/10 shadow-[0_0_22px_rgba(212,175,55,0.25)]"
+      : hasBleeding
+      ? "border-error/60 bg-error/5"
+      : "border-border bg-card hover:border-primary/50";
+
+  return (
+    <motion.button
+      type="button"
+      whileHover={{ y: -3 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={onClick}
+      className="flex min-w-[46px] flex-col items-center gap-1 outline-none"
+    >
+      <span
+        className={`text-[11px] font-semibold ${
+          selected
+            ? "text-primary"
+            : "text-text-muted"
+        }`}
+      >
+        {tooth.number}
+      </span>
+
+      <span
+        className={`relative flex h-16 w-11 items-center justify-center rounded-[45%] border-2 transition-all ${statusClass}`}
+      >
+        {tooth.status === "AUSENTE" ? (
+          <>
+            <span className="absolute h-9 w-0.5 rotate-45 rounded-full bg-error" />
+            <span className="absolute h-9 w-0.5 -rotate-45 rounded-full bg-error" />
+          </>
+        ) : tooth.status === "IMPLANTE" ? (
+          <span className="flex h-8 w-6 items-center justify-center rounded-sm border border-secondary">
+            <span className="h-6 w-0.5 bg-secondary" />
+          </span>
+        ) : (
+          <>
+            <span className="h-8 w-7 rounded-[45%] border border-text-muted/50 bg-background/30" />
+
+            {hasBleeding && (
+              <span className="absolute bottom-1 h-2 w-2 rounded-full bg-error shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
+            )}
+
+            {hasPlaque && (
+              <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-primary" />
+            )}
+
+            {hasSuppuration && (
+              <span className="absolute left-1 top-1 h-1.5 w-1.5 rounded-full bg-secondary" />
+            )}
+          </>
+        )}
+      </span>
+    </motion.button>
+  );
+}
+
+function NumberInput({
   value,
   onChange,
-  placeholder,
-  allowNegative = false,
-  colorHint,
-  ariaLabel,
+  placeholder = "—",
 }: {
   value: number | null;
   onChange: (value: number | null) => void;
-  placeholder: string;
-  allowNegative?: boolean;
-  colorHint?: string;
-  ariaLabel: string;
+  placeholder?: string;
 }) {
   return (
     <input
       type="number"
-      aria-label={ariaLabel}
+      min={0}
+      max={20}
       value={value ?? ""}
       placeholder={placeholder}
-      min={allowNegative ? -9 : 0}
-      max={12}
-      step={1}
-      onFocus={(event) => event.currentTarget.select()}
       onChange={(event) => {
         const raw = event.target.value;
 
@@ -869,876 +253,1361 @@ function MiniNumberInput({
           return;
         }
 
-        const parsed = Number(raw);
+        const number = Number(raw);
 
-        if (Number.isNaN(parsed)) return;
-
-        const minimum = allowNegative ? -9 : 0;
-        const limited = Math.max(
-          minimum,
-          Math.min(12, parsed)
-        );
-
-        onChange(limited);
+        if (!Number.isNaN(number)) {
+          onChange(number);
+        }
       }}
-      className="
-        h-6
-        w-10
-        shrink-0
-        rounded
-        border
-        bg-white
-        text-center
-        text-[10px]
-        font-medium
-        text-slate-800
-        outline-none
-        placeholder:text-slate-300
-        focus:ring-1
-        focus:ring-blue-400
-      "
-      style={{
-        borderColor: colorHint ?? COLORS.border,
-      }}
+      className="h-9 w-full rounded-md border border-border bg-background px-2 text-center text-sm text-text-primary outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/30"
     />
   );
 }
 
-/* ============================================================================
- * COLUNA DE SÍTIO
- *
- * Altura fixa.
- * NI ocupa sempre o mesmo espaço mesmo quando vazio.
- * Isso impede que o dente "desça" ao preencher.
- * ========================================================================== */
-
-function SiteColumn({
-  site,
-  label,
-  onChange,
-  disabled,
-}: {
-  site: SiteData;
-  label: string;
-  onChange: (patch: Partial<SiteData>) => void;
-  disabled?: boolean;
-}) {
-  const ni = computeNI(site);
-
-  return (
-    <div
-      className={`
-        flex
-        w-10
-        shrink-0
-        flex-col
-        items-center
-        gap-1
-        ${disabled ? "opacity-35 pointer-events-none" : ""}
-      `}
-    >
-      <span className="h-3 text-[9px] font-bold text-slate-600">
-        {label}
-      </span>
-
-      <MiniNumberInput
-        ariaLabel={`Margem gengival ${label}`}
-        value={site.mg}
-        placeholder="MG"
-        allowNegative
-        onChange={(value) =>
-          onChange({ mg: value })
-        }
-      />
-
-      <MiniNumberInput
-        ariaLabel={`Profundidade de sondagem ${label}`}
-        value={site.ps}
-        placeholder="PS"
-        colorHint={
-          site.ps !== null
-            ? severityColor(site.ps)
-            : undefined
-        }
-        onChange={(value) =>
-          onChange({ ps: value })
-        }
-      />
-
-      {/* ESPAÇO FIXO DO NI */}
-      <div className="flex h-4 items-center justify-center">
-        {ni !== null ? (
-          <span
-            className="whitespace-nowrap text-[8px] font-bold"
-            style={{
-              color: severityColor(site.ps),
-            }}
-          >
-            NI {ni}
-          </span>
-        ) : (
-          <span className="text-[8px] text-transparent">
-            NI 0
-          </span>
-        )}
-      </div>
-
-      {/* SANGRAMENTO */}
-      <button
-        type="button"
-        title="Sangramento à sondagem"
-        aria-label={`Sangramento ${label}`}
-        aria-pressed={site.bop}
-        onClick={() =>
-          onChange({
-            bop: !site.bop,
-          })
-        }
-        className={`
-          h-3
-          w-3
-          shrink-0
-          rounded-full
-          border
-          ${
-            site.bop
-              ? "border-red-500 bg-red-500"
-              : "border-slate-300 bg-white"
-          }
-        `}
-      />
-
-      {/* PLACA */}
-      <button
-        type="button"
-        title="Placa"
-        aria-label={`Placa ${label}`}
-        aria-pressed={site.plaque}
-        onClick={() =>
-          onChange({
-            plaque: !site.plaque,
-          })
-        }
-        className={`
-          h-3
-          w-3
-          shrink-0
-          rounded-sm
-          border
-          ${
-            site.plaque
-              ? "border-yellow-500 bg-yellow-400"
-              : "border-slate-300 bg-white"
-          }
-        `}
-      />
-
-      {/* SUPURAÇÃO */}
-      <button
-        type="button"
-        title="Supuração"
-        aria-label={`Supuração ${label}`}
-        aria-pressed={site.suppuration}
-        onClick={() =>
-          onChange({
-            suppuration: !site.suppuration,
-          })
-        }
-        className={`
-          h-3
-          w-3
-          shrink-0
-          rotate-45
-          border
-          ${
-            site.suppuration
-              ? "border-purple-500 bg-purple-400"
-              : "border-slate-300 bg-white"
-          }
-        `}
-      />
-    </div>
-  );
-}
-
-/* ============================================================================
- * CONTROLES DO DENTE
- * ========================================================================== */
-
-function ToothControls({
-  tooth,
-  onUpdate,
-}: {
-  tooth: ToothData;
-  onUpdate: (patch: Partial<ToothData>) => void;
-}) {
-  const group = getToothGroup(tooth.number);
-
-  return (
-    <div className="flex h-7 w-full items-center justify-center gap-1">
-      <select
-        aria-label={`Status do dente ${tooth.number}`}
-        value={tooth.status}
-        onChange={(event) =>
-          onUpdate({
-            status:
-              event.target.value as ToothStatus,
-          })
-        }
-        className="
-          h-6
-          w-11
-          rounded
-          border
-          border-slate-300
-          bg-white
-          px-0.5
-          text-[8px]
-          text-slate-700
-          outline-none
-        "
-      >
-        <option value="PRESENTE">Pres.</option>
-        <option value="AUSENTE">Aus.</option>
-        <option value="IMPLANTE">Impl.</option>
-      </select>
-
-      <div className="flex gap-0.5">
-        {[0, 1, 2, 3].map((grade) => (
-          <button
-            key={grade}
-            type="button"
-            title={`Mobilidade grau ${grade}`}
-            aria-label={`Mobilidade grau ${grade} do dente ${tooth.number}`}
-            aria-pressed={
-              tooth.mobility === grade
-            }
-            onClick={() =>
-              onUpdate({
-                mobility: grade,
-              })
-            }
-            className={`
-              flex
-              h-5
-              w-5
-              items-center
-              justify-center
-              rounded-full
-              border
-              text-[8px]
-              font-medium
-              ${
-                tooth.mobility === grade
-                  ? "border-blue-500 bg-blue-500 text-white"
-                  : "border-slate-300 bg-white text-slate-500"
-              }
-            `}
-          >
-            {grade}
-          </button>
-        ))}
-      </div>
-
-      {tooth.status === "PRESENTE" &&
-        hasFurcation(group) && (
-          <div className="flex items-center gap-0.5">
-            <select
-              aria-label={`Furca vestibular do dente ${tooth.number}`}
-              value={tooth.buccalFurcation}
-              onChange={(event) =>
-                onUpdate({
-                  buccalFurcation: Number(
-                    event.target.value
-                  ),
-                })
-              }
-              className="
-                h-5
-                w-6
-                rounded
-                border
-                border-slate-300
-                bg-white
-                text-center
-                text-[8px]
-              "
-            >
-              {[0, 1, 2, 3].map((grade) => (
-                <option
-                  key={grade}
-                  value={grade}
-                >
-                  {grade}
-                </option>
-              ))}
-            </select>
-
-            <span className="text-[8px] text-slate-400">
-              /
-            </span>
-
-            <select
-              aria-label={`Furca lingual do dente ${tooth.number}`}
-              value={tooth.lingualFurcation}
-              onChange={(event) =>
-                onUpdate({
-                  lingualFurcation: Number(
-                    event.target.value
-                  ),
-                })
-              }
-              className="
-                h-5
-                w-6
-                rounded
-                border
-                border-slate-300
-                bg-white
-                text-center
-                text-[8px]
-              "
-            >
-              {[0, 1, 2, 3].map((grade) => (
-                <option
-                  key={grade}
-                  value={grade}
-                >
-                  {grade}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-    </div>
-  );
-}
-
-/* ============================================================================
- * COLUNA COMPLETA DO DENTE
- * ========================================================================== */
-
-function ToothColumn({
-  tooth,
-  arch,
-  onUpdateTooth,
-  onUpdateSite,
-}: {
-  tooth: ToothData;
-  arch: "upper" | "lower";
-  onUpdateTooth: (
-    patch: Partial<ToothData>
-  ) => void;
-  onUpdateSite: (
-    key: SiteKey,
-    patch: Partial<SiteData>
-  ) => void;
-}) {
-  const group = getToothGroup(tooth.number);
-  const upper = arch === "upper";
-  const disabled =
-    tooth.status === "AUSENTE";
-
-  return (
-    <div
-      className="
-        flex
-        w-[70px]
-        min-w-[70px]
-        shrink-0
-        flex-col
-        items-center
-      "
-    >
-      {/* SÍTIOS VESTIBULARES */}
-
-      <div className="flex h-[100px] items-start justify-center gap-0">
-        {VESTIBULAR_SITES.map((key) => (
-          <SiteColumn
-            key={key}
-            site={tooth.sites[key]}
-            label={SITE_LABEL[key]}
-            disabled={disabled}
-            onChange={(patch) =>
-              onUpdateSite(key, patch)
-            }
-          />
-        ))}
-      </div>
-
-      {/* NÚMERO */}
-
-      <div className="mb-1 h-4 text-center">
-        <span className="text-[10px] font-bold text-blue-600">
-          {tooth.number}
-        </span>
-      </div>
-
-      {/* DENTE - ALTURA FIXA */}
-
-      <div className="flex h-[82px] w-full items-center justify-center">
-        <ToothSVG
-          number={tooth.number}
-          type={group}
-          upper={upper}
-          lingual={false}
-          status={tooth.status}
-        />
-      </div>
-
-      {/* CONTROLES */}
-
-      <div className="mt-1 h-7">
-        <ToothControls
-          tooth={tooth}
-          onUpdate={onUpdateTooth}
-        />
-      </div>
-
-      {/* SÍTIOS LINGUAIS */}
-
-      <div className="mt-1 flex h-[100px] items-start justify-center gap-0">
-        {LINGUAL_SITES.map((key) => (
-          <SiteColumn
-            key={key}
-            site={tooth.sites[key]}
-            label={SITE_LABEL[key]}
-            disabled={disabled}
-            onChange={(patch) =>
-              onUpdateSite(key, patch)
-            }
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================================
- * ARCADA
- * ========================================================================== */
-
-function ArchBlock({
-  archNumbers,
-  arch,
-  teethByNumber,
-  onUpdateTooth,
-  onUpdateSite,
-}: {
-  archNumbers: number[];
-  arch: "upper" | "lower";
-  teethByNumber: Map<number, ToothData>;
-  onUpdateTooth: (
-    number: number,
-    patch: Partial<ToothData>
-  ) => void;
-  onUpdateSite: (
-    number: number,
-    key: SiteKey,
-    patch: Partial<SiteData>
-  ) => void;
-}) {
-  return (
-    <div className="w-full overflow-hidden">
-      <div className="flex w-full justify-center">
-        <div className="flex max-w-full gap-0 overflow-hidden">
-          {archNumbers.map((number) => {
-            const tooth =
-              teethByNumber.get(number);
-
-            if (!tooth) return null;
-
-            return (
-              <ToothColumn
-                key={number}
-                tooth={tooth}
-                arch={arch}
-                onUpdateTooth={(patch) =>
-                  onUpdateTooth(number, patch)
-                }
-                onUpdateSite={(key, patch) =>
-                  onUpdateSite(
-                    number,
-                    key,
-                    patch
-                  )
-                }
-              />
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================================
- * LEGENDA DAS LINHAS PERIODONTAIS
- * ========================================================================== */
-
-function PeriodontalLinesLegend() {
-  return (
-    <div
-      className="
-        flex
-        flex-wrap
-        items-center
-        justify-center
-        gap-x-6
-        gap-y-2
-        border-t
-        border-slate-200
-        px-3
-        py-3
-      "
-    >
-      <div className="flex items-center gap-2">
-        <span className="h-[3px] w-7 bg-slate-900" />
-        <span className="text-[10px] text-slate-600">
-          Preto — anatomia / limite dental
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <span className="h-[3px] w-7 bg-blue-600" />
-        <span className="text-[10px] text-slate-600">
-          Azul — margem gengival
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <span className="h-[3px] w-7 bg-red-600" />
-        <span className="text-[10px] text-slate-600">
-          Vermelho — referência de sondagem
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================================
- * LEGENDA DOS MARCADORES
- * ========================================================================== */
-
-function MarkersLegend() {
-  return (
-    <div
-      className="
-        flex
-        flex-wrap
-        items-center
-        justify-center
-        gap-x-5
-        gap-y-2
-        rounded-xl
-        bg-slate-50
-        px-4
-        py-3
-      "
-    >
-      <div className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded-full bg-red-500" />
-        <span className="text-[10px] text-slate-600">
-          Sangramento
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <span className="h-3 w-3 rounded-sm bg-yellow-400" />
-        <span className="text-[10px] text-slate-600">
-          Placa
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <span className="h-3 w-3 rotate-45 rounded-sm bg-purple-400" />
-        <span className="text-[10px] text-slate-600">
-          Supuração
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <span className="text-[9px] font-bold text-blue-600">
-          NI
-        </span>
-        <span className="text-[10px] text-slate-600">
-          Nível de inserção
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================================
- * MÉTRICA
- * ========================================================================== */
-
-function Metric({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: string;
-}) {
-  return (
-    <div
-      className="
-        min-w-[150px]
-        flex-1
-        rounded-xl
-        border
-        border-slate-200
-        bg-white
-        px-4
-        py-3
-        text-center
-      "
-    >
-      <div className="text-[10px] font-medium text-slate-500">
-        {label}
-      </div>
-
-      <div
-        className="mt-1 text-lg font-bold"
-        style={{
-          color: accent ?? COLORS.text,
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================================
- * RESUMO
- * ========================================================================== */
-
-function SummaryBar({
-  teeth,
-}: {
-  teeth: ToothData[];
-}) {
-  const summary = useMemo(
-    () => computeSummary(teeth),
-    [teeth]
-  );
-
-  return (
-    <div className="mt-4 flex flex-wrap gap-2">
-      <Metric
-        label="Profundidade média de sondagem"
-        value={`${summary.avgPS.toFixed(1)} mm`}
-      />
-
-      <Metric
-        label="Nível médio de inserção"
-        value={`${summary.avgNI.toFixed(1)} mm`}
-      />
-
-      <Metric
-        label="Sangramento à sondagem"
-        value={`${summary.bopPercent.toFixed(0)}%`}
-        accent={COLORS.red}
-      />
-
-      <Metric
-        label="Índice de placa"
-        value={`${summary.plaquePercent.toFixed(0)}%`}
-        accent="#CA8A04"
-      />
-    </div>
-  );
-}
-
-/* ============================================================================
- * COMPONENTE PRINCIPAL
- * ========================================================================== */
-
 export function Odontogram({
-  initialTeeth,
-  onChange,
-  className,
   examId,
   patientId,
 }: OdontogramProps) {
-  const [teeth, setTeeth] =
-    useState<ToothData[]>(
-      () =>
-        initialTeeth ??
-        createDefaultTeeth()
+  const {
+    createTooth,
+    updateTooth,
+    saveSite,
+    finalizeExam,
+    isCreatingTooth,
+    isUpdatingTooth,
+    isSavingSite,
+    isFinalizingExam,
+  } = usePeriodontia();
+
+  const storageKey = examId
+    ? `gc-odontohub-periodontia-draft-${examId}`
+    : null;
+
+  const [teeth, setTeeth] = useState<Tooth[]>(() => [
+    ...createTeeth(upperTeeth),
+    ...createTeeth(lowerTeeth),
+  ]);
+
+  const [selectedTooth, setSelectedTooth] =
+    useState<number | null>(null);
+
+  const [surface, setSurface] =
+    useState<Surface>("VESTIBULAR");
+
+  const [isSavingExam, setIsSavingExam] =
+    useState(false);
+
+  const [isSaved, setIsSaved] =
+    useState(false);
+
+  const [isOfflineDraft, setIsOfflineDraft] =
+    useState(false);
+
+  const [hasLoadedDraft, setHasLoadedDraft] =
+    useState(false);
+
+  const saveTimerRef =
+    useRef<ReturnType<typeof setTimeout> | null>(
+      null
     );
 
-  const teethByNumber = useMemo(() => {
-    const map =
-      new Map<number, ToothData>();
+  const saveVersionRef = useRef(0);
 
-    for (const tooth of teeth) {
-      map.set(tooth.number, tooth);
+  const selected = useMemo(
+    () =>
+      teeth.find(
+        (tooth) =>
+          tooth.number === selectedTooth
+      ),
+    [teeth, selectedTooth]
+  );
+
+  const selectedIndex = useMemo(
+    () =>
+      teeth.findIndex(
+        (tooth) =>
+          tooth.number === selectedTooth
+      ),
+    [teeth, selectedTooth]
+  );
+
+  /*
+   * ==========================================================
+   * RECUPERAR RASCUNHO LOCAL
+   * ==========================================================
+   */
+
+  useEffect(() => {
+    if (!storageKey) {
+      setHasLoadedDraft(true);
+      return;
     }
 
-    return map;
-  }, [teeth]);
-
-  const commit = useCallback(
-    (next: ToothData[]) => {
-      setTeeth(next);
-      onChange?.(next);
-    },
-    [onChange]
-  );
-
-  const updateTooth = useCallback(
-    (
-      number: number,
-      patch: Partial<ToothData>
-    ) => {
-      const next = teeth.map((tooth) =>
-        tooth.number === number
-          ? {
-              ...tooth,
-              ...patch,
-            }
-          : tooth
+    try {
+      const raw = window.localStorage.getItem(
+        storageKey
       );
 
-      commit(next);
-    },
-    [teeth, commit]
-  );
+      if (raw) {
+        const parsed = JSON.parse(raw);
 
-  const updateSite = useCallback(
-    (
-      number: number,
-      key: SiteKey,
-      patch: Partial<SiteData>
-    ) => {
-      const next = teeth.map((tooth) =>
-        tooth.number === number
-          ? {
-              ...tooth,
-              sites: {
-                ...tooth.sites,
-                [key]: {
-                  ...tooth.sites[key],
-                  ...patch,
-                },
-              },
-            }
+        if (
+          Array.isArray(parsed?.teeth) &&
+          parsed.teeth.length > 0
+        ) {
+          setTeeth(parsed.teeth);
+        }
+
+        if (
+          typeof parsed?.selectedTooth ===
+          "number"
+        ) {
+          setSelectedTooth(
+            parsed.selectedTooth
+          );
+        }
+
+        if (
+          parsed?.surface === "VESTIBULAR" ||
+          parsed?.surface === "LINGUAL"
+        ) {
+          setSurface(parsed.surface);
+        }
+
+        setIsSaved(false);
+        setIsOfflineDraft(true);
+      }
+    } catch (error) {
+      console.error(
+        "ERRO AO RECUPERAR RASCUNHO PERIODONTAL:",
+        error
+      );
+    } finally {
+      setHasLoadedDraft(true);
+    }
+  }, [storageKey]);
+
+  /*
+   * ==========================================================
+   * SALVAR RASCUNHO LOCAL IMEDIATAMENTE
+   * ==========================================================
+   */
+
+  useEffect(() => {
+    if (!storageKey || !hasLoadedDraft) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          teeth,
+          selectedTooth,
+          surface,
+          updatedAt:
+            new Date().toISOString(),
+        })
+      );
+    } catch (error) {
+      console.error(
+        "ERRO AO SALVAR RASCUNHO LOCAL:",
+        error
+      );
+    }
+  }, [
+    teeth,
+    selectedTooth,
+    surface,
+    storageKey,
+    hasLoadedDraft,
+  ]);
+
+  /*
+   * ==========================================================
+   * ATUALIZAÇÃO LOCAL
+   * ==========================================================
+   */
+
+  function updateToothLocal(
+    updater: (tooth: Tooth) => Tooth
+  ) {
+    if (selectedTooth === null) return;
+
+    saveVersionRef.current += 1;
+
+    setTeeth((current) =>
+      current.map((tooth) =>
+        tooth.number === selectedTooth
+          ? updater(tooth)
           : tooth
+      )
+    );
+
+    setIsSaved(false);
+    setIsOfflineDraft(true);
+  }
+
+  function updateStatus(status: ToothStatus) {
+    updateToothLocal((tooth) => ({
+      ...tooth,
+      status,
+    }));
+  }
+
+  function updateSite(
+    point: Point,
+    field: keyof SiteData,
+    value: number | boolean | null
+  ) {
+    updateToothLocal((tooth) => ({
+      ...tooth,
+      sites: {
+        ...tooth.sites,
+        [surface]: {
+          ...tooth.sites[surface],
+          [point]: {
+            ...tooth.sites[surface][point],
+            [field]: value,
+          },
+        },
+      },
+    }));
+  }
+
+  function updateObservation(value: string) {
+    updateToothLocal((tooth) => ({
+      ...tooth,
+      observations: value,
+    }));
+  }
+
+  function updateMobility(value: number) {
+    updateToothLocal((tooth) => ({
+      ...tooth,
+      mobility: value,
+    }));
+  }
+
+  function updateFurcation(
+    type: "buccal" | "lingual",
+    value: number | null
+  ) {
+    updateToothLocal((tooth) => ({
+      ...tooth,
+      [type === "buccal"
+        ? "buccalFurcation"
+        : "lingualFurcation"]: value,
+    }));
+  }
+
+  /*
+   * ==========================================================
+   * SALVAR UM DENTE NO SUPABASE
+   * ==========================================================
+   */
+
+  async function persistTooth(
+    tooth: Tooth
+  ) {
+    if (!examId || !patientId) {
+      return;
+    }
+
+    try {
+      setIsSavingExam(true);
+
+      const savedTooth =
+        await createTooth({
+          examId,
+          toothNumber: tooth.number,
+          status: tooth.status,
+        });
+
+      const hasSuppuration =
+        Object.values(tooth.sites).some(
+          (surfaceSites) =>
+            Object.values(
+              surfaceSites
+            ).some(
+              (site) =>
+                site.suppuration
+            )
+        );
+
+      const hasPlaque =
+        Object.values(tooth.sites).some(
+          (surfaceSites) =>
+            Object.values(
+              surfaceSites
+            ).some(
+              (site) =>
+                site.plaque
+            )
+        );
+
+      await updateTooth({
+        id: savedTooth.id,
+        input: {
+          status: tooth.status,
+          mobility: tooth.mobility,
+          furcationBuccal:
+            tooth.buccalFurcation,
+          furcationLingual:
+            tooth.lingualFurcation,
+          suppuration:
+            hasSuppuration,
+          plaque:
+            hasPlaque,
+          observations:
+            tooth.observations || null,
+        },
+      });
+
+      for (const currentSurface of [
+        "VESTIBULAR",
+        "LINGUAL",
+      ] as Surface[]) {
+        for (const point of points) {
+          const site =
+            tooth.sites[
+              currentSurface
+            ][point];
+
+          const cal =
+            calculateCAL(site);
+
+          await saveSite({
+            toothId: savedTooth.id,
+            surface: currentSurface,
+            point,
+            probingDepth:
+              site.probingDepth,
+            gingivalRecession:
+              site.gingivalRecession,
+            clinicalAttachmentLevel:
+              cal,
+            bleeding:
+              site.bleeding,
+            plaque:
+              site.plaque,
+            suppuration:
+              site.suppuration,
+            observations: null,
+          });
+        }
+      }
+
+      setIsSaved(true);
+      setIsOfflineDraft(false);
+
+      return true;
+    } catch (error) {
+      console.error(
+        `ERRO AO SINCRONIZAR DENTE ${tooth.number}:`,
+        error
       );
 
-      commit(next);
-    },
-    [teeth, commit]
-  );
+      setIsSaved(false);
+      setIsOfflineDraft(true);
+
+      return false;
+    } finally {
+      setIsSavingExam(false);
+    }
+  }
+
+  /*
+   * ==========================================================
+   * AUTOSAVE
+   * ==========================================================
+   */
+
+  useEffect(() => {
+    if (
+      !hasLoadedDraft ||
+      !examId ||
+      !patientId ||
+      selectedTooth === null
+    ) {
+      return;
+    }
+
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+
+    const toothToSave = teeth.find(
+      (tooth) =>
+        tooth.number === selectedTooth
+    );
+
+    if (!toothToSave) {
+      return;
+    }
+
+    const currentVersion =
+      saveVersionRef.current;
+
+    saveTimerRef.current =
+      setTimeout(async () => {
+        if (
+          currentVersion !==
+          saveVersionRef.current
+        ) {
+          return;
+        }
+
+        await persistTooth(
+          toothToSave
+        );
+      }, 700);
+
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(
+          saveTimerRef.current
+        );
+      }
+    };
+  }, [
+    teeth,
+    selectedTooth,
+    examId,
+    patientId,
+    hasLoadedDraft,
+  ]);
+
+  /*
+   * ==========================================================
+   * LIMPAR
+   * ==========================================================
+   */
+
+  function resetOdontogram() {
+    setTeeth([
+      ...createTeeth(upperTeeth),
+      ...createTeeth(lowerTeeth),
+    ]);
+
+    setSelectedTooth(null);
+    setSurface("VESTIBULAR");
+    setIsSaved(false);
+    setIsOfflineDraft(false);
+
+    if (storageKey) {
+      try {
+        window.localStorage.removeItem(
+          storageKey
+        );
+      } catch (error) {
+        console.error(
+          "ERRO AO LIMPAR RASCUNHO:",
+          error
+        );
+      }
+    }
+  }
+
+  /*
+   * ==========================================================
+   * NAVEGAÇÃO
+   * ==========================================================
+   */
+
+  function goToTooth(
+    direction: -1 | 1
+  ) {
+    if (selectedIndex < 0) return;
+
+    const nextIndex =
+      selectedIndex + direction;
+
+    if (
+      nextIndex < 0 ||
+      nextIndex >= teeth.length
+    ) {
+      return;
+    }
+
+    setSelectedTooth(
+      teeth[nextIndex].number
+    );
+  }
+
+  /*
+   * ==========================================================
+   * SALVAR TODOS
+   * ==========================================================
+   */
+
+  async function saveExam() {
+    if (!examId) {
+      console.error(
+        "Não foi possível salvar: examId não informado."
+      );
+      return;
+    }
+
+    if (!patientId) {
+      console.error(
+        "Não foi possível salvar: patientId não informado."
+      );
+      return;
+    }
+
+    if (isSavingExam) return;
+
+    try {
+      setIsSavingExam(true);
+      setIsSaved(false);
+
+      for (const tooth of teeth) {
+        await persistTooth(tooth);
+      }
+
+      setIsSaved(true);
+      setIsOfflineDraft(false);
+
+      console.log(
+        "EXAME PERIODONTAL SINCRONIZADO:",
+        {
+          examId,
+          patientId,
+        }
+      );
+    } catch (error) {
+      console.error(
+        "ERRO AO SALVAR EXAME PERIODONTAL:",
+        error
+      );
+
+      setIsSaved(false);
+      setIsOfflineDraft(true);
+    } finally {
+      setIsSavingExam(false);
+    }
+  }
+
+  /*
+   * ==========================================================
+   * FINALIZAR
+   * ==========================================================
+   */
+
+  async function handleFinalizeExam() {
+    if (!examId) {
+      console.error(
+        "Não foi possível finalizar: examId não informado."
+      );
+      return;
+    }
+
+    if (!patientId) {
+      console.error(
+        "Não foi possível finalizar: patientId não informado."
+      );
+      return;
+    }
+
+    try {
+      await saveExam();
+
+      await finalizeExam(examId);
+
+      setIsSaved(true);
+      setIsOfflineDraft(false);
+
+      if (storageKey) {
+        try {
+          window.localStorage.removeItem(
+            storageKey
+          );
+        } catch {
+          // Não impede a finalização.
+        }
+      }
+    } catch (error) {
+      console.error(
+        "ERRO AO FINALIZAR EXAME PERIODONTAL:",
+        error
+      );
+    }
+  }
+
+  const saving =
+    isSavingExam ||
+    isCreatingTooth ||
+    isUpdatingTooth ||
+    isSavingSite;
 
   return (
-    <div
-      data-exam-id={examId}
-      data-patient-id={patientId}
-      className={[
-        "w-full",
-        "overflow-hidden",
-        "rounded-2xl",
-        "border",
-        "border-slate-200",
-        "bg-white",
-        "p-3",
-        "sm:p-5",
-        className ?? "",
-      ].join(" ")}
-    >
-      {/* CABEÇALHO */}
+    <div className="space-y-6">
+      {/* ======================================================
+          ODONTOGRAMA
+      ======================================================= */}
 
-      <div className="mb-4">
-        <h2 className="text-lg font-bold text-slate-900">
-          Periodontograma
-        </h2>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>
+                Odontograma periodontal
+              </CardTitle>
 
-        <p className="mt-1 text-xs text-slate-500">
-          Registro periodontal clínico por dente e por sítio.
-        </p>
-      </div>
+              <p className="mt-1 text-sm text-text-secondary">
+                Selecione um dente para iniciar
+                a avaliação periodontal.
+              </p>
+            </div>
 
-      {/* ARCADA SUPERIOR */}
+            <div className="flex flex-wrap items-center gap-2">
+              {isOfflineDraft ? (
+                <Badge
+                  variant="secondary"
+                  className="gap-1"
+                >
+                  <CloudOff className="h-3 w-3" />
+                  Rascunho local
+                </Badge>
+              ) : isSaved ? (
+                <Badge
+                  variant="success"
+                  className="gap-1"
+                >
+                  <Cloud className="h-3 w-3" />
+                  Salvo
+                </Badge>
+              ) : null}
 
-      <div className="mb-2 flex items-center gap-2">
-        <div className="h-px flex-1 bg-slate-200" />
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={
+                  resetOdontogram
+                }
+                disabled={saving}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Limpar
+              </Button>
 
-        <span className="whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">
-          Arcada superior
-        </span>
+              <Button
+                type="button"
+                onClick={saveExam}
+                disabled={
+                  saving ||
+                  !examId ||
+                  !patientId
+                }
+              >
+                {saving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : isSaved ? (
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
 
-        <div className="h-px flex-1 bg-slate-200" />
-      </div>
+                {saving
+                  ? "Salvando..."
+                  : isSaved
+                  ? "Salvo"
+                  : "Salvar exame"}
+              </Button>
 
-      <ArchBlock
-        archNumbers={UPPER_ARCH}
-        arch="upper"
-        teethByNumber={teethByNumber}
-        onUpdateTooth={updateTooth}
-        onUpdateSite={updateSite}
-      />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={
+                  handleFinalizeExam
+                }
+                disabled={
+                  saving ||
+                  isFinalizingExam ||
+                  !examId ||
+                  !patientId
+                }
+              >
+                {isFinalizingExam ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                )}
 
-      {/* PLANO OCLUSAL */}
+                {isFinalizingExam
+                  ? "Finalizando..."
+                  : "Finalizar exame"}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
 
-      <div className="my-3 flex items-center gap-3">
-        <div className="h-px flex-1 bg-slate-200" />
+        <CardContent>
+          <div className="overflow-x-auto pb-4">
+            <div className="mx-auto min-w-[850px] space-y-8">
+              {/* SUPERIOR */}
 
-        <span className="whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[8px] font-bold uppercase tracking-[0.18em] text-slate-400">
-          Plano oclusal
-        </span>
+              <div>
+                <p className="mb-4 text-center text-xs font-semibold uppercase tracking-wider text-text-muted">
+                  Arcada superior
+                </p>
 
-        <div className="h-px flex-1 bg-slate-200" />
-      </div>
+                <div className="flex justify-center gap-2">
+                  {teeth
+                    .filter((tooth) =>
+                      upperTeeth.includes(
+                        tooth.number
+                      )
+                    )
+                    .map((tooth) => (
+                      <ToothVisual
+                        key={
+                          tooth.number
+                        }
+                        tooth={tooth}
+                        selected={
+                          selectedTooth ===
+                          tooth.number
+                        }
+                        onClick={() =>
+                          setSelectedTooth(
+                            tooth.number
+                          )
+                        }
+                      />
+                    ))}
+                </div>
+              </div>
 
-      {/* ARCADA INFERIOR */}
+              <div className="mx-auto h-px max-w-4xl bg-border" />
 
-      <div className="mb-2 flex items-center gap-2">
-        <div className="h-px flex-1 bg-slate-200" />
+              {/* INFERIOR */}
 
-        <span className="whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">
-          Arcada inferior
-        </span>
+              <div>
+                <p className="mb-4 text-center text-xs font-semibold uppercase tracking-wider text-text-muted">
+                  Arcada inferior
+                </p>
 
-        <div className="h-px flex-1 bg-slate-200" />
-      </div>
+                <div className="flex justify-center gap-2">
+                  {teeth
+                    .filter((tooth) =>
+                      lowerTeeth.includes(
+                        tooth.number
+                      )
+                    )
+                    .map((tooth) => (
+                      <ToothVisual
+                        key={
+                          tooth.number
+                        }
+                        tooth={tooth}
+                        selected={
+                          selectedTooth ===
+                          tooth.number
+                        }
+                        onClick={() =>
+                          setSelectedTooth(
+                            tooth.number
+                          )
+                        }
+                      />
+                    ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      <ArchBlock
-        archNumbers={LOWER_ARCH}
-        arch="lower"
-        teethByNumber={teethByNumber}
-        onUpdateTooth={updateTooth}
-        onUpdateSite={updateSite}
-      />
+      {/* ======================================================
+          DENTE SELECIONADO
+      ======================================================= */}
 
-      {/* LEGENDA DAS LINHAS */}
+      <AnimatePresence mode="wait">
+        {selected && (
+          <motion.div
+            key={selected.number}
+            initial={{
+              opacity: 0,
+              y: 12,
+            }}
+            animate={{
+              opacity: 1,
+              y: 0,
+            }}
+            exit={{
+              opacity: 0,
+              y: -8,
+            }}
+            transition={{
+              duration: 0.2,
+            }}
+            className="space-y-6"
+          >
+            {/* CABEÇALHO */}
 
-      <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-4 py-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Legenda do periodontograma
-          </span>
-        </div>
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <CardTitle>
+                        Dente{" "}
+                        {selected.number}
+                      </CardTitle>
 
-        <PeriodontalLinesLegend />
-      </div>
+                      <Badge
+                        variant={
+                          selected.status ===
+                          "PRESENTE"
+                            ? "success"
+                            : selected.status ===
+                              "IMPLANTE"
+                            ? "primary"
+                            : "error"
+                        }
+                      >
+                        {selected.status ===
+                        "PRESENTE"
+                          ? "Presente"
+                          : selected.status ===
+                            "IMPLANTE"
+                          ? "Implante"
+                          : "Ausente"}
+                      </Badge>
+                    </div>
 
-      {/* LEGENDA DOS MARCADORES */}
+                    <p className="mt-1 text-sm text-text-secondary">
+                      Avaliação periodontal
+                      detalhada
+                    </p>
+                  </div>
 
-      <div className="mt-2">
-        <MarkersLegend />
-      </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={
+                        selectedIndex <= 0
+                      }
+                      onClick={() =>
+                        goToTooth(-1)
+                      }
+                    >
+                      <ChevronLeft className="mr-1 h-4 w-4" />
+                      Anterior
+                    </Button>
 
-      {/* RESUMO */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={
+                        selectedIndex >=
+                        teeth.length - 1
+                      }
+                      onClick={() =>
+                        goToTooth(1)
+                      }
+                    >
+                      Próximo
+                      <ChevronRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
 
-      <SummaryBar teeth={teeth} />
+              <CardContent>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <Button
+                    type="button"
+                    variant={
+                      selected.status ===
+                      "PRESENTE"
+                        ? "primary"
+                        : "secondary"
+                    }
+                    onClick={() =>
+                      updateStatus(
+                        "PRESENTE"
+                      )
+                    }
+                  >
+                    Presente
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant={
+                      selected.status ===
+                      "AUSENTE"
+                        ? "primary"
+                        : "secondary"
+                    }
+                    onClick={() =>
+                      updateStatus(
+                        "AUSENTE"
+                      )
+                    }
+                  >
+                    Ausente
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant={
+                      selected.status ===
+                      "IMPLANTE"
+                        ? "primary"
+                        : "secondary"
+                    }
+                    onClick={() =>
+                      updateStatus(
+                        "IMPLANTE"
+                      )
+                    }
+                  >
+                    Implante
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* SONDAGEM */}
+
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle>
+                      Sondagem periodontal
+                    </CardTitle>
+
+                    <p className="mt-1 text-sm text-text-secondary">
+                      Registre a profundidade
+                      de sondagem em cada sítio.
+                    </p>
+                  </div>
+
+                  <div className="flex rounded-lg border border-border p-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={
+                        surface ===
+                        "VESTIBULAR"
+                          ? "primary"
+                          : "ghost"
+                      }
+                      onClick={() =>
+                        setSurface(
+                          "VESTIBULAR"
+                        )
+                      }
+                    >
+                      Vestibular
+                    </Button>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={
+                        surface ===
+                        "LINGUAL"
+                          ? "primary"
+                          : "ghost"
+                      }
+                      onClick={() =>
+                        setSurface(
+                          "LINGUAL"
+                        )
+                      }
+                    >
+                      Lingual
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[650px] border-collapse">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-text-muted">
+                          Sítio
+                        </th>
+
+                        {points.map(
+                          (point) => (
+                            <th
+                              key={point}
+                              className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-text-muted"
+                            >
+                              {point ===
+                              "MESIAL"
+                                ? "M"
+                                : point ===
+                                  "CENTRAL"
+                                ? "C"
+                                : "D"}
+                            </th>
+                          )
+                        )}
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      <tr className="border-b border-border/50">
+                        <td className="px-3 py-3 text-sm font-medium text-text-primary">
+                          Profundidade
+                        </td>
+
+                        {points.map(
+                          (point) => (
+                            <td
+                              key={point}
+                              className="px-3 py-3"
+                            >
+                              <NumberInput
+                                value={
+                                  selected
+                                    .sites[
+                                      surface
+                                    ][
+                                      point
+                                    ]
+                                      .probingDepth
+                                }
+                                onChange={(
+                                  value
+                                ) =>
+                                  updateSite(
+                                    point,
+                                    "probingDepth",
+                                    value
+                                  )
+                                }
+                              />
+                            </td>
+                          )
+                        )}
+                      </tr>
+
+                      <tr className="border-b border-border/50">
+                        <td className="px-3 py-3 text-sm font-medium text-text-primary">
+                          Recessão
+                        </td>
+
+                        {points.map(
+                          (point) => (
+                            <td
+                              key={point}
+                              className="px-3 py-3"
+                            >
+                              <NumberInput
+                                value={
+                                  selected
+                                    .sites[
+                                      surface
+                                    ][
+                                      point
+                                    ]
+                                      .gingivalRecession
+                                }
+                                onChange={(
+                                  value
+                                ) =>
+                                  updateSite(
+                                    point,
+                                    "gingivalRecession",
+                                    value
+                                  )
+                                }
+                              />
+                            </td>
+                          )
+                        )}
+                      </tr>
+
+                      <tr>
+                        <td className="px-3 py-3 text-sm font-medium text-text-primary">
+                          NIC
+                        </td>
+
+                        {points.map(
+                          (point) => {
+                            const site =
+                              selected
+                                .sites[
+                                surface
+                              ][point];
+
+                            const cal =
+                              calculateCAL(
+                                site
+                              );
+
+                            return (
+                              <td
+                                key={point}
+                                className="px-3 py-3 text-center"
+                              >
+                                <div className="flex h-9 items-center justify-center rounded-md border border-border bg-background text-sm font-semibold text-text-primary">
+                                  {cal ??
+                                    "—"}
+                                </div>
+                              </td>
+                            );
+                          }
+                        )}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* MARCADORES */}
+
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  Marcadores clínicos
+                </CardTitle>
+
+                <p className="mt-1 text-sm text-text-secondary">
+                  Sangramento, placa e supuração
+                  por sítio.
+                </p>
+              </CardHeader>
+
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {points.map(
+                    (point) => {
+                      const site =
+                        selected.sites[
+                          surface
+                        ][point];
+
+                      return (
+                        <div
+                          key={point}
+                          className="rounded-xl border border-border p-4"
+                        >
+                          <div className="mb-3 flex items-center justify-between">
+                            <span className="text-sm font-semibold text-text-primary">
+                              {point ===
+                              "MESIAL"
+                                ? "Mesial"
+                                : point ===
+                                  "CENTRAL"
+                                ? "Central"
+                                : "Distal"}
+                            </span>
+
+                            {site.bleeding && (
+                              <CircleAlert className="h-4 w-4 text-error" />
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateSite(
+                                  point,
+                                  "bleeding",
+                                  !site.bleeding
+                                )
+                              }
+                              className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition ${
+                                site.bleeding
+                                  ? "border-error/50 bg-error/10 text-error"
+                                  : "border-border text-text-secondary hover:border-primary/40"
+                              }`}
+                            >
+                              <span>
+                                Sangramento
+                              </span>
+
+                              {site.bleeding && (
+                                <Check className="h-4 w-4" />
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateSite(
+                                  point,
+                                  "plaque",
+                                  !site.plaque
+                                )
+                              }
+                              className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition ${
+                                site.plaque
+                                  ? "border-primary/50 bg-primary/10 text-primary"
+                                  : "border-border text-text-secondary hover:border-primary/40"
+                              }`}
+                            >
+                              <span>
+                                Placa
+                              </span>
+
+                              {site.plaque && (
+                                <Check className="h-4 w-4" />
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateSite(
+                                  point,
+                                  "suppuration",
+                                  !site.suppuration
+                                )
+                              }
+                              className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition ${
+                                site.suppuration
+                                  ? "border-secondary/50 bg-secondary/10 text-secondary"
+                                  : "border-border text-text-secondary hover:border-primary/40"
+                              }`}
+                            >
+                              <span>
+                                Supuração
+                              </span>
+
+                              {site.suppuration && (
+                                <Check className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* MOBILIDADE E FURCA */}
+
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  Mobilidade e furca
+                </CardTitle>
+              </CardHeader>
+
+              <CardContent>
+                <div className="grid gap-6 md:grid-cols-3">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-text-primary">
+                      Mobilidade
+                    </label>
+
+                    <select
+                      value={
+                        selected.mobility
+                      }
+                      onChange={(event) =>
+                        updateMobility(
+                          Number(
+                            event.target
+                              .value
+                          )
+                        )
+                      }
+                      className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-text-primary outline-none focus:border-primary"
+                    >
+                      <option value={0}>
+                        0 — Normal
+                      </option>
+
+                      <option value={1}>
+                        1 — Grau I
+                      </option>
+
+                      <option value={2}>
+                        2 — Grau II
+                      </option>
+
+                      <option value={3}>
+                        3 — Grau III
+                      </option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-text-primary">
+                      Furca vestibular
+                    </label>
+
+                    <NumberInput
+                      value={
+                        selected.buccalFurcation
+                      }
+                      onChange={(value) =>
+                        updateFurcation(
+                          "buccal",
+                          value
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-text-primary">
+                      Furca lingual
+                    </label>
+
+                    <NumberInput
+                      value={
+                        selected.lingualFurcation
+                      }
+                      onChange={(value) =>
+                        updateFurcation(
+                          "lingual",
+                          value
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* OBSERVAÇÕES */}
+
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  Observações clínicas
+                </CardTitle>
+              </CardHeader>
+
+              <CardContent>
+                <textarea
+                  value={
+                    selected.observations
+                  }
+                  onChange={(event) =>
+                    updateObservation(
+                      event.target.value
+                    )
+                  }
+                  rows={4}
+                  placeholder="Digite observações sobre este dente..."
+                  className="w-full resize-none rounded-xl border border-border bg-background p-3 text-sm text-text-primary outline-none transition placeholder:text-text-muted focus:border-primary focus:ring-1 focus:ring-primary/20"
+                />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-
-export default Odontogram;
-
