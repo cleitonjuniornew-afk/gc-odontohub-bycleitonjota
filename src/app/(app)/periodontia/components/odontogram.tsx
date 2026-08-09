@@ -1,1106 +1,491 @@
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
-
-export type ToothStatus = "PRESENTE" | "AUSENTE" | "IMPLANTE";
-
-export type SiteKey = "vm" | "vc" | "vd" | "lm" | "lc" | "ld";
-
-export interface SiteData {
-  mg: number | null;
-  ps: number | null;
-  bop: boolean;
-  plaque: boolean;
-  suppuration: boolean;
-}
-
-export interface ToothData {
-  number: number;
-  status: ToothStatus;
-  mobility: number;
-  buccalFurcation: number;
-  lingualFurcation: number;
-  sites: Record<SiteKey, SiteData>;
-}
+import React, { useMemo, useState } from "react";
 
 export interface OdontogramProps {
-  initialTeeth?: ToothData[];
-  onChange?: (teeth: ToothData[]) => void;
-  teethImageBasePath?: string;
+  examId?: string;
+  patientId?: string;
   className?: string;
 }
 
-const UPPER_ARCH = [
-  18, 17, 16, 15, 14, 13, 12, 11,
-  21, 22, 23, 24, 25, 26, 27, 28,
-];
+type ToothStatus = "PRESENTE" | "AUSENTE" | "IMPLANTE";
 
-const LOWER_ARCH = [
-  48, 47, 46, 45, 44, 43, 42, 41,
-  31, 32, 33, 34, 35, 36, 37, 38,
-];
-
-const VESTIBULAR_SITES: SiteKey[] = ["vm", "vc", "vd"];
-const LINGUAL_SITES: SiteKey[] = ["lm", "lc", "ld"];
-
-const SITE_LABEL: Record<SiteKey, string> = {
-  vm: "MV",
-  vc: "V",
-  vd: "DV",
-  lm: "ML",
-  lc: "L",
-  ld: "DL",
+type Tooth = {
+  number: number;
+  status: ToothStatus;
 };
 
-const SEVERITY = {
-  healthy: "#3FB27F",
-  mild: "#E0B33B",
-  moderate: "#E08A3B",
-  severe: "#E24C4C",
-};
+const UPPER_LEFT = [18, 17, 16, 15, 14, 13, 12, 11];
+const UPPER_RIGHT = [21, 22, 23, 24, 25, 26, 27, 28];
 
-function severityColor(ps: number | null) {
-  const value = ps ?? 0;
+const LOWER_LEFT = [48, 47, 46, 45, 44, 43, 42, 41];
+const LOWER_RIGHT = [31, 32, 33, 34, 35, 36, 37, 38];
 
-  if (value <= 3) {
-    return SEVERITY.healthy;
-  }
-
-  if (value <= 5) {
-    return SEVERITY.mild;
-  }
-
-  if (value <= 7) {
-    return SEVERITY.moderate;
-  }
-
-  return SEVERITY.severe;
+function createTeeth(): Tooth[] {
+  return [
+    ...UPPER_LEFT,
+    ...UPPER_RIGHT,
+    ...LOWER_LEFT,
+    ...LOWER_RIGHT,
+  ].map((number) => ({
+    number,
+    status: "PRESENTE",
+  }));
 }
 
-type ToothGroup = "incisor" | "canine" | "premolar" | "molar";
+function toothType(number: number) {
+  const last = number % 10;
 
-function getToothGroup(fdi: number): ToothGroup {
-  const last = fdi % 10;
-
-  if (last === 1 || last === 2) {
-    return "incisor";
-  }
-
-  if (last === 3) {
-    return "canine";
-  }
-
-  if (last === 4 || last === 5) {
-    return "premolar";
-  }
-
+  if (last === 1 || last === 2) return "incisor";
+  if (last === 3) return "canine";
+  if (last === 4 || last === 5) return "premolar";
   return "molar";
 }
 
-function hasFurca(group: ToothGroup) {
-  return group === "premolar" || group === "molar";
-}
-
-function emptySite(): SiteData {
-  return {
-    mg: null,
-    ps: null,
-    bop: false,
-    plaque: false,
-    suppuration: false,
-  };
-}
-
-function createDefaultTooth(number: number): ToothData {
-  return {
-    number,
-    status: "PRESENTE",
-    mobility: 0,
-    buccalFurcation: 0,
-    lingualFurcation: 0,
-    sites: {
-      vm: emptySite(),
-      vc: emptySite(),
-      vd: emptySite(),
-      lm: emptySite(),
-      lc: emptySite(),
-      ld: emptySite(),
-    },
-  };
-}
-
-function createDefaultTeeth(): ToothData[] {
-  return [...UPPER_ARCH, ...LOWER_ARCH].map(createDefaultTooth);
-}
-
-function computeNI(site: SiteData): number | null {
-  if (site.ps === null) {
-    return null;
-  }
-
-  const mg = site.mg ?? 0;
-
-  return site.ps - mg;
-}
-
-function computeSummary(teeth: ToothData[]) {
-  let psSum = 0;
-  let psCount = 0;
-
-  let niSum = 0;
-  let niCount = 0;
-
-  let siteCount = 0;
-  let bopCount = 0;
-  let plaqueCount = 0;
-
-  for (const tooth of teeth) {
-    if (tooth.status === "AUSENTE") {
-      continue;
-    }
-
-    const sites = [...VESTIBULAR_SITES, ...LINGUAL_SITES];
-
-    for (const key of sites) {
-      const site = tooth.sites[key];
-
-      const measured =
-        site.ps !== null || site.mg !== null;
-
-      if (!measured) {
-        continue;
-      }
-
-      siteCount++;
-
-      if (site.ps !== null) {
-        psSum += site.ps;
-        psCount++;
-      }
-
-      const ni = computeNI(site);
-
-      if (ni !== null) {
-        niSum += ni;
-        niCount++;
-      }
-
-      if (site.bop) {
-        bopCount++;
-      }
-
-      if (site.plaque) {
-        plaqueCount++;
-      }
-    }
-  }
-
-  return {
-    avgPS: psCount > 0 ? psSum / psCount : 0,
-    avgNI: niCount > 0 ? niSum / niCount : 0,
-    bopPercent:
-      siteCount > 0 ? (bopCount / siteCount) * 100 : 0,
-    plaquePercent:
-      siteCount > 0 ? (plaqueCount / siteCount) * 100 : 0,
-  };
-}
-
-function MiniNumberInput({
-  value,
-  onChange,
-  placeholder,
-  allowNegative = false,
-  colorHint,
-  ariaLabel,
-}: {
-  value: number | null;
-  onChange: (value: number | null) => void;
-  placeholder: string;
-  allowNegative?: boolean;
-  colorHint?: string;
-  ariaLabel: string;
-}) {
-  return (
-    <input
-      type="number"
-      aria-label={ariaLabel}
-      value={value ?? ""}
-      placeholder={placeholder}
-      min={allowNegative ? -9 : 0}
-      max={12}
-      step={1}
-      onFocus={(event) => {
-        event.currentTarget.select();
-      }}
-      onChange={(event) => {
-        const raw = event.target.value;
-
-        if (raw === "") {
-          onChange(null);
-          return;
-        }
-
-        const number = Number(raw);
-
-        if (Number.isNaN(number)) {
-          return;
-        }
-
-        const minimum = allowNegative ? -9 : 0;
-        const maximum = 12;
-
-        const limited = Math.max(
-          minimum,
-          Math.min(maximum, number)
-        );
-
-        onChange(limited);
-      }}
-      className={[
-        "w-8 h-6",
-        "text-[10px]",
-        "text-center",
-        "rounded-sm",
-        "bg-[#0B1220]",
-        "border border-slate-700",
-        "text-slate-100",
-        "focus:outline-none",
-        "focus:ring-1",
-        "focus:ring-amber-400/70",
-        "[appearance:textfield]",
-        "[&::-webkit-outer-spin-button]:appearance-none",
-        "[&::-webkit-inner-spin-button]:appearance-none",
-      ].join(" ")}
-      style={{
-        borderColor: colorHint ?? undefined,
-        color: colorHint ?? undefined,
-      }}
-    />
-  );
-}
-
-function SiteColumn({
-  site,
-  label,
-  onChange,
-  disabled,
-}: {
-  site: SiteData;
-  label: string;
-  onChange: (patch: Partial<SiteData>) => void;
-  disabled?: boolean;
-}) {
-  const ni = computeNI(site);
-
-  const psColor =
-    site.ps !== null
-      ? severityColor(site.ps)
-      : undefined;
-
-  return (
-    <div
-      className={[
-        "flex",
-        "flex-col",
-        "items-center",
-        "gap-1",
-        disabled ? "opacity-30 pointer-events-none" : "",
-      ].join(" ")}
-    >
-      <span className="text-[8px] font-medium text-slate-500">
-        {label}
-      </span>
-
-      <MiniNumberInput
-        ariaLabel={`Margem gengival ${label}`}
-        value={site.mg}
-        placeholder="MG"
-        allowNegative
-        onChange={(value) => {
-          onChange({ mg: value });
-        }}
-      />
-
-      <MiniNumberInput
-        ariaLabel={`Profundidade de sondagem ${label}`}
-        value={site.ps}
-        placeholder="PS"
-        colorHint={psColor}
-        onChange={(value) => {
-          onChange({ ps: value });
-        }}
-      />
-
-      {ni !== null && (
-        <span
-          className="text-[8px] font-semibold"
-          style={{
-            color: severityColor(site.ps),
-          }}
-        >
-          NI {ni}
-        </span>
-      )}
-
-      <button
-        type="button"
-        title="Sangramento à sondagem"
-        aria-label={`Sangramento ${label}`}
-        aria-pressed={site.bop}
-        onClick={() => {
-          onChange({
-            bop: !site.bop,
-          });
-        }}
-        className={[
-          "w-3 h-3",
-          "rounded-full",
-          "border",
-          "transition-colors",
-          site.bop
-            ? "bg-[#E24C4C] border-[#E24C4C]"
-            : "bg-transparent border-slate-600",
-        ].join(" ")}
-      />
-
-      <button
-        type="button"
-        title="Placa"
-        aria-label={`Placa ${label}`}
-        aria-pressed={site.plaque}
-        onClick={() => {
-          onChange({
-            plaque: !site.plaque,
-          });
-        }}
-        className={[
-          "w-3 h-3",
-          "rounded-sm",
-          "border",
-          "transition-colors",
-          site.plaque
-            ? "bg-[#E0B33B] border-[#E0B33B]"
-            : "bg-transparent border-slate-600",
-        ].join(" ")}
-      />
-
-      <button
-        type="button"
-        title="Supuração"
-        aria-label={`Supuração ${label}`}
-        aria-pressed={site.suppuration}
-        onClick={() => {
-          onChange({
-            suppuration: !site.suppuration,
-          });
-        }}
-        className={[
-          "w-3 h-3",
-          "rotate-45",
-          "border",
-          "transition-colors",
-          site.suppuration
-            ? "bg-[#C9A5E8] border-[#C9A5E8]"
-            : "bg-transparent border-slate-600",
-        ].join(" ")}
-      />
-    </div>
-  );
-}
-
-function ToothImage({
+function ToothShape({
   number,
-  surface,
   status,
-  basePath,
+  selected,
+  upper,
+  onClick,
 }: {
   number: number;
-  surface: "v" | "l";
   status: ToothStatus;
-  basePath: string;
+  selected: boolean;
+  upper: boolean;
+  onClick: () => void;
 }) {
-  if (status === "AUSENTE") {
-    return (
-      <div className="w-12 h-20 flex items-center justify-center">
-        <span className="text-2xl text-red-500/70">
-          ×
-        </span>
-      </div>
-    );
-  }
+  const type = toothType(number);
 
-  const imagePath =
-    `${basePath}/${number}${surface}.png`;
+  const width =
+    type === "incisor"
+      ? 30
+      : type === "canine"
+        ? 32
+        : type === "premolar"
+          ? 36
+          : 40;
+
+  const height =
+    type === "incisor"
+      ? 54
+      : type === "canine"
+        ? 58
+        : type === "premolar"
+          ? 61
+          : 64;
+
+  const centerX = width / 2;
+
+  const fill =
+    status === "AUSENTE"
+      ? "rgba(100,116,139,0.08)"
+      : status === "IMPLANTE"
+        ? "rgba(148,163,184,0.35)"
+        : selected
+          ? "#F8FAFC"
+          : "#E8EDF2";
+
+  const stroke = selected ? "#38BDF8" : "#94A3B8";
+
+  const crownPath =
+    type === "incisor"
+      ? `
+        M ${centerX - width * 0.30} ${height * 0.18}
+        Q ${centerX} ${height * 0.03} ${centerX + width * 0.30} ${height * 0.18}
+        L ${centerX + width * 0.36} ${height * 0.62}
+        Q ${centerX} ${height * 0.82} ${centerX - width * 0.36} ${height * 0.62}
+        Z
+      `
+      : type === "canine"
+        ? `
+          M ${centerX - width * 0.32} ${height * 0.20}
+          Q ${centerX} ${height * 0.02} ${centerX + width * 0.32} ${height * 0.20}
+          L ${centerX + width * 0.37} ${height * 0.62}
+          Q ${centerX} ${height * 0.82} ${centerX - width * 0.37} ${height * 0.62}
+          Z
+        `
+        : `
+          M ${centerX - width * 0.38} ${height * 0.18}
+          Q ${centerX - width * 0.18} ${height * 0.02} ${centerX} ${height * 0.15}
+          Q ${centerX + width * 0.18} ${height * 0.02} ${centerX + width * 0.38} ${height * 0.18}
+          L ${centerX + width * 0.39} ${height * 0.62}
+          Q ${centerX} ${height * 0.84} ${centerX - width * 0.39} ${height * 0.62}
+          Z
+        `;
+
+  const rootY = upper ? height * 0.62 : height * 0.38;
+  const rootDirection = upper ? 1 : -1;
 
   return (
-    <img
-      src={imagePath}
-      alt={`Dente ${number} — ${
-        surface === "v"
-          ? "vista vestibular"
-          : "vista lingual"
-      }`}
-      className="
-        w-12
-        h-20
-        object-contain
-        select-none
-        pointer-events-none
-      "
-      style={
-        status === "IMPLANTE"
-          ? {
-              filter:
-                "grayscale(0.4) saturate(0.6) brightness(1.08) contrast(1.05)",
-            }
-          : undefined
-      }
-      draggable={false}
-    />
-  );
-}
-
-function ToothControls({
-  tooth,
-  onUpdate,
-}: {
-  tooth: ToothData;
-  onUpdate: (patch: Partial<ToothData>) => void;
-}) {
-  const group = getToothGroup(tooth.number);
-
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <select
-        aria-label={`Status do dente ${tooth.number}`}
-        value={tooth.status}
-        onChange={(event) => {
-          onUpdate({
-            status: event.target.value as ToothStatus,
-          });
-        }}
-        className="
-          text-[8px]
-          bg-[#0B1220]
-          border border-slate-700
-          rounded-sm
-          text-slate-200
-          px-1
-          py-1
-          w-14
-        "
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Dente ${number}`}
+      className="group relative flex shrink-0 flex-col items-center justify-center bg-transparent p-0 outline-none"
+      style={{
+        width: width + 10,
+        height: height + 34,
+      }}
+    >
+      <svg
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className="overflow-visible transition-transform duration-200 group-hover:scale-105"
       >
-        <option value="PRESENTE">
-          Pres.
-        </option>
-
-        <option value="AUSENTE">
-          Aus.
-        </option>
-
-        <option value="IMPLANTE">
-          Impl.
-        </option>
-      </select>
-
-      {tooth.status !== "AUSENTE" && (
-        <div
-          className="flex items-center gap-1"
-          title="Mobilidade"
-        >
-          {[0, 1, 2, 3].map((grade) => (
-            <button
-              key={grade}
-              type="button"
-              aria-label={`Mobilidade grau ${grade} — dente ${tooth.number}`}
-              aria-pressed={tooth.mobility === grade}
-              onClick={() => {
-                onUpdate({
-                  mobility: grade,
-                });
-              }}
-              className={[
-                "w-4 h-4",
-                "rounded-full",
-                "text-[7px]",
-                "flex",
-                "items-center",
-                "justify-center",
-                "border",
-                tooth.mobility === grade
-                  ? "bg-amber-400 border-amber-400 text-[#0B1220]"
-                  : "border-slate-600 text-slate-500",
-              ].join(" ")}
-            >
-              {grade}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {tooth.status === "PRESENTE" &&
-        hasFurca(group) && (
-          <div
-            className="flex items-center gap-1"
-            title="Furca vestibular / lingual"
+        <defs>
+          <linearGradient
+            id={`tooth-${number}`}
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="1"
           >
-            <select
-              aria-label={`Furca vestibular — dente ${tooth.number}`}
-              value={tooth.buccalFurcation}
-              onChange={(event) => {
-                onUpdate({
-                  buccalFurcation:
-                    Number(event.target.value),
-                });
-              }}
-              className="
-                text-[7px]
-                bg-[#0B1220]
-                border border-slate-700
-                rounded-sm
-                text-slate-300
-                w-6
-                h-5
-              "
-            >
-              {[0, 1, 2, 3].map((grade) => (
-                <option
-                  key={grade}
-                  value={grade}
-                >
-                  {grade}
-                </option>
-              ))}
-            </select>
-
-            <span className="text-[7px] text-slate-600">
-              /
-            </span>
-
-            <select
-              aria-label={`Furca lingual — dente ${tooth.number}`}
-              value={tooth.lingualFurcation}
-              onChange={(event) => {
-                onUpdate({
-                  lingualFurcation:
-                    Number(event.target.value),
-                });
-              }}
-              className="
-                text-[7px]
-                bg-[#0B1220]
-                border border-slate-700
-                rounded-sm
-                text-slate-300
-                w-6
-                h-5
-              "
-            >
-              {[0, 1, 2, 3].map((grade) => (
-                <option
-                  key={grade}
-                  value={grade}
-                >
-                  {grade}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-    </div>
-  );
-}
-
-function ToothColumn({
-  tooth,
-  arch,
-  basePath,
-  onUpdateTooth,
-  onUpdateSite,
-}: {
-  tooth: ToothData;
-  arch: "upper" | "lower";
-  basePath: string;
-  onUpdateTooth: (patch: Partial<ToothData>) => void;
-  onUpdateSite: (
-    key: SiteKey,
-    patch: Partial<SiteData>
-  ) => void;
-}) {
-  const disabledSites =
-    tooth.status === "AUSENTE";
-
-  const vestibularBlock = (
-    <div className="flex items-start justify-center gap-1">
-      {VESTIBULAR_SITES.map((key) => (
-        <SiteColumn
-          key={key}
-          site={tooth.sites[key]}
-          label={SITE_LABEL[key]}
-          disabled={disabledSites}
-          onChange={(patch) => {
-            onUpdateSite(key, patch);
-          }}
-        />
-      ))}
-    </div>
-  );
-
-  const lingualBlock = (
-    <div className="flex items-start justify-center gap-1">
-      {LINGUAL_SITES.map((key) => (
-        <SiteColumn
-          key={key}
-          site={tooth.sites[key]}
-          label={SITE_LABEL[key]}
-          disabled={disabledSites}
-          onChange={(patch) => {
-            onUpdateSite(key, patch);
-          }}
-        />
-      ))}
-    </div>
-  );
-
-  return (
-    <div className="flex flex-col items-center min-w-[86px]">
-      {arch === "upper"
-        ? vestibularBlock
-        : lingualBlock}
-
-      <div
-        className="
-          relative
-          flex
-          flex-col
-          items-center
-          justify-center
-          my-2
-        "
-      >
-        <ToothImage
-          number={tooth.number}
-          surface={
-            arch === "upper"
-              ? "v"
-              : "l"
-          }
-          status={tooth.status}
-          basePath={basePath}
-        />
-
-        <span
-          className="
-            absolute
-            bottom-[-2px]
-            text-[10px]
-            font-semibold
-            text-slate-300
-          "
-        >
-          {tooth.number}
-        </span>
-      </div>
-
-      <ToothControls
-        tooth={tooth}
-        onUpdate={onUpdateTooth}
-      />
-
-      {arch === "upper"
-        ? lingualBlock
-        : vestibularBlock}
-    </div>
-  );
-}
-
-function ArchBlock({
-  archNumbers,
-  arch,
-  teethByNumber,
-  basePath,
-  onUpdateTooth,
-  onUpdateSite,
-}: {
-  archNumbers: number[];
-  arch: "upper" | "lower";
-  teethByNumber: Map<number, ToothData>;
-  basePath: string;
-  onUpdateTooth: (
-    number: number,
-    patch: Partial<ToothData>
-  ) => void;
-  onUpdateSite: (
-    number: number,
-    key: SiteKey,
-    patch: Partial<SiteData>
-  ) => void;
-}) {
-  return (
-    <div className="w-full overflow-x-auto">
-      <div className="flex justify-center min-w-max px-2">
-        {archNumbers.map((number) => {
-          const tooth =
-            teethByNumber.get(number);
-
-          if (!tooth) {
-            return null;
-          }
-
-          return (
-            <ToothColumn
-              key={number}
-              tooth={tooth}
-              arch={arch}
-              basePath={basePath}
-              onUpdateTooth={(patch) => {
-                onUpdateTooth(
-                  number,
-                  patch
-                );
-              }}
-              onUpdateSite={(key, patch) => {
-                onUpdateSite(
-                  number,
-                  key,
-                  patch
-                );
-              }}
+            <stop offset="0%" stopColor="#FFFFFF" />
+            <stop offset="55%" stopColor={fill} />
+            <stop offset="100%" stopColor="#CBD5E1" />
+          </linearGradient>
+          <filter id={`shadow-${number}`}>
+            <feDropShadow
+              dx="0"
+              dy="2"
+              stdDeviation="1.5"
+              floodColor="#020617"
+              floodOpacity="0.55"
             />
-          );
-        })}
-      </div>
-    </div>
+          </filter>
+        </defs>
+
+        <path
+          d={crownPath}
+          fill={
+            status === "PRESENTE"
+              ? `url(#tooth-${number})`
+              : fill
+          }
+          stroke={stroke}
+          strokeWidth={selected ? 2 : 1}
+          filter={`url(#shadow-${number})`}
+        />
+
+        {status === "PRESENTE" && (
+          <>
+            <ellipse
+              cx={centerX}
+              cy={height * 0.39}
+              rx={width * 0.22}
+              ry={height * 0.12}
+              fill="rgba(148,163,184,0.16)"
+            />
+
+            <path
+              d={`M ${centerX - width * 0.20} ${height * 0.45}
+                  Q ${centerX} ${height * 0.54}
+                  ${centerX + width * 0.20} ${height * 0.45}`}
+              fill="none"
+              stroke="rgba(100,116,139,0.45)"
+              strokeWidth="1"
+            />
+
+            <path
+              d={`M ${centerX} ${rootY}
+                  L ${centerX - width * 0.12} ${rootY + rootDirection * height * 0.30}
+                  Q ${centerX} ${rootY + rootDirection * height * 0.38}
+                  ${centerX + width * 0.12} ${rootY + rootDirection * height * 0.30}
+                  Z`}
+              fill="#D8DEE5"
+              stroke="#94A3B8"
+              strokeWidth="0.7"
+            />
+
+            {type === "molar" && (
+              <>
+                <circle
+                  cx={centerX - width * 0.17}
+                  cy={height * 0.34}
+                  r={2.2}
+                  fill="rgba(100,116,139,0.35)"
+                />
+                <circle
+                  cx={centerX + width * 0.17}
+                  cy={height * 0.34}
+                  r={2.2}
+                  fill="rgba(100,116,139,0.35)"
+                />
+              </>
+            )}
+          </>
+        )}
+
+        {status === "AUSENTE" && (
+          <path
+            d={`M ${width * 0.18} ${height * 0.20}
+                L ${width * 0.82} ${height * 0.72}
+                M ${width * 0.82} ${height * 0.20}
+                L ${width * 0.18} ${height * 0.72}`}
+            stroke="#64748B"
+            strokeWidth="2"
+          />
+        )}
+
+        {status === "IMPLANTE" && (
+          <>
+            <rect
+              x={centerX - width * 0.14}
+              y={height * 0.28}
+              width={width * 0.28}
+              height={height * 0.40}
+              rx="2"
+              fill="#94A3B8"
+            />
+            <path
+              d={`M ${centerX - width * 0.13} ${height * 0.35}
+                  H ${centerX + width * 0.13}
+                  M ${centerX - width * 0.13} ${height * 0.45}
+                  H ${centerX + width * 0.13}
+                  M ${centerX - width * 0.13} ${height * 0.55}
+                  H ${centerX + width * 0.13}`}
+              stroke="#334155"
+              strokeWidth="1"
+            />
+          </>
+        )}
+      </svg>
+
+      <span
+        className={`absolute bottom-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+          selected
+            ? "bg-sky-400/15 text-sky-300"
+            : "text-slate-500"
+        }`}
+      >
+        {number}
+      </span>
+    </button>
   );
 }
 
-function Metric({
-  label,
-  value,
-  accent,
+function ArchRow({
+  teeth,
+  upper,
+  selectedTooth,
+  onSelect,
 }: {
-  label: string;
-  value: string;
-  accent?: string;
+  teeth: Tooth[];
+  upper: boolean;
+  selectedTooth: number | null;
+  onSelect: (number: number) => void;
 }) {
   return (
     <div
-      className="
-        flex-1
-        min-w-[150px]
-        rounded-xl
-        border border-slate-800
-        bg-[#0B1220]/70
-        px-4
-        py-3
-      "
+      className={`relative flex items-center justify-center ${
+        upper ? "pb-5" : "pt-5"
+      }`}
     >
-      <div className="text-[10px] text-slate-500">
-        {label}
-      </div>
-
       <div
-        className="
-          text-lg
-          font-semibold
-          mt-1
-        "
-        style={{
-          color: accent ?? "#F1F5F9",
-        }}
-      >
-        {value}
+        className={`absolute left-[8%] right-[8%] ${
+          upper ? "top-[42%]" : "bottom-[42%]"
+        } h-20 rounded-[50%] border border-rose-400/20 bg-gradient-to-${
+          upper ? "b" : "t"
+        } from-rose-950/50 via-rose-900/20 to-transparent`}
+      />
+
+      <div className="relative z-10 flex items-center justify-center">
+        <div className="flex items-center gap-[1px]">
+          {teeth.map((tooth) => (
+            <ToothShape
+              key={tooth.number}
+              number={tooth.number}
+              status={tooth.status}
+              upper={upper}
+              selected={selectedTooth === tooth.number}
+              onClick={() => onSelect(tooth.number)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-function SummaryBar({
-  teeth,
-}: {
-  teeth: ToothData[];
-}) {
-  const summary = useMemo(
-    () => computeSummary(teeth),
-    [teeth]
-  );
-
+function SiteLegend() {
   return (
-    <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-      <Metric
-        label="Profundidade média de sondagem"
-        value={`${summary.avgPS.toFixed(1)} mm`}
-      />
+    <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-slate-800/70 pt-4 text-[10px] text-slate-500">
+      <div className="flex items-center gap-2">
+        <span className="h-2.5 w-2.5 rounded-full border border-red-400 bg-red-400/70" />
+        Sangramento
+      </div>
 
-      <Metric
-        label="Nível médio de inserção"
-        value={`${summary.avgNI.toFixed(1)} mm`}
-      />
+      <div className="flex items-center gap-2">
+        <span className="h-2.5 w-2.5 rounded-sm border border-amber-400 bg-amber-400/70" />
+        Placa
+      </div>
 
-      <Metric
-        label="Sangramento à sondagem (SS)"
-        value={`${summary.bopPercent.toFixed(0)}%`}
-        accent="#E24C4C"
-      />
+      <div className="flex items-center gap-2">
+        <span className="h-2.5 w-2.5 rotate-45 border border-purple-300 bg-purple-300/60" />
+        Supuração
+      </div>
 
-      <Metric
-        label="Índice de placa (IP)"
-        value={`${summary.plaquePercent.toFixed(0)}%`}
-        accent="#E0B33B"
-      />
+      <div className="flex items-center gap-2">
+        <span className="h-2.5 w-2.5 rounded border border-sky-400 bg-sky-400/30" />
+        Dente selecionado
+      </div>
     </div>
   );
 }
 
-export default function Odontogram({
-  initialTeeth,
-  onChange,
-  teethImageBasePath = "/periodontia",
+export function Odontogram({
+  examId,
+  patientId,
   className,
 }: OdontogramProps) {
-  const [teeth, setTeeth] =
-    useState<ToothData[]>(
-      () =>
-        initialTeeth ??
-        createDefaultTeeth()
-    );
+  const [teeth] = useState<Tooth[]>(createTeeth);
+  const [selectedTooth, setSelectedTooth] =
+    useState<number | null>(null);
 
-  const teethByNumber = useMemo(() => {
-    const map = new Map<
-      number,
-      ToothData
-    >();
-
-    for (const tooth of teeth) {
-      map.set(
-        tooth.number,
-        tooth
-      );
-    }
-
-    return map;
-  }, [teeth]);
-
-  const commit = useCallback(
-    (next: ToothData[]) => {
-      setTeeth(next);
-      onChange?.(next);
-    },
-    [onChange]
-  );
-
-  const updateTooth = useCallback(
-    (
-      number: number,
-      patch: Partial<ToothData>
-    ) => {
-      commit(
-        teeth.map((tooth) =>
-          tooth.number === number
-            ? {
-                ...tooth,
-                ...patch,
-              }
-            : tooth
-        )
-      );
-    },
-    [teeth, commit]
-  );
-
-  const updateSite = useCallback(
-    (
-      number: number,
-      key: SiteKey,
-      patch: Partial<SiteData>
-    ) => {
-      commit(
-        teeth.map((tooth) =>
-          tooth.number === number
-            ? {
-                ...tooth,
-                sites: {
-                  ...tooth.sites,
-                  [key]: {
-                    ...tooth.sites[key],
-                    ...patch,
-                  },
-                },
-              }
-            : tooth
-        )
-      );
-    },
-    [teeth, commit]
+  const selected = useMemo(
+    () =>
+      teeth.find(
+        (tooth) => tooth.number === selectedTooth
+      ),
+    [teeth, selectedTooth]
   );
 
   return (
     <div
       className={[
-        "w-full",
-        "rounded-3xl",
-        "border border-slate-800/70",
-        "bg-gradient-to-b",
-        "from-[#050B14]",
-        "to-[#080F1C]",
-        "p-4 sm:p-6",
+        "w-full overflow-hidden rounded-3xl",
+        "border border-slate-800/80",
+        "bg-[#050A13]",
         className ?? "",
       ].join(" ")}
+      data-exam-id={examId}
+      data-patient-id={patientId}
     >
-      <div className="mb-5">
-        <h2
-          className="
-            text-lg
-            font-semibold
-            text-slate-100
-          "
-        >
-          Periodontograma
-        </h2>
+      <div className="border-b border-slate-800/70 bg-[#07101D] px-5 py-4">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-100">
+              Odontograma periodontal
+            </h3>
 
-        <p
-          className="
-            text-xs
-            text-slate-500
-            mt-1
-          "
-        >
-          Registro periodontal clínico
-          por dente e por sítio.
-        </p>
+            <p className="text-[11px] text-slate-500">
+              Selecione um dente para avaliação clínica.
+            </p>
+          </div>
+
+          {selected && (
+            <div className="rounded-lg border border-sky-400/20 bg-sky-400/5 px-3 py-1.5 text-[11px] text-sky-300">
+              Dente {selected.number} selecionado
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="space-y-3">
-        <div
-          className="
-            flex
-            items-center
-            gap-2
-            px-4
-          "
-        >
-          <div
-            className="
-              h-px
-              flex-1
-              bg-slate-700/40
-            "
+      <div className="overflow-x-auto px-2 py-8 sm:px-5">
+        <div className="mx-auto min-w-[920px] max-w-[1250px]">
+          <div className="mb-2 text-center text-[9px] font-medium uppercase tracking-[0.3em] text-slate-600">
+            Arcada superior
+          </div>
+
+          <ArchRow
+            teeth={[
+              ...UPPER_LEFT,
+              ...UPPER_RIGHT,
+            ].map((number) => ({
+              number,
+              status:
+                teeth.find(
+                  (tooth) =>
+                    tooth.number === number
+                )?.status ?? "PRESENTE",
+            }))}
+            upper
+            selectedTooth={selectedTooth}
+            onSelect={setSelectedTooth}
           />
 
-          <span
-            className="
-              text-[10px]
-              tracking-widest
-              text-slate-600
-              uppercase
-            "
-          >
-            arcada superior
-          </span>
+          <div className="my-5 flex items-center gap-4 px-12">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
 
-          <div
-            className="
-              h-px
-              flex-1
-              bg-slate-700/40
-            "
+            <div className="rounded-full border border-slate-800 bg-[#080F1A] px-4 py-1.5 text-[8px] uppercase tracking-[0.28em] text-slate-600">
+              plano oclusal
+            </div>
+
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
+          </div>
+
+          <div className="mb-2 text-center text-[9px] font-medium uppercase tracking-[0.3em] text-slate-600">
+            Arcada inferior
+          </div>
+
+          <ArchRow
+            teeth={[
+              ...LOWER_LEFT,
+              ...LOWER_RIGHT,
+            ].map((number) => ({
+              number,
+              status:
+                teeth.find(
+                  (tooth) =>
+                    tooth.number === number
+                )?.status ?? "PRESENTE",
+            }))}
+            upper={false}
+            selectedTooth={selectedTooth}
+            onSelect={setSelectedTooth}
           />
+
+          <div className="mt-2 text-center text-[9px] text-slate-700">
+            Vista clínica • Dentição permanente • Numeração FDI
+          </div>
         </div>
-
-        <ArchBlock
-          archNumbers={UPPER_ARCH}
-          arch="upper"
-          teethByNumber={teethByNumber}
-          basePath={teethImageBasePath}
-          onUpdateTooth={updateTooth}
-          onUpdateSite={updateSite}
-        />
-
-        <div
-          className="
-            w-full
-            flex
-            items-center
-            gap-2
-            px-4
-            py-3
-          "
-        >
-          <div
-            className="
-              h-px
-              flex-1
-              bg-slate-700/40
-            "
-          />
-
-          <span
-            className="
-              text-[9px]
-              tracking-[0.25em]
-              text-slate-600
-              uppercase
-            "
-          >
-            plano oclusal
-          </span>
-
-          <div
-            className="
-              h-px
-              flex-1
-              bg-slate-700/40
-            "
-          />
-        </div>
-
-        <div
-          className="
-            flex
-            items-center
-            gap-2
-            px-4
-          "
-        >
-          <div
-            className="
-              h-px
-              flex-1
-              bg-slate-700/40
-            "
-          />
-
-          <span
-            className="
-              text-[10px]
-              tracking-widest
-              text-slate-600
-              uppercase
-            "
-          >
-            arcada inferior
-          </span>
-
-          <div
-            className="
-              h-px
-              flex-1
-              bg-slate-700/40
-            "
-          />
-        </div>
-
-        <ArchBlock
-          archNumbers={LOWER_ARCH}
-          arch="lower"
-          teethByNumber={teethByNumber}
-          basePath={teethImageBasePath}
-          onUpdateTooth={updateTooth}
-          onUpdateSite={updateSite}
-        />
       </div>
 
-      <SummaryBar teeth={teeth} />
+      <div className="border-t border-slate-800/70 bg-[#07101D] px-5 py-4">
+        <div className="grid gap-3 sm:grid-cols-4">
+          <div className="rounded-xl border border-slate-800 bg-[#050A13] p-3">
+            <p className="text-[9px] uppercase tracking-wider text-slate-600">
+              Profundidade de sondagem
+            </p>
+            <p className="mt-1 text-base font-semibold text-slate-200">
+              0.0 mm
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-[#050A13] p-3">
+            <p className="text-[9px] uppercase tracking-wider text-slate-600">
+              Nível de inserção
+            </p>
+            <p className="mt-1 text-base font-semibold text-slate-200">
+              0.0 mm
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-[#050A13] p-3">
+            <p className="text-[9px] uppercase tracking-wider text-slate-600">
+              Sangramento
+            </p>
+            <p className="mt-1 text-base font-semibold text-red-400">
+              0%
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-[#050A13] p-3">
+            <p className="text-[9px] uppercase tracking-wider text-slate-600">
+              Índice de placa
+            </p>
+            <p className="mt-1 text-base font-semibold text-amber-400">
+              0%
+            </p>
+          </div>
+        </div>
+
+        <SiteLegend />
+      </div>
     </div>
   );
 }
+
+export default Odontogram;
