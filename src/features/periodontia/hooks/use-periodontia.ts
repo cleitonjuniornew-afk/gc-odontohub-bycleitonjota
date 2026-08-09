@@ -45,8 +45,18 @@ export function usePeriodontia() {
       toast.success("Exame periodontal criado.");
     },
 
-    onError: () => {
-      toast.error("Não foi possível criar o exame periodontal.");
+    onError: (error) => {
+      console.error(
+        "ERRO AO CRIAR EXAME PERIODONTAL:",
+        error
+      );
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Erro desconhecido ao criar exame periodontal.";
+
+      toast.error(`Erro: ${message}`);
     },
   });
 
