@@ -457,19 +457,14 @@ async function createExam(
       status:
         input.status ?? "EM_ANDAMENTO",
     })
-    .select("id")
+    .select(EXAM_SELECT)
     .single();
 
   if (error) {
-    console.error(
-      "ERRO SUPABASE AO CRIAR EXAME:",
-      error
-    );
-
     throw error;
   }
 
-  return getSupabase(data.id);
+  return mapExam(data);
 }
 
 // ============================================================
@@ -648,7 +643,7 @@ async function restore(
 }
 
 // ============================================================
-// CRIAR / SALVAR DENTE
+// CRIAR / UPSERT DENTE
 // ============================================================
 
 async function createTooth(
@@ -704,114 +699,49 @@ async function createTooth(
 
   const supabase = createClient();
 
-  // ==========================================================
-  // IMPORTANTE:
-  // NÃO usamos mais UPSERT.
-  // Primeiro procuramos o dente no exame.
-  // Se existir, atualizamos.
-  // Se não existir, inserimos.
-  // ==========================================================
-
-  const {
-    data: existing,
-    error: findError,
-  } = await supabase
-    .from("periodontograma_dentes")
-    .select("id")
-    .eq("exame_id", input.examId)
-    .eq("numero_dente", input.toothNumber)
-    .maybeSingle();
-
-  if (findError) {
-    console.error(
-      "ERRO AO PROCURAR DENTE PERIODONTAL:",
-      findError
-    );
-
-    throw findError;
-  }
-
-  const payload = {
-    exame_id:
-      input.examId,
-
-    numero_dente:
-      input.toothNumber,
-
-    status:
-      input.status ?? "PRESENTE",
-
-    mobilidade:
-      input.mobility ?? 0,
-
-    furca_vestibular:
-      input.furcationBuccal ?? null,
-
-    furca_lingual:
-      input.furcationLingual ?? null,
-
-    supuracao:
-      input.suppuration ?? false,
-
-    placa:
-      input.plaque ?? false,
-
-    observacoes:
-      input.observations ?? null,
-  };
-
-  let toothId: string;
-
-  if (existing?.id) {
-    const {
-      error: updateError,
-    } = await supabase
-      .from("periodontograma_dentes")
-      .update(payload)
-      .eq("id", existing.id);
-
-    if (updateError) {
-      console.error(
-        "ERRO AO ATUALIZAR DENTE PERIODONTAL:",
-        updateError
-      );
-
-      throw updateError;
-    }
-
-    toothId = existing.id;
-  } else {
-    const {
-      data: inserted,
-      error: insertError,
-    } = await supabase
-      .from("periodontograma_dentes")
-      .insert(payload)
-      .select("id")
-      .single();
-
-    if (insertError) {
-      console.error(
-        "ERRO AO INSERIR DENTE PERIODONTAL:",
-        insertError
-      );
-
-      throw insertError;
-    }
-
-    toothId = inserted.id;
-  }
-
   const {
     data,
     error,
   } = await supabase
     .from("periodontograma_dentes")
+    .upsert(
+      {
+        exame_id:
+          input.examId,
+
+        numero_dente:
+          input.toothNumber,
+
+        status:
+          input.status ?? "PRESENTE",
+
+        mobilidade:
+          input.mobility ?? 0,
+
+        furca_vestibular:
+          input.furcationBuccal ?? null,
+
+        furca_lingual:
+          input.furcationLingual ?? null,
+
+        supuracao:
+          input.suppuration ?? false,
+
+        placa:
+          input.plaque ?? false,
+
+        observacoes:
+          input.observations ?? null,
+      },
+      {
+        onConflict:
+          "exame_id,numero_dente",
+      }
+    )
     .select(`
       *,
       periodontograma_sitios (*)
     `)
-    .eq("id", toothId)
     .single();
 
   if (error) {
@@ -989,7 +919,7 @@ async function deleteTooth(
 }
 
 // ============================================================
-// SALVAR / UPSERT SITE
+// UPSERT SITE
 // ============================================================
 
 async function upsertSite(
@@ -1055,112 +985,56 @@ async function upsertSite(
 
   const supabase = createClient();
 
-  // ==========================================================
-  // NÃO DEPENDE MAIS DE ON CONFLICT
-  // ==========================================================
-
-  const {
-    data: existing,
-    error: findError,
-  } = await supabase
-    .from("periodontograma_sitios")
-    .select("id")
-    .eq("dente_id", input.toothId)
-    .eq("superficie", input.surface)
-    .eq("ponto", input.point)
-    .maybeSingle();
-
-  if (findError) {
-    console.error(
-      "ERRO AO PROCURAR SÍTIO PERIODONTAL:",
-      findError
-    );
-
-    throw findError;
-  }
-
-  const payload = {
-    dente_id:
-      input.toothId,
-
-    superficie:
-      input.surface,
-
-    ponto:
-      input.point,
-
-    profundidade_sondagem:
-      input.probingDepth ?? null,
-
-    recessao_gengival:
-      input.gingivalRecession ?? null,
-
-    nivel_insercao_clinica:
-      input.clinicalAttachmentLevel ??
-      null,
-
-    sangramento:
-      input.bleeding ?? false,
-
-    placa:
-      input.plaque ?? false,
-
-    supuracao:
-      input.suppuration ?? false,
-
-    observacoes:
-      input.observations ?? null,
-  };
-
-  let siteId: string;
-
-  if (existing?.id) {
-    const {
-      error: updateError,
-    } = await supabase
-      .from("periodontograma_sitios")
-      .update(payload)
-      .eq("id", existing.id);
-
-    if (updateError) {
-      console.error(
-        "ERRO AO ATUALIZAR SÍTIO PERIODONTAL:",
-        updateError
-      );
-
-      throw updateError;
-    }
-
-    siteId = existing.id;
-  } else {
-    const {
-      data: inserted,
-      error: insertError,
-    } = await supabase
-      .from("periodontograma_sitios")
-      .insert(payload)
-      .select("id")
-      .single();
-
-    if (insertError) {
-      console.error(
-        "ERRO AO INSERIR SÍTIO PERIODONTAL:",
-        insertError
-      );
-
-      throw insertError;
-    }
-
-    siteId = inserted.id;
-  }
-
   const {
     data,
     error,
   } = await supabase
     .from("periodontograma_sitios")
+    .upsert(
+      {
+        dente_id:
+          input.toothId,
+
+        superficie:
+          input.surface,
+
+        ponto:
+          input.point,
+
+        profundidade_sondagem:
+          input.probingDepth ??
+          null,
+
+        recessao_gengival:
+          input.gingivalRecession ??
+          null,
+
+        nivel_insercao_clinica:
+          input.clinicalAttachmentLevel ??
+          null,
+
+        sangramento:
+          input.bleeding ??
+          false,
+
+        placa:
+          input.plaque ??
+          false,
+
+        supuracao:
+          input.suppuration ??
+          false,
+
+        observacoes:
+          input.observations ??
+          null,
+      },
+      {
+        onConflict:
+          "dente_id,superficie,ponto",
+      }
+    )
     .select()
-    .eq("id", siteId)
     .single();
 
   if (error) {
