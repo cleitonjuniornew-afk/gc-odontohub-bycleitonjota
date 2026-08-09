@@ -32,12 +32,17 @@ export function usePeriodontia() {
     });
   };
 
+  // ============================================================
+  // CRIAR EXAME
+  // ============================================================
+
   const createExamMutation = useMutation({
     mutationFn: (input: {
       patientId: string;
       date?: string;
       observations?: string;
       diagnosis?: string;
+      status?: PeriodontalExamStatus;
     }) => periodontiaRepository.createExam(input),
 
     onSuccess: () => {
@@ -76,6 +81,10 @@ export function usePeriodontia() {
     },
   });
 
+  // ============================================================
+  // ATUALIZAR EXAME
+  // ============================================================
+
   const updateExamMutation = useMutation({
     mutationFn: ({
       id,
@@ -84,37 +93,67 @@ export function usePeriodontia() {
       id: string;
       input: {
         date?: string;
-        observations?: string;
-        diagnosis?: string;
+        observations?: string | null;
+        diagnosis?: string | null;
         status?: PeriodontalExamStatus;
       };
-    }) => periodontiaRepository.updateExam(id, input),
+    }) =>
+      periodontiaRepository.updateExam(id, input),
 
     onSuccess: () => {
       invalidate();
       toast.success("Exame atualizado.");
     },
 
-    onError: () => {
-      toast.error("Não foi possível atualizar o exame.");
+    onError: (error) => {
+      console.error(
+        "ERRO AO ATUALIZAR EXAME PERIODONTAL:",
+        error
+      );
+
+      toast.error(
+        "Não foi possível atualizar o exame."
+      );
     },
   });
+
+  // ============================================================
+  // CRIAR / SALVAR DENTE
+  // ============================================================
 
   const createToothMutation = useMutation({
     mutationFn: (input: {
       examId: string;
       toothNumber: number;
       status?: PeriodontalStatus;
-    }) => periodontiaRepository.createTooth(input),
+      mobility?: number;
+      furcationBuccal?: number | null;
+      furcationLingual?: number | null;
+      suppuration?: boolean;
+      plaque?: boolean;
+      observations?: string | null;
+    }) =>
+      periodontiaRepository.createTooth(input),
 
     onSuccess: () => {
       invalidate();
     },
 
-    onError: () => {
-      toast.error("Não foi possível registrar o dente.");
+    onError: (error) => {
+      console.error(
+        "ERRO AO SALVAR DENTE PERIODONTAL:",
+        error
+      );
+
+      toast.error(
+        "Não foi possível registrar o dente."
+      );
     },
   });
+
+  // ============================================================
+  // ATUALIZAR DENTE
+  // ============================================================
 
   const updateToothMutation = useMutation({
     mutationFn: ({
@@ -131,16 +170,28 @@ export function usePeriodontia() {
         plaque?: boolean;
         observations?: string | null;
       };
-    }) => periodontiaRepository.updateTooth(id, input),
+    }) =>
+      periodontiaRepository.updateTooth(id, input),
 
     onSuccess: () => {
       invalidate();
     },
 
-    onError: () => {
-      toast.error("Não foi possível atualizar o dente.");
+    onError: (error) => {
+      console.error(
+        "ERRO AO ATUALIZAR DENTE PERIODONTAL:",
+        error
+      );
+
+      toast.error(
+        "Não foi possível atualizar o dente."
+      );
     },
   });
+
+  // ============================================================
+  // SALVAR SÍTIO PERIODONTAL
+  // ============================================================
 
   const upsertSiteMutation = useMutation({
     mutationFn: (input: {
@@ -154,18 +205,28 @@ export function usePeriodontia() {
       plaque?: boolean;
       suppuration?: boolean;
       observations?: string | null;
-    }) => periodontiaRepository.upsertSite(input),
+    }) =>
+      periodontiaRepository.upsertSite(input),
 
     onSuccess: () => {
       invalidate();
     },
 
-    onError: () => {
+    onError: (error) => {
+      console.error(
+        "ERRO AO SALVAR MEDIÇÃO PERIODONTAL:",
+        error
+      );
+
       toast.error(
         "Não foi possível salvar a medição periodontal."
       );
     },
   });
+
+  // ============================================================
+  // EXCLUIR SÍTIO
+  // ============================================================
 
   const deleteSiteMutation = useMutation({
     mutationFn: (id: string) =>
@@ -175,10 +236,21 @@ export function usePeriodontia() {
       invalidate();
     },
 
-    onError: () => {
-      toast.error("Não foi possível remover a medição.");
+    onError: (error) => {
+      console.error(
+        "ERRO AO REMOVER MEDIÇÃO PERIODONTAL:",
+        error
+      );
+
+      toast.error(
+        "Não foi possível remover a medição."
+      );
     },
   });
+
+  // ============================================================
+  // INICIALIZAR DENTES
+  // ============================================================
 
   const initializeTeethMutation = useMutation({
     mutationFn: ({
@@ -197,12 +269,21 @@ export function usePeriodontia() {
       invalidate();
     },
 
-    onError: () => {
+    onError: (error) => {
+      console.error(
+        "ERRO AO INICIALIZAR DENTES:",
+        error
+      );
+
       toast.error(
         "Não foi possível preparar os dentes do exame."
       );
     },
   });
+
+  // ============================================================
+  // FINALIZAR EXAME
+  // ============================================================
 
   const finalizeExamMutation = useMutation({
     mutationFn: (id: string) =>
@@ -210,15 +291,26 @@ export function usePeriodontia() {
 
     onSuccess: () => {
       invalidate();
-      toast.success("Exame periodontal finalizado.");
+      toast.success(
+        "Exame periodontal finalizado."
+      );
     },
 
-    onError: () => {
+    onError: (error) => {
+      console.error(
+        "ERRO AO FINALIZAR EXAME:",
+        error
+      );
+
       toast.error(
         "Não foi possível finalizar o exame."
       );
     },
   });
+
+  // ============================================================
+  // EXCLUIR EXAME
+  // ============================================================
 
   const deleteExamMutation = useMutation({
     mutationFn: (id: string) =>
@@ -226,52 +318,96 @@ export function usePeriodontia() {
 
     onSuccess: () => {
       invalidate();
-      toast.success("Exame periodontal removido.");
+      toast.success(
+        "Exame periodontal removido."
+      );
     },
 
-    onError: () => {
+    onError: (error) => {
+      console.error(
+        "ERRO AO REMOVER EXAME:",
+        error
+      );
+
       toast.error(
         "Não foi possível remover o exame."
       );
     },
   });
 
+  // ============================================================
+  // RETORNO
+  // ============================================================
+
   return {
     exams: query.data ?? [],
+
     isLoading: query.isLoading,
     isError: query.isError,
 
-    createExam: createExamMutation.mutateAsync,
-    isCreatingExam: createExamMutation.isPending,
+    // Exame
+    createExam:
+      createExamMutation.mutateAsync,
 
-    updateExam: updateExamMutation.mutateAsync,
-    isUpdatingExam: updateExamMutation.isPending,
+    isCreatingExam:
+      createExamMutation.isPending,
 
-    createTooth: createToothMutation.mutateAsync,
-    isCreatingTooth: createToothMutation.isPending,
+    updateExam:
+      updateExamMutation.mutateAsync,
 
-    updateTooth: updateToothMutation.mutateAsync,
-    isUpdatingTooth: updateToothMutation.isPending,
+    isUpdatingExam:
+      updateExamMutation.isPending,
 
-    saveSite: upsertSiteMutation.mutateAsync,
-    isSavingSite: upsertSiteMutation.isPending,
+    // Dente
+    createTooth:
+      createToothMutation.mutateAsync,
 
-    deleteSite: deleteSiteMutation.mutateAsync,
-    isDeletingSite: deleteSiteMutation.isPending,
+    isCreatingTooth:
+      createToothMutation.isPending,
 
-    initializeTeeth: initializeTeethMutation.mutateAsync,
+    updateTooth:
+      updateToothMutation.mutateAsync,
+
+    isUpdatingTooth:
+      updateToothMutation.isPending,
+
+    // Sítio
+    saveSite:
+      upsertSiteMutation.mutateAsync,
+
+    isSavingSite:
+      upsertSiteMutation.isPending,
+
+    deleteSite:
+      deleteSiteMutation.mutateAsync,
+
+    isDeletingSite:
+      deleteSiteMutation.isPending,
+
+    // Inicialização
+    initializeTeeth:
+      initializeTeethMutation.mutateAsync,
+
     isInitializingTeeth:
       initializeTeethMutation.isPending,
 
-    finalizeExam: finalizeExamMutation.mutateAsync,
+    // Finalização
+    finalizeExam:
+      finalizeExamMutation.mutateAsync,
+
     isFinalizingExam:
       finalizeExamMutation.isPending,
 
-    deleteExam: deleteExamMutation.mutateAsync,
+    // Exclusão
+    deleteExam:
+      deleteExamMutation.mutateAsync,
+
     isDeletingExam:
       deleteExamMutation.isPending,
 
-    refetch: query.refetch,
+    // Query
+    refetch:
+      query.refetch,
   };
 }
 
