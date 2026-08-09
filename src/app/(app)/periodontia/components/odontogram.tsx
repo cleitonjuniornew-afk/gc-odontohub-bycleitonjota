@@ -122,7 +122,10 @@ function calculateCAL(site: SiteData) {
     return null;
   }
 
-  return site.probingDepth + site.gingivalRecession;
+  return (
+    site.probingDepth +
+    site.gingivalRecession
+  );
 }
 
 function ToothVisual({
@@ -234,9 +237,11 @@ export function Odontogram({
 }: OdontogramProps) {
   const {
     createTooth,
+    updateTooth,
     saveSite,
     finalizeExam,
     isCreatingTooth,
+    isUpdatingTooth,
     isSavingSite,
     isFinalizingExam,
   } = usePeriodontia();
@@ -276,7 +281,7 @@ export function Odontogram({
     [teeth, selectedTooth]
   );
 
-  function updateTooth(
+  function updateToothLocal(
     updater: (tooth: Tooth) => Tooth
   ) {
     if (selectedTooth === null) return;
@@ -293,7 +298,7 @@ export function Odontogram({
   }
 
   function updateStatus(status: ToothStatus) {
-    updateTooth((tooth) => ({
+    updateToothLocal((tooth) => ({
       ...tooth,
       status,
     }));
@@ -304,7 +309,7 @@ export function Odontogram({
     field: keyof SiteData,
     value: number | boolean | null
   ) {
-    updateTooth((tooth) => ({
+    updateToothLocal((tooth) => ({
       ...tooth,
       sites: {
         ...tooth.sites,
@@ -320,14 +325,14 @@ export function Odontogram({
   }
 
   function updateObservation(value: string) {
-    updateTooth((tooth) => ({
+    updateToothLocal((tooth) => ({
       ...tooth,
       observations: value,
     }));
   }
 
   function updateMobility(value: number) {
-    updateTooth((tooth) => ({
+    updateToothLocal((tooth) => ({
       ...tooth,
       mobility: value,
     }));
@@ -337,7 +342,7 @@ export function Odontogram({
     type: "buccal" | "lingual",
     value: number | null
   ) {
-    updateTooth((tooth) => ({
+    updateToothLocal((tooth) => ({
       ...tooth,
       [type === "buccal"
         ? "buccalFurcation"
@@ -393,13 +398,16 @@ export function Odontogram({
 
     try {
       setIsSavingExam(true);
+      setIsSaved(false);
 
       /*
        * Salva todos os 32 dentes.
        *
-       * createTooth utiliza upsert no repository,
-       * então podemos chamar novamente para atualizar
-       * o mesmo dente sem criar duplicados.
+       * createTooth aceita apenas:
+       * examId, toothNumber e status.
+       *
+       * Depois usamos updateTooth para os
+       * demais campos.
        */
       for (const tooth of teeth) {
         const savedTooth =
@@ -407,38 +415,60 @@ export function Odontogram({
             examId,
             toothNumber: tooth.number,
             status: tooth.status,
+          });
+
+        const hasSuppuration =
+          Object.values(tooth.sites).some(
+            (surfaceSites) =>
+              Object.values(
+                surfaceSites
+              ).some(
+                (site) =>
+                  site.suppuration
+              )
+          );
+
+        const hasPlaque =
+          Object.values(tooth.sites).some(
+            (surfaceSites) =>
+              Object.values(
+                surfaceSites
+              ).some(
+                (site) =>
+                  site.plaque
+              )
+          );
+
+        /*
+         * Atualiza os dados adicionais
+         * do dente.
+         */
+        await updateTooth({
+          id: savedTooth.id,
+          input: {
+            status: tooth.status,
             mobility: tooth.mobility,
             furcationBuccal:
               tooth.buccalFurcation,
             furcationLingual:
               tooth.lingualFurcation,
             suppuration:
-              Object.values(tooth.sites).some(
-                (surfaceSites) =>
-                  Object.values(
-                    surfaceSites
-                  ).some(
-                    (site) =>
-                      site.suppuration
-                  )
-              ),
+              hasSuppuration,
             plaque:
-              Object.values(tooth.sites).some(
-                (surfaceSites) =>
-                  Object.values(
-                    surfaceSites
-                  ).some(
-                    (site) =>
-                      site.plaque
-                  )
-              ),
+              hasPlaque,
             observations:
               tooth.observations || null,
-          });
+          },
+        });
 
         /*
-         * Salva os 6 sítios periodontais
-         * de cada dente.
+         * Salva os 6 sítios:
+         *
+         * Vestibular:
+         * M / C / D
+         *
+         * Lingual:
+         * M / C / D
          */
         for (const currentSurface of [
           "VESTIBULAR",
@@ -446,25 +476,37 @@ export function Odontogram({
         ] as Surface[]) {
           for (const point of points) {
             const site =
-              tooth.sites[currentSurface][point];
+              tooth.sites[
+                currentSurface
+              ][point];
 
             const cal =
               calculateCAL(site);
 
             await saveSite({
-              toothId: savedTooth.id,
-              surface: currentSurface,
+              toothId:
+                savedTooth.id,
+
+              surface:
+                currentSurface,
+
               point,
+
               probingDepth:
                 site.probingDepth,
+
               gingivalRecession:
                 site.gingivalRecession,
+
               clinicalAttachmentLevel:
                 cal,
+
               bleeding:
                 site.bleeding,
+
               plaque:
                 site.plaque,
+
               suppuration:
                 site.suppuration,
             });
@@ -473,11 +515,21 @@ export function Odontogram({
       }
 
       setIsSaved(true);
+
+      console.log(
+        "EXAME PERIODONTAL SALVO:",
+        {
+          examId,
+          patientId,
+          teeth,
+        }
+      );
     } catch (error) {
       console.error(
         "ERRO AO SALVAR EXAME PERIODONTAL:",
         error
       );
+
       setIsSaved(false);
     } finally {
       setIsSavingExam(false);
@@ -492,15 +544,21 @@ export function Odontogram({
       return;
     }
 
+    if (!patientId) {
+      console.error(
+        "Não foi possível finalizar: patientId não informado."
+      );
+      return;
+    }
+
     try {
       /*
-       * Primeiro garante que os dados atuais
-       * estejam salvos.
+       * Primeiro salva tudo.
        */
       await saveExam();
 
       /*
-       * Depois altera o status para FINALIZADO.
+       * Depois finaliza.
        */
       await finalizeExam(examId);
 
@@ -516,6 +574,7 @@ export function Odontogram({
   const saving =
     isSavingExam ||
     isCreatingTooth ||
+    isUpdatingTooth ||
     isSavingSite;
 
   return (
@@ -574,7 +633,9 @@ export function Odontogram({
               <Button
                 type="button"
                 variant="secondary"
-                onClick={handleFinalizeExam}
+                onClick={
+                  handleFinalizeExam
+                }
                 disabled={
                   saving ||
                   isFinalizingExam ||
