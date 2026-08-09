@@ -1,6 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
@@ -11,6 +16,8 @@ import {
   Check,
   Loader2,
   CheckCircle2,
+  Cloud,
+  CloudOff,
 } from "lucide-react";
 
 import {
@@ -144,6 +151,21 @@ function ToothVisual({
       )
   );
 
+  const hasPlaque = Object.values(tooth.sites).some(
+    (surface) =>
+      Object.values(surface).some(
+        (site) => site.plaque
+      )
+  );
+
+  const hasSuppuration = Object.values(
+    tooth.sites
+  ).some((surface) =>
+    Object.values(surface).some(
+      (site) => site.suppuration
+    )
+  );
+
   const statusClass =
     tooth.status === "AUSENTE"
       ? "border-error/60 bg-error/10 opacity-60"
@@ -177,7 +199,10 @@ function ToothVisual({
         className={`relative flex h-16 w-11 items-center justify-center rounded-[45%] border-2 transition-all ${statusClass}`}
       >
         {tooth.status === "AUSENTE" ? (
-          <span className="absolute h-9 w-0.5 rotate-45 rounded-full bg-error" />
+          <>
+            <span className="absolute h-9 w-0.5 rotate-45 rounded-full bg-error" />
+            <span className="absolute h-9 w-0.5 -rotate-45 rounded-full bg-error" />
+          </>
         ) : tooth.status === "IMPLANTE" ? (
           <span className="flex h-8 w-6 items-center justify-center rounded-sm border border-secondary">
             <span className="h-6 w-0.5 bg-secondary" />
@@ -187,7 +212,15 @@ function ToothVisual({
             <span className="h-8 w-7 rounded-[45%] border border-text-muted/50 bg-background/30" />
 
             {hasBleeding && (
-              <span className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-error" />
+              <span className="absolute bottom-1 h-2 w-2 rounded-full bg-error shadow-[0_0_8px_rgba(239,68,68,0.7)]" />
+            )}
+
+            {hasPlaque && (
+              <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-primary" />
+            )}
+
+            {hasSuppuration && (
+              <span className="absolute left-1 top-1 h-1.5 w-1.5 rounded-full bg-secondary" />
             )}
           </>
         )}
@@ -246,6 +279,10 @@ export function Odontogram({
     isFinalizingExam,
   } = usePeriodontia();
 
+  const storageKey = examId
+    ? `gc-odontohub-periodontia-draft-${examId}`
+    : null;
+
   const [teeth, setTeeth] = useState<Tooth[]>(() => [
     ...createTeeth(upperTeeth),
     ...createTeeth(lowerTeeth),
@@ -262,6 +299,19 @@ export function Odontogram({
 
   const [isSaved, setIsSaved] =
     useState(false);
+
+  const [isOfflineDraft, setIsOfflineDraft] =
+    useState(false);
+
+  const [hasLoadedDraft, setHasLoadedDraft] =
+    useState(false);
+
+  const saveTimerRef =
+    useRef<ReturnType<typeof setTimeout> | null>(
+      null
+    );
+
+  const saveVersionRef = useRef(0);
 
   const selected = useMemo(
     () =>
@@ -281,10 +331,110 @@ export function Odontogram({
     [teeth, selectedTooth]
   );
 
+  /*
+   * ==========================================================
+   * RECUPERAR RASCUNHO LOCAL
+   * ==========================================================
+   */
+
+  useEffect(() => {
+    if (!storageKey) {
+      setHasLoadedDraft(true);
+      return;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(
+        storageKey
+      );
+
+      if (raw) {
+        const parsed = JSON.parse(raw);
+
+        if (
+          Array.isArray(parsed?.teeth) &&
+          parsed.teeth.length > 0
+        ) {
+          setTeeth(parsed.teeth);
+        }
+
+        if (
+          typeof parsed?.selectedTooth ===
+          "number"
+        ) {
+          setSelectedTooth(
+            parsed.selectedTooth
+          );
+        }
+
+        if (
+          parsed?.surface === "VESTIBULAR" ||
+          parsed?.surface === "LINGUAL"
+        ) {
+          setSurface(parsed.surface);
+        }
+
+        setIsSaved(false);
+        setIsOfflineDraft(true);
+      }
+    } catch (error) {
+      console.error(
+        "ERRO AO RECUPERAR RASCUNHO PERIODONTAL:",
+        error
+      );
+    } finally {
+      setHasLoadedDraft(true);
+    }
+  }, [storageKey]);
+
+  /*
+   * ==========================================================
+   * SALVAR RASCUNHO LOCAL IMEDIATAMENTE
+   * ==========================================================
+   */
+
+  useEffect(() => {
+    if (!storageKey || !hasLoadedDraft) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          teeth,
+          selectedTooth,
+          surface,
+          updatedAt:
+            new Date().toISOString(),
+        })
+      );
+    } catch (error) {
+      console.error(
+        "ERRO AO SALVAR RASCUNHO LOCAL:",
+        error
+      );
+    }
+  }, [
+    teeth,
+    selectedTooth,
+    surface,
+    storageKey,
+    hasLoadedDraft,
+  ]);
+
+  /*
+   * ==========================================================
+   * ATUALIZAÇÃO LOCAL
+   * ==========================================================
+   */
+
   function updateToothLocal(
     updater: (tooth: Tooth) => Tooth
   ) {
     if (selectedTooth === null) return;
+
+    saveVersionRef.current += 1;
 
     setTeeth((current) =>
       current.map((tooth) =>
@@ -295,6 +445,7 @@ export function Odontogram({
     );
 
     setIsSaved(false);
+    setIsOfflineDraft(true);
   }
 
   function updateStatus(status: ToothStatus) {
@@ -350,6 +501,210 @@ export function Odontogram({
     }));
   }
 
+  /*
+   * ==========================================================
+   * SALVAR UM DENTE NO SUPABASE
+   * ==========================================================
+   *
+   * IMPORTANTE:
+   * createTooth do seu hook aceita somente:
+   * examId, toothNumber e status.
+   *
+   * Portanto criamos o dente primeiro e depois
+   * atualizamos os demais campos.
+   */
+
+  async function persistTooth(
+    tooth: Tooth
+  ) {
+    if (!examId || !patientId) {
+      return;
+    }
+
+    try {
+      setIsSavingExam(true);
+
+      const savedTooth =
+        await createTooth({
+          examId,
+          toothNumber: tooth.number,
+          status: tooth.status,
+        });
+
+      const hasSuppuration =
+        Object.values(tooth.sites).some(
+          (surfaceSites) =>
+            Object.values(
+              surfaceSites
+            ).some(
+              (site) =>
+                site.suppuration
+            )
+        );
+
+      const hasPlaque =
+        Object.values(tooth.sites).some(
+          (surfaceSites) =>
+            Object.values(
+              surfaceSites
+            ).some(
+              (site) =>
+                site.plaque
+            )
+        );
+
+      await updateTooth({
+        id: savedTooth.id,
+        input: {
+          status: tooth.status,
+          mobility: tooth.mobility,
+          furcationBuccal:
+            tooth.buccalFurcation,
+          furcationLingual:
+            tooth.lingualFurcation,
+          suppuration:
+            hasSuppuration,
+          plaque:
+            hasPlaque,
+          observations:
+            tooth.observations || null,
+        },
+      });
+
+      for (const currentSurface of [
+        "VESTIBULAR",
+        "LINGUAL",
+      ] as Surface[]) {
+        for (const point of points) {
+          const site =
+            tooth.sites[
+              currentSurface
+            ][point];
+
+          const cal =
+            calculateCAL(site);
+
+          await saveSite({
+            toothId: savedTooth.id,
+            surface: currentSurface,
+            point,
+            probingDepth:
+              site.probingDepth,
+            gingivalRecession:
+              site.gingivalRecession,
+            clinicalAttachmentLevel:
+              cal,
+            bleeding:
+              site.bleeding,
+            plaque:
+              site.plaque,
+            suppuration:
+              site.suppuration,
+            observations: null,
+          });
+        }
+      }
+
+      setIsSaved(true);
+      setIsOfflineDraft(false);
+
+      return true;
+    } catch (error) {
+      console.error(
+        `ERRO AO SINCRONIZAR DENTE ${tooth.number}:`,
+        error
+      );
+
+      /*
+       * Não apagamos o rascunho.
+       * Ele continua no localStorage.
+       */
+      setIsSaved(false);
+      setIsOfflineDraft(true);
+
+      return false;
+    } finally {
+      setIsSavingExam(false);
+    }
+  }
+
+  /*
+   * ==========================================================
+   * AUTOSAVE
+   * ==========================================================
+   *
+   * Toda alteração local:
+   * 1. vai para localStorage imediatamente;
+   * 2. espera 700ms;
+   * 3. sincroniza somente o dente selecionado.
+   */
+
+  useEffect(() => {
+    if (
+      !hasLoadedDraft ||
+      !examId ||
+      !patientId ||
+      selectedTooth === null
+    ) {
+      return;
+    }
+
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+
+    const toothToSave = teeth.find(
+      (tooth) =>
+        tooth.number === selectedTooth
+    );
+
+    if (!toothToSave) {
+      return;
+    }
+
+    const currentVersion =
+      saveVersionRef.current;
+
+    saveTimerRef.current =
+      setTimeout(async () => {
+        /*
+         * Se houve outra alteração depois que
+         * este timer foi criado, não salva esta
+         * versão antiga.
+         */
+        if (
+          currentVersion !==
+          saveVersionRef.current
+        ) {
+          return;
+        }
+
+        await persistTooth(
+          toothToSave
+        );
+      }, 700);
+
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(
+          saveTimerRef.current
+        );
+      }
+    };
+  }, [
+    teeth,
+    selectedTooth,
+    examId,
+    patientId,
+    hasLoadedDraft,
+  ]);
+
+  /*
+   * ==========================================================
+   * LIMPAR
+   * ==========================================================
+   */
+
   function resetOdontogram() {
     setTeeth([
       ...createTeeth(upperTeeth),
@@ -359,9 +714,31 @@ export function Odontogram({
     setSelectedTooth(null);
     setSurface("VESTIBULAR");
     setIsSaved(false);
+    setIsOfflineDraft(false);
+
+    if (storageKey) {
+      try {
+        window.localStorage.removeItem(
+          storageKey
+        );
+      } catch (error) {
+        console.error(
+          "ERRO AO LIMPAR RASCUNHO:",
+          error
+        );
+      }
+    }
   }
 
-  function goToTooth(direction: -1 | 1) {
+  /*
+   * ==========================================================
+   * NAVEGAÇÃO
+   * ==========================================================
+   */
+
+  function goToTooth(
+    direction: -1 | 1
+  ) {
     if (selectedIndex < 0) return;
 
     const nextIndex =
@@ -378,6 +755,15 @@ export function Odontogram({
       teeth[nextIndex].number
     );
   }
+
+  /*
+   * ==========================================================
+   * SALVAR TODOS
+   * ==========================================================
+   *
+   * Mantemos este botão como segurança/manual.
+   * O autosave continua funcionando mesmo sem ele.
+   */
 
   async function saveExam() {
     if (!examId) {
@@ -400,128 +786,18 @@ export function Odontogram({
       setIsSavingExam(true);
       setIsSaved(false);
 
-      /*
-       * Salva todos os 32 dentes.
-       *
-       * createTooth aceita apenas:
-       * examId, toothNumber e status.
-       *
-       * Depois usamos updateTooth para os
-       * demais campos.
-       */
       for (const tooth of teeth) {
-        const savedTooth =
-          await createTooth({
-            examId,
-            toothNumber: tooth.number,
-            status: tooth.status,
-          });
-
-        const hasSuppuration =
-          Object.values(tooth.sites).some(
-            (surfaceSites) =>
-              Object.values(
-                surfaceSites
-              ).some(
-                (site) =>
-                  site.suppuration
-              )
-          );
-
-        const hasPlaque =
-          Object.values(tooth.sites).some(
-            (surfaceSites) =>
-              Object.values(
-                surfaceSites
-              ).some(
-                (site) =>
-                  site.plaque
-              )
-          );
-
-        /*
-         * Atualiza os dados adicionais
-         * do dente.
-         */
-        await updateTooth({
-          id: savedTooth.id,
-          input: {
-            status: tooth.status,
-            mobility: tooth.mobility,
-            furcationBuccal:
-              tooth.buccalFurcation,
-            furcationLingual:
-              tooth.lingualFurcation,
-            suppuration:
-              hasSuppuration,
-            plaque:
-              hasPlaque,
-            observations:
-              tooth.observations || null,
-          },
-        });
-
-        /*
-         * Salva os 6 sítios:
-         *
-         * Vestibular:
-         * M / C / D
-         *
-         * Lingual:
-         * M / C / D
-         */
-        for (const currentSurface of [
-          "VESTIBULAR",
-          "LINGUAL",
-        ] as Surface[]) {
-          for (const point of points) {
-            const site =
-              tooth.sites[
-                currentSurface
-              ][point];
-
-            const cal =
-              calculateCAL(site);
-
-            await saveSite({
-              toothId:
-                savedTooth.id,
-
-              surface:
-                currentSurface,
-
-              point,
-
-              probingDepth:
-                site.probingDepth,
-
-              gingivalRecession:
-                site.gingivalRecession,
-
-              clinicalAttachmentLevel:
-                cal,
-
-              bleeding:
-                site.bleeding,
-
-              plaque:
-                site.plaque,
-
-              suppuration:
-                site.suppuration,
-            });
-          }
-        }
+        await persistTooth(tooth);
       }
 
       setIsSaved(true);
+      setIsOfflineDraft(false);
 
       console.log(
-        "EXAME PERIODONTAL SALVO:",
+        "EXAME PERIODONTAL SINCRONIZADO:",
         {
           examId,
           patientId,
-          teeth,
         }
       );
     } catch (error) {
@@ -531,10 +807,17 @@ export function Odontogram({
       );
 
       setIsSaved(false);
+      setIsOfflineDraft(true);
     } finally {
       setIsSavingExam(false);
     }
   }
+
+  /*
+   * ==========================================================
+   * FINALIZAR
+   * ==========================================================
+   */
 
   async function handleFinalizeExam() {
     if (!examId) {
@@ -553,7 +836,7 @@ export function Odontogram({
 
     try {
       /*
-       * Primeiro salva tudo.
+       * Primeiro sincroniza tudo.
        */
       await saveExam();
 
@@ -563,6 +846,21 @@ export function Odontogram({
       await finalizeExam(examId);
 
       setIsSaved(true);
+      setIsOfflineDraft(false);
+
+      /*
+       * Depois de finalizar, podemos remover
+       * o rascunho local.
+       */
+      if (storageKey) {
+        try {
+          window.localStorage.removeItem(
+            storageKey
+          );
+        } catch {
+          // Não impede a finalização.
+        }
+      }
     } catch (error) {
       console.error(
         "ERRO AO FINALIZAR EXAME PERIODONTAL:",
@@ -579,7 +877,9 @@ export function Odontogram({
 
   return (
     <div className="space-y-6">
-      {/* ODONTOGRAMA */}
+      {/* ======================================================
+          ODONTOGRAMA
+      ======================================================= */}
 
       <Card>
         <CardHeader>
@@ -595,11 +895,33 @@ export function Odontogram({
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* INDICADOR DE SINCRONIZAÇÃO */}
+
+              {isOfflineDraft ? (
+                <Badge
+                  variant="secondary"
+                  className="gap-1"
+                >
+                  <CloudOff className="h-3 w-3" />
+                  Rascunho local
+                </Badge>
+              ) : isSaved ? (
+                <Badge
+                  variant="success"
+                  className="gap-1"
+                >
+                  <Cloud className="h-3 w-3" />
+                  Salvo
+                </Badge>
+              ) : null}
+
               <Button
                 type="button"
                 variant="ghost"
-                onClick={resetOdontogram}
+                onClick={
+                  resetOdontogram
+                }
                 disabled={saving}
               >
                 <RotateCcw className="mr-2 h-4 w-4" />
@@ -676,7 +998,9 @@ export function Odontogram({
                     )
                     .map((tooth) => (
                       <ToothVisual
-                        key={tooth.number}
+                        key={
+                          tooth.number
+                        }
                         tooth={tooth}
                         selected={
                           selectedTooth ===
@@ -710,7 +1034,9 @@ export function Odontogram({
                     )
                     .map((tooth) => (
                       <ToothVisual
-                        key={tooth.number}
+                        key={
+                          tooth.number
+                        }
                         tooth={tooth}
                         selected={
                           selectedTooth ===
@@ -729,6 +1055,10 @@ export function Odontogram({
           </div>
         </CardContent>
       </Card>
+
+      {/* ======================================================
+          DENTE SELECIONADO
+      ======================================================= */}
 
       <AnimatePresence mode="wait">
         {selected && (
@@ -751,7 +1081,7 @@ export function Odontogram({
             }}
             className="space-y-6"
           >
-            {/* CABEÇALHO DO DENTE */}
+            {/* CABEÇALHO */}
 
             <Card>
               <CardHeader>
@@ -759,7 +1089,8 @@ export function Odontogram({
                   <div>
                     <div className="flex items-center gap-3">
                       <CardTitle>
-                        Dente {selected.number}
+                        Dente{" "}
+                        {selected.number}
                       </CardTitle>
 
                       <Badge
@@ -1059,7 +1390,8 @@ export function Odontogram({
                                 className="px-3 py-3 text-center"
                               >
                                 <div className="flex h-9 items-center justify-center rounded-md border border-border bg-background text-sm font-semibold text-text-primary">
-                                  {cal ?? "—"}
+                                  {cal ??
+                                    "—"}
                                 </div>
                               </td>
                             );
@@ -1220,7 +1552,8 @@ export function Odontogram({
                       onChange={(event) =>
                         updateMobility(
                           Number(
-                            event.target.value
+                            event.target
+                              .value
                           )
                         )
                       }
