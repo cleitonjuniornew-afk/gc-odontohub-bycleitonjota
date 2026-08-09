@@ -146,7 +146,9 @@ function getAllSites(teeth: Tooth[]) {
   }[] = [];
 
   for (const tooth of teeth) {
-    if (tooth.status === "AUSENTE") continue;
+    if (tooth.status === "AUSENTE") {
+      continue;
+    }
 
     for (const surface of [
       "VESTIBULAR",
@@ -166,7 +168,9 @@ function getAllSites(teeth: Tooth[]) {
   return result;
 }
 
-function getBleedingPercentage(teeth: Tooth[]) {
+function getBleedingPercentage(
+  teeth: Tooth[]
+) {
   const sites = getAllSites(teeth);
 
   const examinedSites = sites.filter(
@@ -190,7 +194,9 @@ function getBleedingPercentage(teeth: Tooth[]) {
   );
 }
 
-function getPlaquePercentage(teeth: Tooth[]) {
+function getPlaquePercentage(
+  teeth: Tooth[]
+) {
   const sites = getAllSites(teeth);
 
   const examinedSites = sites.filter(
@@ -214,14 +220,18 @@ function getPlaquePercentage(teeth: Tooth[]) {
   );
 }
 
-function getExaminedSites(teeth: Tooth[]) {
+function getExaminedSites(
+  teeth: Tooth[]
+) {
   return getAllSites(teeth).filter(
     ({ site }) =>
       site.probingDepth !== null
   ).length;
 }
 
-function getBleedingSites(teeth: Tooth[]) {
+function getBleedingSites(
+  teeth: Tooth[]
+) {
   return getAllSites(teeth).filter(
     ({ site }) =>
       site.probingDepth !== null &&
@@ -229,7 +239,9 @@ function getBleedingSites(teeth: Tooth[]) {
   ).length;
 }
 
-function getPlaqueSites(teeth: Tooth[]) {
+function getPlaqueSites(
+  teeth: Tooth[]
+) {
   return getAllSites(teeth).filter(
     ({ site }) =>
       site.probingDepth !== null &&
@@ -246,29 +258,29 @@ function ToothVisual({
   selected: boolean;
   onClick: () => void;
 }) {
-  const hasBleeding = Object.values(
-    tooth.sites
-  ).some((surface) =>
-    Object.values(surface).some(
-      (site) => site.bleeding
-    )
-  );
+  const hasBleeding =
+    Object.values(tooth.sites).some(
+      (surface) =>
+        Object.values(surface).some(
+          (site) => site.bleeding
+        )
+    );
 
-  const hasPlaque = Object.values(
-    tooth.sites
-  ).some((surface) =>
-    Object.values(surface).some(
-      (site) => site.plaque
-    )
-  );
+  const hasPlaque =
+    Object.values(tooth.sites).some(
+      (surface) =>
+        Object.values(surface).some(
+          (site) => site.plaque
+        )
+    );
 
-  const hasSuppuration = Object.values(
-    tooth.sites
-  ).some((surface) =>
-    Object.values(surface).some(
-      (site) => site.suppuration
-    )
-  );
+  const hasSuppuration =
+    Object.values(tooth.sites).some(
+      (surface) =>
+        Object.values(surface).some(
+          (site) => site.suppuration
+        )
+    );
 
   const statusClass =
     tooth.status === "AUSENTE"
@@ -339,7 +351,9 @@ function NumberInput({
   placeholder = "—",
 }: {
   value: number | null;
-  onChange: (value: number | null) => void;
+  onChange: (
+    value: number | null
+  ) => void;
   placeholder?: string;
 }) {
   return (
@@ -350,7 +364,8 @@ function NumberInput({
       value={value ?? ""}
       placeholder={placeholder}
       onChange={(event) => {
-        const raw = event.target.value;
+        const raw =
+          event.target.value;
 
         if (raw === "") {
           onChange(null);
@@ -373,7 +388,9 @@ function PeriodontalTable({
   onSelectTooth,
 }: {
   teeth: Tooth[];
-  onSelectTooth: (number: number) => void;
+  onSelectTooth: (
+    number: number
+  ) => void;
 }) {
   const upper = teeth.filter((tooth) =>
     upperTeeth.includes(tooth.number)
@@ -385,8 +402,7 @@ function PeriodontalTable({
 
   const formatNumber = (
     value: number | null
-  ) =>
-    value === null ? "—" : value;
+  ) => (value === null ? "—" : value);
 
   const renderArch = (
     title: string,
@@ -394,7 +410,7 @@ function PeriodontalTable({
   ) => (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-text-primary">
+        <h3 className="font-semibold text-text-primary">
           {title}
         </h3>
 
@@ -442,19 +458,24 @@ function PeriodontalTable({
                 Sítio
               </th>
 
-              {archTeeth.flatMap((tooth) =>
-                points.map((point) => (
-                  <th
-                    key={`${tooth.number}-${point}`}
-                    className="border-b border-r border-border px-2 py-2 text-center font-medium text-text-muted"
-                  >
-                    {point === "MESIAL"
-                      ? "M"
-                      : point === "CENTRAL"
-                        ? "C"
-                        : "D"}
-                  </th>
-                ))
+              {archTeeth.flatMap(
+                (tooth) =>
+                  points.map(
+                    (point) => (
+                      <th
+                        key={`${tooth.number}-${point}`}
+                        className="border-b border-r border-border px-2 py-2 text-center font-medium text-text-muted"
+                      >
+                        {point ===
+                        "MESIAL"
+                          ? "M"
+                          : point ===
+                              "CENTRAL"
+                            ? "C"
+                            : "D"}
+                      </th>
+                    )
+                  )
               )}
             </tr>
           </thead>
@@ -465,39 +486,46 @@ function PeriodontalTable({
                 PS
               </td>
 
-              {archTeeth.flatMap((tooth) =>
-                points.map((point) => {
-                  const vestibular =
-                    tooth.sites
-                      .VESTIBULAR[point]
-                      .probingDepth;
+              {archTeeth.flatMap(
+                (tooth) =>
+                  points.map(
+                    (point) => {
+                      const vestibular =
+                        tooth.sites
+                          .VESTIBULAR[
+                          point
+                        ]
+                          .probingDepth;
 
-                  const lingual =
-                    tooth.sites.LINGUAL[
-                      point
-                    ].probingDepth;
+                      const lingual =
+                        tooth.sites
+                          .LINGUAL[
+                          point
+                        ]
+                          .probingDepth;
 
-                  return (
-                    <td
-                      key={`${tooth.number}-${point}`}
-                      className="border-b border-r border-border px-2 py-2 text-center"
-                    >
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span className="font-semibold text-text-primary">
-                          {formatNumber(
-                            vestibular
-                          )}
-                        </span>
+                      return (
+                        <td
+                          key={`${tooth.number}-${point}`}
+                          className="border-b border-r border-border px-2 py-2 text-center"
+                        >
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className="font-semibold text-text-primary">
+                              {formatNumber(
+                                vestibular
+                              )}
+                            </span>
 
-                        <span className="text-[9px] text-text-muted">
-                          {formatNumber(
-                            lingual
-                          )}
-                        </span>
-                      </div>
-                    </td>
-                  );
-                })
+                            <span className="text-[9px] text-text-muted">
+                              {formatNumber(
+                                lingual
+                              )}
+                            </span>
+                          </div>
+                        </td>
+                      );
+                    }
+                  )
               )}
             </tr>
 
@@ -506,39 +534,46 @@ function PeriodontalTable({
                 Recessão
               </td>
 
-              {archTeeth.flatMap((tooth) =>
-                points.map((point) => {
-                  const vestibular =
-                    tooth.sites
-                      .VESTIBULAR[point]
-                      .gingivalRecession;
+              {archTeeth.flatMap(
+                (tooth) =>
+                  points.map(
+                    (point) => {
+                      const vestibular =
+                        tooth.sites
+                          .VESTIBULAR[
+                          point
+                        ]
+                          .gingivalRecession;
 
-                  const lingual =
-                    tooth.sites.LINGUAL[
-                      point
-                    ].gingivalRecession;
+                      const lingual =
+                        tooth.sites
+                          .LINGUAL[
+                          point
+                        ]
+                          .gingivalRecession;
 
-                  return (
-                    <td
-                      key={`${tooth.number}-${point}`}
-                      className="border-b border-r border-border px-2 py-2 text-center"
-                    >
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span className="font-semibold text-text-primary">
-                          {formatNumber(
-                            vestibular
-                          )}
-                        </span>
+                      return (
+                        <td
+                          key={`${tooth.number}-${point}`}
+                          className="border-b border-r border-border px-2 py-2 text-center"
+                        >
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className="font-semibold text-text-primary">
+                              {formatNumber(
+                                vestibular
+                              )}
+                            </span>
 
-                        <span className="text-[9px] text-text-muted">
-                          {formatNumber(
-                            lingual
-                          )}
-                        </span>
-                      </div>
-                    </td>
-                  );
-                })
+                            <span className="text-[9px] text-text-muted">
+                              {formatNumber(
+                                lingual
+                              )}
+                            </span>
+                          </div>
+                        </td>
+                      );
+                    }
+                  )
               )}
             </tr>
 
@@ -547,42 +582,48 @@ function PeriodontalTable({
                 NIC
               </td>
 
-              {archTeeth.flatMap((tooth) =>
-                points.map((point) => {
-                  const vestibular =
-                    calculateCAL(
-                      tooth.sites
-                        .VESTIBULAR[point]
-                    );
+              {archTeeth.flatMap(
+                (tooth) =>
+                  points.map(
+                    (point) => {
+                      const vestibular =
+                        calculateCAL(
+                          tooth.sites
+                            .VESTIBULAR[
+                            point
+                          ]
+                        );
 
-                  const lingual =
-                    calculateCAL(
-                      tooth.sites.LINGUAL[
-                        point
-                      ]
-                    );
+                      const lingual =
+                        calculateCAL(
+                          tooth.sites
+                            .LINGUAL[
+                            point
+                          ]
+                        );
 
-                  return (
-                    <td
-                      key={`${tooth.number}-${point}`}
-                      className="border-b border-r border-border px-2 py-2 text-center"
-                    >
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span className="font-semibold text-text-primary">
-                          {formatNumber(
-                            vestibular
-                          )}
-                        </span>
+                      return (
+                        <td
+                          key={`${tooth.number}-${point}`}
+                          className="border-b border-r border-border px-2 py-2 text-center"
+                        >
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span className="font-semibold text-text-primary">
+                              {formatNumber(
+                                vestibular
+                              )}
+                            </span>
 
-                        <span className="text-[9px] text-text-muted">
-                          {formatNumber(
-                            lingual
-                          )}
-                        </span>
-                      </div>
-                    </td>
-                  );
-                })
+                            <span className="text-[9px] text-text-muted">
+                              {formatNumber(
+                                lingual
+                              )}
+                            </span>
+                          </div>
+                        </td>
+                      );
+                    }
+                  )
               )}
             </tr>
 
@@ -591,62 +632,70 @@ function PeriodontalTable({
                 SS
               </td>
 
-              {archTeeth.flatMap((tooth) =>
-                points.map((point) => {
-                  const v =
-                    tooth.sites
-                      .VESTIBULAR[point];
+              {archTeeth.flatMap(
+                (tooth) =>
+                  points.map(
+                    (point) => {
+                      const v =
+                        tooth.sites
+                          .VESTIBULAR[
+                          point
+                        ];
 
-                  const l =
-                    tooth.sites.LINGUAL[
-                      point
-                    ];
+                      const l =
+                        tooth.sites
+                          .LINGUAL[
+                          point
+                        ];
 
-                  const hasV =
-                    v.probingDepth !== null;
+                      const hasV =
+                        v.probingDepth !==
+                        null;
 
-                  const hasL =
-                    l.probingDepth !== null;
+                      const hasL =
+                        l.probingDepth !==
+                        null;
 
-                  return (
-                    <td
-                      key={`${tooth.number}-${point}`}
-                      className="border-b border-r border-border px-2 py-2 text-center"
-                    >
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span
-                          className={
-                            hasV &&
-                            v.bleeding
-                              ? "font-bold text-error"
-                              : "text-text-muted"
-                          }
+                      return (
+                        <td
+                          key={`${tooth.number}-${point}`}
+                          className="border-b border-r border-border px-2 py-2 text-center"
                         >
-                          {hasV
-                            ? v.bleeding
-                              ? "●"
-                              : "○"
-                            : "—"}
-                        </span>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span
+                              className={
+                                hasV &&
+                                v.bleeding
+                                  ? "font-bold text-error"
+                                  : "text-text-muted"
+                              }
+                            >
+                              {hasV
+                                ? v.bleeding
+                                  ? "●"
+                                  : "○"
+                                : "—"}
+                            </span>
 
-                        <span
-                          className={
-                            hasL &&
-                            l.bleeding
-                              ? "text-[9px] font-bold text-error"
-                              : "text-[9px] text-text-muted"
-                          }
-                        >
-                          {hasL
-                            ? l.bleeding
-                              ? "●"
-                              : "○"
-                            : "—"}
-                        </span>
-                      </div>
-                    </td>
-                  );
-                })
+                            <span
+                              className={
+                                hasL &&
+                                l.bleeding
+                                  ? "text-[9px] font-bold text-error"
+                                  : "text-[9px] text-text-muted"
+                              }
+                            >
+                              {hasL
+                                ? l.bleeding
+                                  ? "●"
+                                  : "○"
+                                : "—"}
+                            </span>
+                          </div>
+                        </td>
+                      );
+                    }
+                  )
               )}
             </tr>
 
@@ -655,60 +704,70 @@ function PeriodontalTable({
                 PI
               </td>
 
-              {archTeeth.flatMap((tooth) =>
-                points.map((point) => {
-                  const v =
-                    tooth.sites
-                      .VESTIBULAR[point];
+              {archTeeth.flatMap(
+                (tooth) =>
+                  points.map(
+                    (point) => {
+                      const v =
+                        tooth.sites
+                          .VESTIBULAR[
+                          point
+                        ];
 
-                  const l =
-                    tooth.sites.LINGUAL[
-                      point
-                    ];
+                      const l =
+                        tooth.sites
+                          .LINGUAL[
+                          point
+                        ];
 
-                  const hasV =
-                    v.probingDepth !== null;
+                      const hasV =
+                        v.probingDepth !==
+                        null;
 
-                  const hasL =
-                    l.probingDepth !== null;
+                      const hasL =
+                        l.probingDepth !==
+                        null;
 
-                  return (
-                    <td
-                      key={`${tooth.number}-${point}`}
-                      className="border-b border-r border-border px-2 py-2 text-center"
-                    >
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span
-                          className={
-                            hasV && v.plaque
-                              ? "font-bold text-primary"
-                              : "text-text-muted"
-                          }
+                      return (
+                        <td
+                          key={`${tooth.number}-${point}`}
+                          className="border-b border-r border-border px-2 py-2 text-center"
                         >
-                          {hasV
-                            ? v.plaque
-                              ? "●"
-                              : "○"
-                            : "—"}
-                        </span>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span
+                              className={
+                                hasV &&
+                                v.plaque
+                                  ? "font-bold text-primary"
+                                  : "text-text-muted"
+                              }
+                            >
+                              {hasV
+                                ? v.plaque
+                                  ? "●"
+                                  : "○"
+                                : "—"}
+                            </span>
 
-                        <span
-                          className={
-                            hasL && l.plaque
-                              ? "text-[9px] font-bold text-primary"
-                              : "text-[9px] text-text-muted"
-                          }
-                        >
-                          {hasL
-                            ? l.plaque
-                              ? "●"
-                              : "○"
-                            : "—"}
-                        </span>
-                      </div>
-                    </td>
-                  );
-                })
+                            <span
+                              className={
+                                hasL &&
+                                l.plaque
+                                  ? "text-[9px] font-bold text-primary"
+                                  : "text-[9px] text-text-muted"
+                              }
+                            >
+                              {hasL
+                                ? l.plaque
+                                  ? "●"
+                                  : "○"
+                                : "—"}
+                            </span>
+                          </div>
+                        </td>
+                      );
+                    }
+                  )
               )}
             </tr>
 
@@ -717,62 +776,70 @@ function PeriodontalTable({
                 Supuração
               </td>
 
-              {archTeeth.flatMap((tooth) =>
-                points.map((point) => {
-                  const v =
-                    tooth.sites
-                      .VESTIBULAR[point];
+              {archTeeth.flatMap(
+                (tooth) =>
+                  points.map(
+                    (point) => {
+                      const v =
+                        tooth.sites
+                          .VESTIBULAR[
+                          point
+                        ];
 
-                  const l =
-                    tooth.sites.LINGUAL[
-                      point
-                    ];
+                      const l =
+                        tooth.sites
+                          .LINGUAL[
+                          point
+                        ];
 
-                  const hasV =
-                    v.probingDepth !== null;
+                      const hasV =
+                        v.probingDepth !==
+                        null;
 
-                  const hasL =
-                    l.probingDepth !== null;
+                      const hasL =
+                        l.probingDepth !==
+                        null;
 
-                  return (
-                    <td
-                      key={`${tooth.number}-${point}`}
-                      className="border-r border-border px-2 py-2 text-center"
-                    >
-                      <div className="flex flex-col items-center gap-0.5">
-                        <span
-                          className={
-                            hasV &&
-                            v.suppuration
-                              ? "font-bold text-secondary"
-                              : "text-text-muted"
-                          }
+                      return (
+                        <td
+                          key={`${tooth.number}-${point}`}
+                          className="border-r border-border px-2 py-2 text-center"
                         >
-                          {hasV
-                            ? v.suppuration
-                              ? "●"
-                              : "○"
-                            : "—"}
-                        </span>
+                          <div className="flex flex-col items-center gap-0.5">
+                            <span
+                              className={
+                                hasV &&
+                                v.suppuration
+                                  ? "font-bold text-secondary"
+                                  : "text-text-muted"
+                              }
+                            >
+                              {hasV
+                                ? v.suppuration
+                                  ? "●"
+                                  : "○"
+                                : "—"}
+                            </span>
 
-                        <span
-                          className={
-                            hasL &&
-                            l.suppuration
-                              ? "text-[9px] font-bold text-secondary"
-                              : "text-[9px] text-text-muted"
-                          }
-                        >
-                          {hasL
-                            ? l.suppuration
-                              ? "●"
-                              : "○"
-                            : "—"}
-                        </span>
-                      </div>
-                    </td>
-                  );
-                })
+                            <span
+                              className={
+                                hasL &&
+                                l.suppuration
+                                  ? "text-[9px] font-bold text-secondary"
+                                  : "text-[9px] text-text-muted"
+                              }
+                            >
+                              {hasL
+                                ? l.suppuration
+                                  ? "●"
+                                  : "○"
+                                : "—"}
+                            </span>
+                          </div>
+                        </td>
+                      );
+                    }
+                  )
               )}
             </tr>
           </tbody>
@@ -833,9 +900,7 @@ export function Odontogram({
 
   const storageKey = examId
     ? `gc-odontohub-periodontia-draft-${examId}`
-    : patientId
-      ? `gc-odontohub-periodontia-draft-patient-${patientId}`
-      : "gc-odontohub-periodontia-draft-local";
+    : null;
 
   const [teeth, setTeeth] =
     useState<Tooth[]>(() => [
@@ -863,18 +928,16 @@ export function Odontogram({
   const [hasLoadedDraft, setHasLoadedDraft] =
     useState(false);
 
-  const [isDirty, setIsDirty] =
+  const [isAutoSaving, setIsAutoSaving] =
     useState(false);
 
-  const [saveMessage, setSaveMessage] =
-    useState<string | null>(null);
-
   const saveTimerRef =
-    useRef<ReturnType<
-      typeof setTimeout
-    > | null>(null);
+    useRef<ReturnType<typeof setTimeout> | null>(
+      null
+    );
 
-  const saveVersionRef = useRef(0);
+  const saveVersionRef =
+    useRef(0);
 
   const toothIdsRef =
     useRef<Record<number, string>>({});
@@ -890,7 +953,8 @@ export function Odontogram({
     () =>
       teeth.find(
         (tooth) =>
-          tooth.number === selectedTooth
+          tooth.number ===
+          selectedTooth
       ),
     [teeth, selectedTooth]
   );
@@ -899,22 +963,25 @@ export function Odontogram({
     () =>
       teeth.findIndex(
         (tooth) =>
-          tooth.number === selectedTooth
+          tooth.number ===
+          selectedTooth
       ),
     [teeth, selectedTooth]
   );
 
-  const bleedingPercentage = useMemo(
-    () =>
-      getBleedingPercentage(teeth),
-    [teeth]
-  );
+  const bleedingPercentage =
+    useMemo(
+      () =>
+        getBleedingPercentage(teeth),
+      [teeth]
+    );
 
-  const plaquePercentage = useMemo(
-    () =>
-      getPlaquePercentage(teeth),
-    [teeth]
-  );
+  const plaquePercentage =
+    useMemo(
+      () =>
+        getPlaquePercentage(teeth),
+      [teeth]
+    );
 
   const examinedSites = useMemo(
     () =>
@@ -936,11 +1003,16 @@ export function Odontogram({
 
   /*
    * ==========================================================
-   * RECUPERAR RASCUNHO LOCAL
+   * RECUPERA RASCUNHO LOCAL
    * ==========================================================
    */
 
   useEffect(() => {
+    if (!storageKey) {
+      setHasLoadedDraft(true);
+      return;
+    }
+
     try {
       const raw =
         window.localStorage.getItem(
@@ -948,10 +1020,13 @@ export function Odontogram({
         );
 
       if (raw) {
-        const parsed = JSON.parse(raw);
+        const parsed =
+          JSON.parse(raw);
 
         if (
-          Array.isArray(parsed?.teeth) &&
+          Array.isArray(
+            parsed?.teeth
+          ) &&
           parsed.teeth.length > 0
         ) {
           setTeeth(parsed.teeth);
@@ -988,13 +1063,12 @@ export function Odontogram({
             parsed.toothIds;
         }
 
-        setIsOfflineDraft(
-          true
-        );
+        setIsSaved(false);
+        setIsOfflineDraft(true);
       }
     } catch (error) {
       console.error(
-        "ERRO AO RECUPERAR RASCUNHO PERIODONTAL:",
+        "Erro ao recuperar rascunho periodontal:",
         error
       );
     } finally {
@@ -1004,12 +1078,15 @@ export function Odontogram({
 
   /*
    * ==========================================================
-   * SALVAR RASCUNHO LOCAL AUTOMATICAMENTE
+   * SALVA RASCUNHO LOCAL
    * ==========================================================
    */
 
   useEffect(() => {
-    if (!hasLoadedDraft) {
+    if (
+      !storageKey ||
+      !hasLoadedDraft
+    ) {
       return;
     }
 
@@ -1028,7 +1105,7 @@ export function Odontogram({
       );
     } catch (error) {
       console.error(
-        "ERRO AO SALVAR RASCUNHO LOCAL:",
+        "Erro ao salvar rascunho local:",
         error
       );
     }
@@ -1056,22 +1133,23 @@ export function Odontogram({
     saveVersionRef.current += 1;
 
     setTeeth((current) => {
-      const updated = current.map(
-        (tooth) =>
-          tooth.number ===
-          selectedTooth
-            ? updater(tooth)
-            : tooth
-      );
+      const updated =
+        current.map(
+          (tooth) =>
+            tooth.number ===
+            selectedTooth
+              ? updater(tooth)
+              : tooth
+        );
 
-      teethRef.current = updated;
+      teethRef.current =
+        updated;
 
       return updated;
     });
 
-    setIsDirty(true);
     setIsSaved(false);
-    setSaveMessage(null);
+    setIsOfflineDraft(true);
   }
 
   function updateStatus(
@@ -1098,9 +1176,9 @@ export function Odontogram({
         [surface]: {
           ...tooth.sites[surface],
           [point]: {
-            ...tooth.sites[surface][
-              point
-            ],
+            ...tooth.sites[
+              surface
+            ][point],
             [field]: value,
           },
         },
@@ -1127,41 +1205,33 @@ export function Odontogram({
   }
 
   function updateFurcation(
-    type:
-      | "buccal"
-      | "lingual",
+    type: "buccal" | "lingual",
     value: number | null
   ) {
     updateToothLocal((tooth) => ({
       ...tooth,
-      [
-        type === "buccal"
-          ? "buccalFurcation"
-          : "lingualFurcation"
-      ]: value,
+      [type === "buccal"
+        ? "buccalFurcation"
+        : "lingualFurcation"]: value,
     }));
   }
 
   /*
    * ==========================================================
-   * SALVAR DENTE NO SUPABASE
+   * SALVA UM DENTE NO SUPABASE
    * ==========================================================
    */
 
   async function persistTooth(
     tooth: Tooth
   ) {
-    /*
-     * Mesmo sem IDs, o rascunho local
-     * já foi salvo automaticamente.
-     */
     if (!examId || !patientId) {
-      console.warn(
-        "PERIODONTIA: examId ou patientId não informado. Dados mantidos no rascunho local."
-      );
-
-      setSaveMessage(
-        "Rascunho salvo localmente"
+      console.error(
+        "Autosave cancelado: examId ou patientId ausente.",
+        {
+          examId,
+          patientId,
+        }
       );
 
       return false;
@@ -1174,7 +1244,7 @@ export function Odontogram({
         ];
 
       /*
-       * Cria o dente somente uma vez.
+       * Cria o dente no banco apenas uma vez.
        */
       if (!toothId) {
         const savedTooth =
@@ -1185,6 +1255,15 @@ export function Odontogram({
             status:
               tooth.status,
           });
+
+        if (
+          !savedTooth ||
+          !savedTooth.id
+        ) {
+          throw new Error(
+            `Não foi possível criar o dente ${tooth.number}.`
+          );
+        }
 
         toothId =
           savedTooth.id;
@@ -1220,10 +1299,14 @@ export function Odontogram({
             )
         );
 
+      /*
+       * Atualiza informações gerais.
+       */
       await updateTooth({
         id: toothId,
         input: {
-          status: tooth.status,
+          status:
+            tooth.status,
           mobility:
             tooth.mobility,
           furcationBuccal:
@@ -1240,6 +1323,9 @@ export function Odontogram({
         },
       });
 
+      /*
+       * Atualiza os 6 sítios.
+       */
       for (const currentSurface of [
         "VESTIBULAR",
         "LINGUAL",
@@ -1277,30 +1363,33 @@ export function Odontogram({
       }
 
       /*
-       * Atualiza backup local.
+       * Atualiza também o backup local
+       * com a versão mais recente.
        */
-      try {
-        window.localStorage.setItem(
-          storageKey,
-          JSON.stringify({
-            teeth:
-              teethRef.current,
-            selectedTooth,
-            surface,
-            toothIds:
-              toothIdsRef.current,
-            updatedAt:
-              new Date().toISOString(),
-          })
-        );
-      } catch {
-        // O banco já foi salvo.
+      if (storageKey) {
+        try {
+          window.localStorage.setItem(
+            storageKey,
+            JSON.stringify({
+              teeth:
+                teethRef.current,
+              selectedTooth,
+              surface,
+              toothIds:
+                toothIdsRef.current,
+              updatedAt:
+                new Date().toISOString(),
+            })
+          );
+        } catch {
+          // O banco já foi salvo.
+        }
       }
 
       return true;
     } catch (error) {
       console.error(
-        `ERRO AO SINCRONIZAR DENTE ${tooth.number}:`,
+        `Erro ao sincronizar dente ${tooth.number}:`,
         error
       );
 
@@ -1312,13 +1401,21 @@ export function Odontogram({
    * ==========================================================
    * AUTOSAVE
    * ==========================================================
+   *
+   * Toda alteração:
+   *
+   * 1. Atualiza imediatamente a tela.
+   * 2. Salva no localStorage.
+   * 3. Aguarda 700 ms.
+   * 4. Salva o dente no Supabase.
    */
 
   useEffect(() => {
     if (
       !hasLoadedDraft ||
-      selectedTooth === null ||
-      !isDirty
+      !examId ||
+      !patientId ||
+      selectedTooth === null
     ) {
       return;
     }
@@ -1345,6 +1442,10 @@ export function Odontogram({
 
     saveTimerRef.current =
       setTimeout(async () => {
+        /*
+         * Se uma alteração mais nova
+         * aconteceu, não salva esta versão.
+         */
         if (
           currentVersion !==
           saveVersionRef.current
@@ -1352,48 +1453,35 @@ export function Odontogram({
           return;
         }
 
-        /*
-         * Se ainda não temos IDs,
-         * o localStorage já funciona.
-         */
-        if (!examId || !patientId) {
-          setIsOfflineDraft(true);
-          setIsSaved(false);
-          setSaveMessage(
-            "Rascunho salvo localmente"
-          );
-          return;
-        }
-
-        setSaveMessage(
-          "Salvando..."
-        );
+        setIsAutoSaving(true);
+        setIsSaved(false);
 
         const success =
           await persistTooth(
             toothToSave
           );
 
+        /*
+         * Se houve nova alteração durante
+         * o salvamento, não marcamos como
+         * salvo a versão antiga.
+         */
         if (
           currentVersion !==
           saveVersionRef.current
         ) {
+          setIsAutoSaving(false);
           return;
         }
+
+        setIsAutoSaving(false);
 
         if (success) {
           setIsSaved(true);
           setIsOfflineDraft(false);
-          setIsDirty(false);
-          setSaveMessage(
-            "Salvo automaticamente"
-          );
         } else {
           setIsSaved(false);
           setIsOfflineDraft(true);
-          setSaveMessage(
-            "Rascunho salvo localmente"
-          );
         }
       }, 700);
 
@@ -1410,7 +1498,6 @@ export function Odontogram({
     examId,
     patientId,
     hasLoadedDraft,
-    isDirty,
   ]);
 
   /*
@@ -1426,7 +1513,6 @@ export function Odontogram({
     ];
 
     setTeeth(initialTeeth);
-
     teethRef.current =
       initialTeeth;
 
@@ -1435,8 +1521,7 @@ export function Odontogram({
     setActiveTab("dentist");
     setIsSaved(false);
     setIsOfflineDraft(false);
-    setIsDirty(false);
-    setSaveMessage(null);
+    setIsAutoSaving(false);
 
     saveVersionRef.current += 1;
 
@@ -1448,21 +1533,23 @@ export function Odontogram({
       );
     }
 
-    try {
-      window.localStorage.removeItem(
-        storageKey
-      );
-    } catch (error) {
-      console.error(
-        "ERRO AO LIMPAR RASCUNHO:",
-        error
-      );
+    if (storageKey) {
+      try {
+        window.localStorage.removeItem(
+          storageKey
+        );
+      } catch (error) {
+        console.error(
+          "Erro ao limpar rascunho:",
+          error
+        );
+      }
     }
   }
 
   /*
    * ==========================================================
-   * NAVEGAÇÃO
+   * NAVEGAÇÃO ENTRE DENTES
    * ==========================================================
    */
 
@@ -1474,7 +1561,8 @@ export function Odontogram({
     }
 
     const nextIndex =
-      selectedIndex + direction;
+      selectedIndex +
+      direction;
 
     if (
       nextIndex < 0 ||
@@ -1497,58 +1585,34 @@ export function Odontogram({
    */
 
   async function saveExam() {
+    if (!examId || !patientId) {
+      console.error(
+        "Não foi possível salvar: exame ou paciente não informado.",
+        {
+          examId,
+          patientId,
+        }
+      );
+
+      return;
+    }
+
     if (saveTimerRef.current) {
       clearTimeout(
         saveTimerRef.current
       );
     }
 
-    setIsSaved(false);
-    setSaveMessage(
-      "Salvando..."
-    );
-
-    /*
-     * Sem IDs, mantém tudo no backup local.
-     */
-    if (!examId || !patientId) {
-      try {
-        window.localStorage.setItem(
-          storageKey,
-          JSON.stringify({
-            teeth:
-              teethRef.current,
-            selectedTooth,
-            surface,
-            toothIds:
-              toothIdsRef.current,
-            updatedAt:
-              new Date().toISOString(),
-          })
-        );
-
-        setIsOfflineDraft(true);
-        setIsDirty(false);
-        setSaveMessage(
-          "Rascunho salvo localmente"
-        );
-      } catch (error) {
-        console.error(
-          "ERRO AO SALVAR RASCUNHO:",
-          error
-        );
-
-        setSaveMessage(
-          "Erro ao salvar"
-        );
-      }
-
-      return;
-    }
-
     try {
+      setIsAutoSaving(true);
+      setIsSaved(false);
+
       let allSuccessful = true;
 
+      /*
+       * Salva todos os dentes usando
+       * sempre a versão atual do ref.
+       */
       for (const tooth of teethRef.current) {
         const success =
           await persistTooth(
@@ -1563,28 +1627,20 @@ export function Odontogram({
       if (allSuccessful) {
         setIsSaved(true);
         setIsOfflineDraft(false);
-        setIsDirty(false);
-        setSaveMessage(
-          "Salvo com sucesso"
-        );
       } else {
         setIsSaved(false);
         setIsOfflineDraft(true);
-        setSaveMessage(
-          "Alguns dados não foram salvos"
-        );
       }
     } catch (error) {
       console.error(
-        "ERRO AO SALVAR EXAME PERIODONTAL:",
+        "Erro ao salvar exame periodontal:",
         error
       );
 
       setIsSaved(false);
       setIsOfflineDraft(true);
-      setSaveMessage(
-        "Erro ao salvar"
-      );
+    } finally {
+      setIsAutoSaving(false);
     }
   }
 
@@ -1600,51 +1656,65 @@ export function Odontogram({
         "Não foi possível finalizar: exame ou paciente não informado."
       );
 
-      setSaveMessage(
-        "Exame/paciente não identificado"
-      );
-
       return;
     }
 
     try {
       await saveExam();
 
-      await finalizeExam(examId);
+      await finalizeExam(
+        examId
+      );
 
       setIsSaved(true);
       setIsOfflineDraft(false);
-      setIsDirty(false);
-      setSaveMessage(
-        "Exame finalizado"
-      );
 
-      try {
-        window.localStorage.removeItem(
-          storageKey
-        );
-      } catch {
-        // Não impede a finalização.
+      if (storageKey) {
+        try {
+          window.localStorage.removeItem(
+            storageKey
+          );
+        } catch {
+          // Não impede a finalização.
+        }
       }
     } catch (error) {
       console.error(
-        "ERRO AO FINALIZAR EXAME PERIODONTAL:",
+        "Erro ao finalizar exame periodontal:",
         error
       );
     }
   }
 
+  /*
+   * ==========================================================
+   * ESTADO DOS BOTÕES
+   * ==========================================================
+   */
+
   const saving =
     isCreatingTooth ||
     isUpdatingTooth ||
     isSavingSite ||
-    isFinalizingExam;
+    isFinalizingExam ||
+    isAutoSaving;
+
+  /*
+   * IMPORTANTE:
+   *
+   * O botão NÃO depende de saving para ficar
+   * clicável. Ele só fica desabilitado quando
+   * não existe examId/patientId.
+   */
+
+  const canSave =
+    Boolean(examId && patientId);
 
   return (
     <div className="space-y-6">
-      {/* ======================================================
+      {/* =====================================================
           CABEÇALHO
-      ======================================================= */}
+      ====================================================== */}
 
       <Card>
         <CardHeader>
@@ -1656,43 +1726,45 @@ export function Odontogram({
 
               <p className="mt-1 text-sm text-text-secondary">
                 Registre os dados clínicos
-                dente por dente ou consulte
-                o periodontograma completo.
+                dente por dente ou consulte o
+                periodontograma completo.
               </p>
 
-              {!examId ||
-              !patientId ? (
-                <p className="mt-2 text-xs font-medium text-warning">
-                  Exame/paciente não
-                  identificado. Os dados serão
-                  mantidos automaticamente como
-                  rascunho local até que os IDs
-                  sejam fornecidos.
+              {!canSave && (
+                <p className="mt-2 text-xs font-medium text-error">
+                  Este exame não recebeu
+                  examId/patientId. O salvamento
+                  no banco está indisponível.
                 </p>
-              ) : null}
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              {saveMessage && (
+              {isAutoSaving ? (
                 <Badge
-                  variant={
-                    isSaved
-                      ? "success"
-                      : "secondary"
-                  }
+                  variant="secondary"
                   className="gap-1"
                 >
-                  {saving ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : isSaved ? (
-                    <Cloud className="h-3 w-3" />
-                  ) : isOfflineDraft ? (
-                    <CloudOff className="h-3 w-3" />
-                  ) : null}
-
-                  {saveMessage}
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Salvando...
                 </Badge>
-              )}
+              ) : isOfflineDraft ? (
+                <Badge
+                  variant="secondary"
+                  className="gap-1"
+                >
+                  <CloudOff className="h-3 w-3" />
+                  Rascunho salvo
+                </Badge>
+              ) : isSaved ? (
+                <Badge
+                  variant="success"
+                  className="gap-1"
+                >
+                  <Cloud className="h-3 w-3" />
+                  Salvo
+                </Badge>
+              ) : null}
 
               <Button
                 type="button"
@@ -1706,16 +1778,15 @@ export function Odontogram({
                 Limpar
               </Button>
 
-              {/*
-               * IMPORTANTE:
-               * O botão NÃO depende mais de
-               * examId/patientId para ficar
-               * clicável.
-               */}
               <Button
                 type="button"
                 onClick={saveExam}
-                disabled={saving}
+                disabled={!canSave || saving}
+                className={
+                  canSave && !saving
+                    ? "cursor-pointer"
+                    : ""
+                }
               >
                 {saving ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1739,9 +1810,8 @@ export function Odontogram({
                   handleFinalizeExam
                 }
                 disabled={
-                  saving ||
-                  !examId ||
-                  !patientId
+                  !canSave ||
+                  saving
                 }
               >
                 {isFinalizingExam ? (
@@ -1768,7 +1838,9 @@ export function Odontogram({
                   : "ghost"
               }
               onClick={() =>
-                setActiveTab("dentist")
+                setActiveTab(
+                  "dentist"
+                )
               }
               className="flex-1"
             >
@@ -1783,7 +1855,9 @@ export function Odontogram({
                   : "ghost"
               }
               onClick={() =>
-                setActiveTab("chart")
+                setActiveTab(
+                  "chart"
+                )
               }
               className="flex-1"
             >
@@ -1794,9 +1868,9 @@ export function Odontogram({
         </CardContent>
       </Card>
 
-      {/* ======================================================
+      {/* =====================================================
           ABA — PERIODONTOGRAMA
-      ======================================================= */}
+      ====================================================== */}
 
       {activeTab === "chart" && (
         <motion.div
@@ -1924,16 +1998,20 @@ export function Odontogram({
           <PeriodontalTable
             teeth={teeth}
             onSelectTooth={(number) => {
-              setSelectedTooth(number);
-              setActiveTab("dentist");
+              setSelectedTooth(
+                number
+              );
+              setActiveTab(
+                "dentist"
+              );
             }}
           />
         </motion.div>
       )}
 
-      {/* ======================================================
+      {/* =====================================================
           ABA — AVALIAÇÃO DO DENTE
-      ======================================================= */}
+      ====================================================== */}
 
       {activeTab === "dentist" && (
         <motion.div
@@ -1972,28 +2050,33 @@ export function Odontogram({
 
                     <div className="flex justify-center gap-2">
                       {teeth
-                        .filter((tooth) =>
-                          upperTeeth.includes(
-                            tooth.number
-                          )
+                        .filter(
+                          (tooth) =>
+                            upperTeeth.includes(
+                              tooth.number
+                            )
                         )
-                        .map((tooth) => (
-                          <ToothVisual
-                            key={
-                              tooth.number
-                            }
-                            tooth={tooth}
-                            selected={
-                              selectedTooth ===
-                              tooth.number
-                            }
-                            onClick={() =>
-                              setSelectedTooth(
+                        .map(
+                          (tooth) => (
+                            <ToothVisual
+                              key={
                                 tooth.number
-                              )
-                            }
-                          />
-                        ))}
+                              }
+                              tooth={
+                                tooth
+                              }
+                              selected={
+                                selectedTooth ===
+                                tooth.number
+                              }
+                              onClick={() =>
+                                setSelectedTooth(
+                                  tooth.number
+                                )
+                              }
+                            />
+                          )
+                        )}
                     </div>
                   </div>
 
@@ -2006,28 +2089,33 @@ export function Odontogram({
 
                     <div className="flex justify-center gap-2">
                       {teeth
-                        .filter((tooth) =>
-                          lowerTeeth.includes(
-                            tooth.number
-                          )
+                        .filter(
+                          (tooth) =>
+                            lowerTeeth.includes(
+                              tooth.number
+                            )
                         )
-                        .map((tooth) => (
-                          <ToothVisual
-                            key={
-                              tooth.number
-                            }
-                            tooth={tooth}
-                            selected={
-                              selectedTooth ===
-                              tooth.number
-                            }
-                            onClick={() =>
-                              setSelectedTooth(
+                        .map(
+                          (tooth) => (
+                            <ToothVisual
+                              key={
                                 tooth.number
-                              )
-                            }
-                          />
-                        ))}
+                              }
+                              tooth={
+                                tooth
+                              }
+                              selected={
+                                selectedTooth ===
+                                tooth.number
+                              }
+                              onClick={() =>
+                                setSelectedTooth(
+                                  tooth.number
+                                )
+                              }
+                            />
+                          )
+                        )}
                     </div>
                   </div>
                 </div>
@@ -2038,7 +2126,9 @@ export function Odontogram({
           <AnimatePresence mode="wait">
             {selected && (
               <motion.div
-                key={selected.number}
+                key={
+                  selected.number
+                }
                 initial={{
                   opacity: 0,
                   y: 12,
@@ -2063,7 +2153,9 @@ export function Odontogram({
                         <div className="flex items-center gap-3">
                           <CardTitle>
                             Dente{" "}
-                            {selected.number}
+                            {
+                              selected.number
+                            }
                           </CardTitle>
 
                           <Badge
@@ -2102,7 +2194,9 @@ export function Odontogram({
                             0
                           }
                           onClick={() =>
-                            goToTooth(-1)
+                            goToTooth(
+                              -1
+                            )
                           }
                         >
                           <ChevronLeft className="mr-1 h-4 w-4" />
@@ -2114,10 +2208,13 @@ export function Odontogram({
                           variant="ghost"
                           disabled={
                             selectedIndex >=
-                            teeth.length - 1
+                            teeth.length -
+                              1
                           }
                           onClick={() =>
-                            goToTooth(1)
+                            goToTooth(
+                              1
+                            )
                           }
                         >
                           Próximo
@@ -2193,8 +2290,9 @@ export function Odontogram({
 
                         <p className="mt-1 text-sm text-text-secondary">
                           Registre PS e
-                          recessão em cada
-                          sítio. O NIC é
+                          recessão em
+                          cada sítio. O
+                          NIC é
                           calculado
                           automaticamente.
                         </p>
@@ -2250,7 +2348,9 @@ export function Odontogram({
                             </th>
 
                             {points.map(
-                              (point) => (
+                              (
+                                point
+                              ) => (
                                 <th
                                   key={
                                     point
@@ -2277,7 +2377,9 @@ export function Odontogram({
                             </td>
 
                             {points.map(
-                              (point) => (
+                              (
+                                point
+                              ) => (
                                 <td
                                   key={
                                     point
@@ -2315,7 +2417,9 @@ export function Odontogram({
                             </td>
 
                             {points.map(
-                              (point) => (
+                              (
+                                point
+                              ) => (
                                 <td
                                   key={
                                     point
@@ -2353,12 +2457,16 @@ export function Odontogram({
                             </td>
 
                             {points.map(
-                              (point) => {
+                              (
+                                point
+                              ) => {
                                 const site =
                                   selected
                                     .sites[
                                     surface
-                                  ][point];
+                                  ][
+                                    point
+                                  ];
 
                                 const cal =
                                   calculateCAL(
@@ -2389,10 +2497,11 @@ export function Odontogram({
                       <strong className="text-text-primary">
                         NIC:
                       </strong>{" "}
-                      PS + recessão. Se a margem
-                      gengival estiver coronal ao
-                      JCE, registre a recessão com
-                      valor negativo.
+                      PS + recessão. Se a
+                      margem gengival estiver
+                      coronal ao JCE, registre
+                      a recessão com valor
+                      negativo.
                     </div>
                   </CardContent>
                 </Card>
@@ -2460,8 +2569,8 @@ export function Odontogram({
                                   }`}
                                 >
                                   <span>
-                                    Sangramento à
-                                    sondagem
+                                    Sangramento
+                                    à sondagem
                                   </span>
 
                                   {site.bleeding && (
@@ -2630,9 +2739,12 @@ export function Odontogram({
                       value={
                         selected.observations
                       }
-                      onChange={(event) =>
+                      onChange={(
+                        event
+                      ) =>
                         updateObservation(
-                          event.target.value
+                          event.target
+                            .value
                         )
                       }
                       rows={4}
@@ -2644,9 +2756,8 @@ export function Odontogram({
               </motion.div>
             )}
           </AnimatePresence>
-        )}
-      </motion.div>
-    )}
+        </motion.div>
+      )}
     </div>
   );
 }
