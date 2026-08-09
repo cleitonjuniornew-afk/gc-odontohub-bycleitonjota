@@ -6,7 +6,9 @@ import {
   useRef,
   useState,
 } from "react";
+
 import { motion, AnimatePresence } from "framer-motion";
+
 import {
   ChevronLeft,
   ChevronRight,
@@ -38,6 +40,10 @@ import type {
   PeriodontalPoint,
 } from "@/repositories/periodontia.repository";
 
+/* =========================================================
+   TIPOS
+========================================================= */
+
 type ToothStatus = PeriodontalStatus;
 type Surface = PeriodontalSurface;
 type Point = PeriodontalPoint;
@@ -57,6 +63,7 @@ interface Tooth {
   buccalFurcation: number | null;
   lingualFurcation: number | null;
   observations: string;
+
   sites: {
     VESTIBULAR: Record<Point, SiteData>;
     LINGUAL: Record<Point, SiteData>;
@@ -67,6 +74,10 @@ interface OdontogramProps {
   examId?: string;
   patientId?: string;
 }
+
+/* =========================================================
+   ARCADA
+========================================================= */
 
 const upperTeeth = [
   18,
@@ -114,6 +125,28 @@ const points: Point[] = [
 
 const SCALE_MAX = 10;
 
+/* =========================================================
+   IMAGENS
+========================================================= */
+
+const IMAGES = {
+  upperVestibular:
+    "/superior-vestibular.png.png",
+
+  upperLingual:
+    "/superior-lingual.png.png",
+
+  lowerVestibular:
+    "/inferior-vestibular.png.png",
+
+  lowerLingual:
+    "/inferior-lingual.png.png",
+};
+
+/* =========================================================
+   DADOS
+========================================================= */
+
 function emptySite(): SiteData {
   return {
     probingDepth: null,
@@ -131,6 +164,7 @@ function createSites() {
       CENTRAL: emptySite(),
       DISTAL: emptySite(),
     },
+
     LINGUAL: {
       MESIAL: emptySite(),
       CENTRAL: emptySite(),
@@ -151,6 +185,10 @@ function createTeeth(numbers: number[]): Tooth[] {
   }));
 }
 
+/* =========================================================
+   NIC / CAL
+========================================================= */
+
 function calculateCAL(site: SiteData) {
   if (
     site.probingDepth === null ||
@@ -159,81 +197,188 @@ function calculateCAL(site: SiteData) {
     return null;
   }
 
-  return site.probingDepth + site.gingivalRecession;
+  return (
+    site.probingDepth +
+    site.gingivalRecession
+  );
 }
 
 /* =========================================================
-   MAPA DAS POSIÇÕES DOS DENTES
+   POSIÇÃO DOS DENTES NA IMAGEM
 
-   Todas as coordenadas são percentuais.
-   Isso faz com que as marcações acompanhem a imagem
-   quando ela aumentar ou diminuir.
+   As imagens possuem 16 dentes em uma linha.
 
-   x / y = centro da área do dente
-   width / height = área clicável do dente
+   x = centro horizontal do dente.
 
-   Estes valores ficam centralizados aqui para facilitar
-   pequenos ajustes depois do primeiro preview.
+   Como as quatro imagens possuem a mesma largura,
+   usamos uma matriz comum de posições horizontais.
 ========================================================= */
 
-interface ToothPosition {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+const TOOTH_X: Record<number, number> = {
+  18: 5.0,
+  17: 11.0,
+  16: 17.0,
+  15: 23.2,
+  14: 29.3,
+  13: 35.2,
+  12: 41.1,
+  11: 46.5,
 
-const TOOTH_POSITIONS: Record<number, ToothPosition> = {
-  /* SUPERIOR - lado direito */
-  18: { x: 8.5, y: 54, width: 5.8, height: 35 },
-  17: { x: 14.2, y: 47, width: 5.8, height: 38 },
-  16: { x: 20.0, y: 41, width: 6.0, height: 40 },
-  15: { x: 26.0, y: 36, width: 5.7, height: 39 },
-  14: { x: 32.0, y: 32, width: 5.5, height: 37 },
-  13: { x: 38.0, y: 29, width: 5.5, height: 36 },
-  12: { x: 43.5, y: 27, width: 5.0, height: 34 },
-  11: { x: 48.0, y: 26, width: 5.0, height: 34 },
+  21: 53.5,
+  22: 58.9,
+  23: 64.8,
+  24: 70.7,
+  25: 76.8,
+  26: 83.0,
+  27: 89.0,
+  28: 95.0,
 
-  /* SUPERIOR - lado esquerdo */
-  21: { x: 52.0, y: 26, width: 5.0, height: 34 },
-  22: { x: 56.5, y: 27, width: 5.0, height: 34 },
-  23: { x: 62.0, y: 29, width: 5.5, height: 36 },
-  24: { x: 68.0, y: 32, width: 5.5, height: 37 },
-  25: { x: 74.0, y: 36, width: 5.7, height: 39 },
-  26: { x: 80.0, y: 41, width: 6.0, height: 40 },
-  27: { x: 85.8, y: 47, width: 5.8, height: 38 },
-  28: { x: 91.5, y: 54, width: 5.8, height: 35 },
+  48: 5.0,
+  47: 11.0,
+  46: 17.0,
+  45: 23.2,
+  44: 29.3,
+  43: 35.2,
+  42: 41.1,
+  41: 46.5,
 
-  /* INFERIOR - lado direito */
-  48: { x: 8.5, y: 46, width: 5.8, height: 35 },
-  47: { x: 14.2, y: 53, width: 5.8, height: 38 },
-  46: { x: 20.0, y: 59, width: 6.0, height: 40 },
-  45: { x: 26.0, y: 64, width: 5.7, height: 39 },
-  44: { x: 32.0, y: 68, width: 5.5, height: 37 },
-  43: { x: 38.0, y: 71, width: 5.5, height: 36 },
-  42: { x: 43.5, y: 73, width: 5.0, height: 34 },
-  41: { x: 48.0, y: 74, width: 5.0, height: 34 },
-
-  /* INFERIOR - lado esquerdo */
-  31: { x: 52.0, y: 74, width: 5.0, height: 34 },
-  32: { x: 56.5, y: 73, width: 5.0, height: 34 },
-  33: { x: 62.0, y: 71, width: 5.5, height: 36 },
-  34: { x: 68.0, y: 68, width: 5.5, height: 37 },
-  35: { x: 74.0, y: 64, width: 5.7, height: 39 },
-  36: { x: 80.0, y: 59, width: 6.0, height: 40 },
-  37: { x: 85.8, y: 53, width: 5.8, height: 38 },
-  38: { x: 91.5, y: 46, width: 5.8, height: 35 },
+  31: 53.5,
+  32: 58.9,
+  33: 64.8,
+  34: 70.7,
+  35: 76.8,
+  36: 83.0,
+  37: 89.0,
+  38: 95.0,
 };
 
 /* =========================================================
-   POSIÇÕES RELATIVAS DAS 3 SONDAGENS
+   LARGURA DA ÁREA DE CADA DENTE
 ========================================================= */
 
-const POINT_X: Record<Point, number> = {
-  MESIAL: 22,
-  CENTRAL: 50,
-  DISTAL: 78,
+const TOOTH_WIDTH: Record<number, number> = {
+  18: 5.4,
+  17: 5.5,
+  16: 5.7,
+  15: 5.4,
+  14: 5.1,
+  13: 5.0,
+  12: 4.7,
+  11: 4.8,
+
+  21: 4.8,
+  22: 4.7,
+  23: 5.0,
+  24: 5.1,
+  25: 5.4,
+  26: 5.7,
+  27: 5.5,
+  28: 5.4,
+
+  48: 5.4,
+  47: 5.5,
+  46: 5.7,
+  45: 5.4,
+  44: 5.1,
+  43: 5.0,
+  42: 4.7,
+  41: 4.8,
+
+  31: 4.8,
+  32: 4.7,
+  33: 5.0,
+  34: 5.1,
+  35: 5.4,
+  36: 5.7,
+  37: 5.5,
+  38: 5.4,
 };
+
+/* =========================================================
+   MAPA DA ESCALA VERTICAL
+
+   A escala sempre começa próxima da região cervical
+   e desce em direção à raiz.
+
+   0 mm = margem gengival de referência
+   10 mm = região mais apical.
+========================================================= */
+
+const SCALE_TOP = 35;
+const SCALE_BOTTOM = 94;
+
+/* =========================================================
+   PONTOS M/C/D
+
+   A posição anatômica muda conforme o lado.
+
+   18-11:
+   o mesial está voltado para a linha média.
+
+   21-28:
+   o mesial também está voltado para a linha média,
+   mas no lado oposto.
+
+   Portanto M/C/D são espelhados.
+========================================================= */
+
+function getPointX(
+  toothNumber: number,
+  point: Point
+) {
+  const leftSide =
+    toothNumber >= 18 &&
+    toothNumber <= 11;
+
+  const rightSide =
+    toothNumber >= 21 &&
+    toothNumber <= 28;
+
+  /*
+   * Para dentes do lado esquerdo da imagem:
+   *
+   *        D C M
+   *
+   * Para dentes do lado direito:
+   *
+   *        M C D
+   */
+
+  if (leftSide) {
+    if (point === "MESIAL") return 78;
+    if (point === "CENTRAL") return 50;
+    return 22;
+  }
+
+  if (rightSide) {
+    if (point === "MESIAL") return 22;
+    if (point === "CENTRAL") return 50;
+    return 78;
+  }
+
+  /*
+   * Inferiores seguem a mesma lógica horizontal.
+   */
+
+  const lowerLeft =
+    toothNumber >= 48 &&
+    toothNumber <= 41;
+
+  if (lowerLeft) {
+    if (point === "MESIAL") return 78;
+    if (point === "CENTRAL") return 50;
+    return 22;
+  }
+
+  if (point === "MESIAL") return 22;
+  if (point === "CENTRAL") return 50;
+
+  return 78;
+}
+
+/* =========================================================
+   LETRA
+========================================================= */
 
 function pointLetter(point: Point) {
   if (point === "MESIAL") return "M";
@@ -242,336 +387,865 @@ function pointLetter(point: Point) {
 }
 
 /* =========================================================
-   IMAGEM + CAMADA PERIODONTAL
+   POSIÇÃO VERTICAL DA ESCALA
+========================================================= */
+
+function clamp(
+  value: number,
+  min: number,
+  max: number
+) {
+  return Math.min(
+    max,
+    Math.max(min, value)
+  );
+}
+
+/*
+ * Converte milímetros para porcentagem vertical.
+ *
+ * 0 mm fica no SCALE_TOP.
+ * 10 mm fica no SCALE_BOTTOM.
+ */
+
+function depthToPercent(
+  depth: number
+) {
+  const safe = clamp(
+    depth,
+    0,
+    SCALE_MAX
+  );
+
+  return (
+    SCALE_TOP +
+    (safe / SCALE_MAX) *
+      (SCALE_BOTTOM - SCALE_TOP)
+  );
+}
+
+/*
+ * Margem gengival:
+ *
+ * positiva = sobe
+ * negativa = desce
+ *
+ * Cada 1 mm representa uma pequena
+ * distância vertical.
+ */
+
+function recessionToPercent(
+  recession: number
+) {
+  const MILLIMETER_PX =
+    (SCALE_BOTTOM - SCALE_TOP) /
+    SCALE_MAX;
+
+  /*
+   * positivo sobe -> subtrai
+   * negativo desce -> soma
+   */
+
+  return (
+    SCALE_TOP -
+    recession * MILLIMETER_PX
+  );
+}
+
+/*
+ * Profundidade de sondagem é medida
+ * a partir da margem gengival.
+ */
+
+function probingFromMargin(
+  recession: number | null,
+  probing: number | null
+) {
+  if (probing === null) {
+    return null;
+  }
+
+  const margin =
+    recession ?? 0;
+
+  const marginPosition =
+    recessionToPercent(margin);
+
+  const MILLIMETER_PX =
+    (SCALE_BOTTOM - SCALE_TOP) /
+    SCALE_MAX;
+
+  return (
+    marginPosition +
+    probing * MILLIMETER_PX
+  );
+}
+
+/* =========================================================
+   SVG DO PERIODONTO SOBRE A IMAGEM
 ========================================================= */
 
 function PeriodontalImageArch({
   image,
   teeth,
-  surface,
   selectedTooth,
   onSelectTooth,
+  surface,
+  flipY = false,
 }: {
   image: string;
   teeth: Tooth[];
-  surface: Surface;
   selectedTooth: number | null;
-  onSelectTooth: (number: number) => void;
+  onSelectTooth: (
+    number: number
+  ) => void;
+  surface: Surface;
+  flipY?: boolean;
 }) {
-  const presentTeeth = teeth.filter((tooth) =>
-    teeth.some((item) => item.number === tooth.number)
-  );
-
   return (
-    <div className="relative w-full overflow-hidden rounded-xl border border-border bg-background">
-      {/* IMAGEM ANATÔMICA REAL */}
+    <div
+      className="relative w-full overflow-hidden rounded-xl border border-border bg-white"
+    >
+      {/* =================================================
+          IMAGEM ANATÔMICA
+      ================================================= */}
+
       <img
         src={image}
-        alt={`Arcada periodontal ${surface.toLowerCase()}`}
-        className="block h-auto w-full select-none"
+        alt="Arcada dentária"
         draggable={false}
+        className={`block h-auto w-full select-none ${
+          flipY
+            ? "scale-y-[-1]"
+            : ""
+        }`}
       />
 
       {/* =================================================
-          CAMADA INTERATIVA
+          CAMADA SVG
       ================================================= */}
-      <div className="pointer-events-none absolute inset-0">
-        {/* LINHAS GERAIS MILIMETRADAS */}
 
-        {Array.from({
-          length: SCALE_MAX + 1,
-        }).map((_, index) => {
-          const top = 34 + index * 4.2;
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        className="pointer-events-none absolute inset-0 h-full w-full"
+      >
+        {teeth.map((tooth) => {
+          const x =
+            TOOTH_X[tooth.number];
 
-          return (
-            <div
-              key={`scale-${index}`}
-              className="absolute left-[4%] right-[4%]"
-              style={{
-                top: `${top}%`,
-              }}
-            >
-              <div
-                className={`h-px ${
-                  index === 0
-                    ? "bg-primary/60"
-                    : "bg-primary/20"
-                }`}
-              />
+          const width =
+            TOOTH_WIDTH[tooth.number];
 
-              <span className="absolute right-full mr-1 -translate-y-1/2 text-[8px] font-semibold text-text-muted">
-                {index}
-              </span>
-            </div>
-          );
-        })}
+          if (
+            x === undefined ||
+            width === undefined
+          ) {
+            return null;
+          }
 
-        {/* DENTES */}
-
-        {presentTeeth.map((tooth) => {
-          const position =
-            TOOTH_POSITIONS[tooth.number];
-
-          if (!position) return null;
-
-          const sites = tooth.sites[surface];
-
-          const hasBleeding =
-            Object.values(sites).some(
-              (site) => site.bleeding
-            );
-
-          const hasPlaque =
-            Object.values(sites).some(
-              (site) => site.plaque
-            );
-
-          const hasSuppuration =
-            Object.values(sites).some(
-              (site) => site.suppuration
-            );
+          const sites =
+            tooth.sites[surface];
 
           const isSelected =
-            selectedTooth === tooth.number;
+            selectedTooth ===
+            tooth.number;
+
+          /*
+           * Coordenadas horizontais
+           */
+
+          const mX =
+            x +
+            (getPointX(
+              tooth.number,
+              "MESIAL"
+            ) -
+              50) *
+              (width / 100);
+
+          const cX =
+            x +
+            (getPointX(
+              tooth.number,
+              "CENTRAL"
+            ) -
+              50) *
+              (width / 100);
+
+          const dX =
+            x +
+            (getPointX(
+              tooth.number,
+              "DISTAL"
+            ) -
+              50) *
+              (width / 100);
+
+          /*
+           * Coordenadas da margem gengival.
+           */
+
+          const mRecession =
+            sites.MESIAL
+              .gingivalRecession ??
+            0;
+
+          const cRecession =
+            sites.CENTRAL
+              .gingivalRecession ??
+            0;
+
+          const dRecession =
+            sites.DISTAL
+              .gingivalRecession ??
+            0;
+
+          const mY =
+            recessionToPercent(
+              mRecession
+            );
+
+          const cY =
+            recessionToPercent(
+              cRecession
+            );
+
+          const dY =
+            recessionToPercent(
+              dRecession
+            );
+
+          /*
+           * Profundidade de sondagem.
+           */
+
+          const mProbe =
+            probingFromMargin(
+              sites.MESIAL
+                .gingivalRecession,
+              sites.MESIAL
+                .probingDepth
+            );
+
+          const cProbe =
+            probingFromMargin(
+              sites.CENTRAL
+                .gingivalRecession,
+              sites.CENTRAL
+                .probingDepth
+            );
+
+          const dProbe =
+            probingFromMargin(
+              sites.DISTAL
+                .gingivalRecession,
+              sites.DISTAL
+                .probingDepth
+            );
+
+          /*
+           * Linha vermelha.
+           */
+
+          const redPoints = [
+            `${mX},${mY}`,
+            `${cX},${cY}`,
+            `${dX},${dY}`,
+          ].join(" ");
+
+          /*
+           * Linha azul:
+           *
+           * Ela liga os três pontos de sondagem.
+           */
+
+          const bluePoints =
+            mProbe !== null &&
+            cProbe !== null &&
+            dProbe !== null
+              ? [
+                  `${mX},${mProbe}`,
+                  `${cX},${cProbe}`,
+                  `${dX},${dProbe}`,
+                ].join(" ")
+              : "";
+
+          const hasAnyRecession =
+            sites.MESIAL
+              .gingivalRecession !== null ||
+            sites.CENTRAL
+              .gingivalRecession !== null ||
+            sites.DISTAL
+              .gingivalRecession !== null;
+
+          const hasAnyProbing =
+            sites.MESIAL
+              .probingDepth !== null ||
+            sites.CENTRAL
+              .probingDepth !== null ||
+            sites.DISTAL
+              .probingDepth !== null;
 
           return (
-            <div
+            <g
               key={tooth.number}
-              className="absolute"
-              style={{
-                left: `${position.x - position.width / 2}%`,
-                top: `${position.y - position.height / 2}%`,
-                width: `${position.width}%`,
-                height: `${position.height}%`,
-              }}
             >
-              {/* ÁREA CLICÁVEL */}
+              {/* =================================================
+                  ÁREA CLICÁVEL
+              ================================================= */}
 
-              <button
-                type="button"
-                aria-label={`Selecionar dente ${tooth.number}`}
-                onClick={() =>
-                  onSelectTooth(tooth.number)
-                }
-                className={`pointer-events-auto absolute inset-0 rounded-lg transition ${
+              <rect
+                x={x - width / 2}
+                y={8}
+                width={width}
+                height={88}
+                rx={0.8}
+                fill={
                   isSelected
-                    ? "bg-primary/10 ring-2 ring-primary"
-                    : "hover:bg-primary/5"
-                }`}
+                    ? "rgba(37,99,235,0.08)"
+                    : "transparent"
+                }
+                stroke={
+                  isSelected
+                    ? "rgba(37,99,235,0.8)"
+                    : "transparent"
+                }
+                strokeWidth="0.25"
+                pointerEvents="auto"
+                onClick={() =>
+                  onSelectTooth(
+                    tooth.number
+                  )
+                }
+                className="cursor-pointer"
               />
 
-              {/* NÚMERO */}
+              {/* =================================================
+                  NÚMERO DO DENTE
+              ================================================= */}
 
-              <span
-                className={`pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-1/2 text-[9px] font-bold ${
+              <text
+                x={x}
+                y={7}
+                textAnchor="middle"
+                fontSize="2"
+                fontWeight="700"
+                fill={
                   isSelected
-                    ? "text-primary"
-                    : "text-text-primary"
-                }`}
+                    ? "#2563eb"
+                    : "#111827"
+                }
               >
                 {tooth.number}
-              </span>
+              </text>
 
-              {/* CAMADA DE SONDAGEM */}
+              {/* =================================================
+                  ESCALA PRETA
+              ================================================= */}
 
-              {points.map((point) => {
-                const site = sites[point];
+              {Array.from({
+                length:
+                  SCALE_MAX + 1,
+              }).map(
+                (_, index) => {
+                  const y =
+                    SCALE_TOP +
+                    (index /
+                      SCALE_MAX) *
+                      (SCALE_BOTTOM -
+                        SCALE_TOP);
 
-                const probing =
-                  site.probingDepth;
-
-                const recession =
-                  site.gingivalRecession;
-
-                const x =
-                  POINT_X[point];
-
-                /*
-                 * A sondagem ocupa aproximadamente
-                 * a região radicular da área do dente.
-                 */
-                const probingTop =
-                  probing !== null
-                    ? 18 +
-                      (Math.min(
-                        Math.max(
-                          probing,
-                          0
-                        ),
-                        SCALE_MAX
-                      ) /
-                        SCALE_MAX) *
-                        72
-                    : null;
-
-                const recessionTop =
-                  recession !== null
-                    ? 18 +
-                      (Math.min(
-                        Math.max(
-                          recession,
-                          0
-                        ),
-                        SCALE_MAX
-                      ) /
-                        SCALE_MAX) *
-                        25
-                    : null;
-
-                return (
-                  <div
-                    key={`${tooth.number}-${point}`}
-                    className="pointer-events-none absolute inset-0 z-20"
-                  >
-                    {/* M / C / D */}
-
-                    <span
-                      className="absolute -translate-x-1/2 text-[7px] font-bold text-text-secondary"
-                      style={{
-                        left: `${x}%`,
-                        top: "8%",
-                      }}
+                  return (
+                    <g
+                      key={`${tooth.number}-scale-${index}`}
                     >
-                      {pointLetter(point)}
-                    </span>
+                      <line
+                        x1={
+                          x -
+                          width / 2
+                        }
+                        y1={y}
+                        x2={
+                          x +
+                          width / 2
+                        }
+                        y2={y}
+                        stroke="#111111"
+                        strokeWidth={
+                          index === 0
+                            ? "0.35"
+                            : "0.18"
+                        }
+                        opacity={
+                          index === 0
+                            ? 0.95
+                            : 0.55
+                        }
+                      />
 
-                    {/* RECESSÃO */}
+                      <text
+                        x={
+                          x -
+                          width / 2 -
+                          0.6
+                        }
+                        y={y + 0.8}
+                        textAnchor="end"
+                        fontSize="1.5"
+                        fontWeight="600"
+                        fill="#111111"
+                        opacity="0.8"
+                      >
+                        {index}
+                      </text>
+                    </g>
+                  );
+                }
+              )}
 
-                    {recessionTop !== null &&
-                      recession !== null &&
-                      recession > 0 && (
-                        <span
-                          className="absolute z-30 h-2 w-2 -translate-x-1/2 rounded-full border border-rose-500 bg-background"
-                          style={{
-                            left: `${x}%`,
-                            top: `${recessionTop}%`,
-                          }}
-                          title={`Recessão ${recession} mm`}
-                        />
-                      )}
+              {/* =================================================
+                  LETRAS M/C/D
+              ================================================= */}
 
-                    {/* PROFUNDIDADE */}
+              <text
+                x={mX}
+                y={SCALE_TOP - 2}
+                textAnchor="middle"
+                fontSize="1.8"
+                fontWeight="700"
+                fill="#111111"
+              >
+                M
+              </text>
 
-                    {probingTop !== null &&
-                      probing !== null && (
-                        <>
-                          <span
-                            className={`absolute z-40 flex h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 bg-background ${
-                              site.bleeding
-                                ? "border-red-500 bg-red-500/15"
-                                : "border-primary"
-                            }`}
-                            style={{
-                              left: `${x}%`,
-                              top: `${probingTop}%`,
-                            }}
-                          >
-                            <span
-                              className={`h-1.5 w-1.5 rounded-full ${
-                                site.bleeding
-                                  ? "bg-red-500"
-                                  : "bg-primary"
-                              }`}
-                            />
-                          </span>
+              <text
+                x={cX}
+                y={SCALE_TOP - 2}
+                textAnchor="middle"
+                fontSize="1.8"
+                fontWeight="700"
+                fill="#111111"
+              >
+                C
+              </text>
 
-                          <span
-                            className={`absolute z-40 -translate-x-1/2 text-[8px] font-bold ${
-                              site.bleeding
-                                ? "text-red-500"
-                                : "text-text-primary"
-                            }`}
-                            style={{
-                              left: `${x}%`,
-                              top: `calc(${probingTop}% + 7px)`,
-                            }}
-                          >
-                            {probing}
-                          </span>
-                        </>
-                      )}
-                  </div>
-                );
-              })}
+              <text
+                x={dX}
+                y={SCALE_TOP - 2}
+                textAnchor="middle"
+                fontSize="1.8"
+                fontWeight="700"
+                fill="#111111"
+              >
+                D
+              </text>
 
-              {/* MARCADORES CLÍNICOS */}
+              {/* =================================================
+                  LINHA VERMELHA — MARGEM GENGIVAL
+              ================================================= */}
 
-              <div className="pointer-events-none absolute bottom-1 left-1/2 z-50 flex -translate-x-1/2 items-center gap-1">
-                {hasBleeding && (
-                  <span
-                    className="h-2 w-2 rounded-full bg-red-500"
-                    title="Sangramento"
+              {hasAnyRecession && (
+                <polyline
+                  points={redPoints}
+                  fill="none"
+                  stroke="#dc2626"
+                  strokeWidth="0.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+
+              {/* =================================================
+                  PONTOS DA MARGEM GENGIVAL
+              ================================================= */}
+
+              {hasAnyRecession && (
+                <>
+                  <circle
+                    cx={mX}
+                    cy={mY}
+                    r="0.85"
+                    fill="#dc2626"
+                  />
+
+                  <circle
+                    cx={cX}
+                    cy={cY}
+                    r="0.85"
+                    fill="#dc2626"
+                  />
+
+                  <circle
+                    cx={dX}
+                    cy={dY}
+                    r="0.85"
+                    fill="#dc2626"
+                  />
+                </>
+              )}
+
+              {/* =================================================
+                  VALORES DA MARGEM
+              ================================================= */}
+
+              {sites.MESIAL
+                .gingivalRecession !==
+                null && (
+                <text
+                  x={mX}
+                  y={mY - 1.3}
+                  textAnchor="middle"
+                  fontSize="1.6"
+                  fontWeight="700"
+                  fill="#dc2626"
+                >
+                  {
+                    sites.MESIAL
+                      .gingivalRecession
+                  }
+                </text>
+              )}
+
+              {sites.CENTRAL
+                .gingivalRecession !==
+                null && (
+                <text
+                  x={cX}
+                  y={cY - 1.3}
+                  textAnchor="middle"
+                  fontSize="1.6"
+                  fontWeight="700"
+                  fill="#dc2626"
+                >
+                  {
+                    sites.CENTRAL
+                      .gingivalRecession
+                  }
+                </text>
+              )}
+
+              {sites.DISTAL
+                .gingivalRecession !==
+                null && (
+                <text
+                  x={dX}
+                  y={dY - 1.3}
+                  textAnchor="middle"
+                  fontSize="1.6"
+                  fontWeight="700"
+                  fill="#dc2626"
+                >
+                  {
+                    sites.DISTAL
+                      .gingivalRecession
+                  }
+                </text>
+              )}
+
+              {/* =================================================
+                  LINHA AZUL — PROFUNDIDADE
+              ================================================= */}
+
+              {hasAnyProbing &&
+                bluePoints && (
+                  <polyline
+                    points={
+                      bluePoints
+                    }
+                    fill="none"
+                    stroke="#2563eb"
+                    strokeWidth="0.55"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
                 )}
 
-                {hasPlaque && (
-                  <span
-                    className="h-2 w-2 rounded-full bg-primary"
-                    title="Placa"
-                  />
-                )}
+              {/* =================================================
+                  PONTOS AZUIS
+              ================================================= */}
 
-                {hasSuppuration && (
-                  <span
-                    className="h-2 w-2 rounded-full bg-secondary"
-                    title="Supuração"
-                  />
-                )}
-              </div>
+              {mProbe !== null && (
+                <circle
+                  cx={mX}
+                  cy={mProbe}
+                  r="0.95"
+                  fill="#2563eb"
+                  stroke="#ffffff"
+                  strokeWidth="0.3"
+                />
+              )}
 
-              {/* AUSENTE */}
+              {cProbe !== null && (
+                <circle
+                  cx={cX}
+                  cy={cProbe}
+                  r="0.95"
+                  fill="#2563eb"
+                  stroke="#ffffff"
+                  strokeWidth="0.3"
+                />
+              )}
+
+              {dProbe !== null && (
+                <circle
+                  cx={dX}
+                  cy={dProbe}
+                  r="0.95"
+                  fill="#2563eb"
+                  stroke="#ffffff"
+                  strokeWidth="0.3"
+                />
+              )}
+
+              {/* =================================================
+                  VALORES DA SONDAGEM
+              ================================================= */}
+
+              {sites.MESIAL
+                .probingDepth !==
+                null && (
+                <text
+                  x={mX}
+                  y={
+                    (mProbe ??
+                      SCALE_TOP) +
+                    3
+                  }
+                  textAnchor="middle"
+                  fontSize="1.8"
+                  fontWeight="700"
+                  fill={
+                    sites.MESIAL
+                      .bleeding
+                      ? "#dc2626"
+                      : "#2563eb"
+                  }
+                >
+                  {
+                    sites.MESIAL
+                      .probingDepth
+                  }
+                </text>
+              )}
+
+              {sites.CENTRAL
+                .probingDepth !==
+                null && (
+                <text
+                  x={cX}
+                  y={
+                    (cProbe ??
+                      SCALE_TOP) +
+                    3
+                  }
+                  textAnchor="middle"
+                  fontSize="1.8"
+                  fontWeight="700"
+                  fill={
+                    sites.CENTRAL
+                      .bleeding
+                      ? "#dc2626"
+                      : "#2563eb"
+                  }
+                >
+                  {
+                    sites.CENTRAL
+                      .probingDepth
+                  }
+                </text>
+              )}
+
+              {sites.DISTAL
+                .probingDepth !==
+                null && (
+                <text
+                  x={dX}
+                  y={
+                    (dProbe ??
+                      SCALE_TOP) +
+                    3
+                  }
+                  textAnchor="middle"
+                  fontSize="1.8"
+                  fontWeight="700"
+                  fill={
+                    sites.DISTAL
+                      .bleeding
+                      ? "#dc2626"
+                      : "#2563eb"
+                  }
+                >
+                  {
+                    sites.DISTAL
+                      .probingDepth
+                  }
+                </text>
+              )}
+
+              {/* =================================================
+                  SANGRAMENTO
+              ================================================= */}
+
+              {sites.MESIAL
+                .bleeding && (
+                <circle
+                  cx={mX}
+                  cy={mProbe ?? mY}
+                  r="1.45"
+                  fill="none"
+                  stroke="#dc2626"
+                  strokeWidth="0.55"
+                />
+              )}
+
+              {sites.CENTRAL
+                .bleeding && (
+                <circle
+                  cx={cX}
+                  cy={cProbe ?? cY}
+                  r="1.45"
+                  fill="none"
+                  stroke="#dc2626"
+                  strokeWidth="0.55"
+                />
+              )}
+
+              {sites.DISTAL
+                .bleeding && (
+                <circle
+                  cx={dX}
+                  cy={dProbe ?? dY}
+                  r="1.45"
+                  fill="none"
+                  stroke="#dc2626"
+                  strokeWidth="0.55"
+                />
+              )}
+
+              {/* =================================================
+                  DENTE AUSENTE
+              ================================================= */}
 
               {tooth.status ===
                 "AUSENTE" && (
-                <div className="pointer-events-none absolute inset-0 z-50">
-                  <div className="absolute left-1/2 top-1/2 h-[80%] w-[2px] -translate-x-1/2 -translate-y-1/2 rotate-45 bg-error" />
+                <>
+                  <line
+                    x1={
+                      x -
+                      width * 0.4
+                    }
+                    y1={30}
+                    x2={
+                      x +
+                      width * 0.4
+                    }
+                    y2={80}
+                    stroke="#dc2626"
+                    strokeWidth="1"
+                  />
 
-                  <div className="absolute left-1/2 top-1/2 h-[80%] w-[2px] -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-error" />
-                </div>
+                  <line
+                    x1={
+                      x +
+                      width * 0.4
+                    }
+                    y1={30}
+                    x2={
+                      x -
+                      width * 0.4
+                    }
+                    y2={80}
+                    stroke="#dc2626"
+                    strokeWidth="1"
+                  />
+                </>
               )}
 
-              {/* IMPLANTE */}
+              {/* =================================================
+                  IMPLANTE
+              ================================================= */}
 
               {tooth.status ===
                 "IMPLANTE" && (
-                <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
-                  <div className="relative h-[65%] w-[24%] rounded-b-md border-2 border-secondary bg-secondary/10">
-                    <div className="absolute inset-y-1 left-1/2 w-1 -translate-x-1/2 rounded-full bg-secondary/60" />
+                <g>
+                  <rect
+                    x={
+                      x -
+                      width *
+                        0.22
+                    }
+                    y={48}
+                    width={
+                      width *
+                      0.44
+                    }
+                    height={32}
+                    rx="1"
+                    fill="rgba(37,99,235,0.08)"
+                    stroke="#2563eb"
+                    strokeWidth="0.7"
+                  />
 
-                    {Array.from({
-                      length: 5,
-                    }).map(
-                      (_, index) => (
-                        <span
-                          key={index}
-                          className="absolute left-1/2 h-px w-[85%] -translate-x-1/2 bg-secondary"
-                          style={{
-                            top: `${
-                              15 +
-                              index * 17
-                            }%`,
-                          }}
-                        />
-                      )
-                    )}
-                  </div>
-                </div>
+                  {Array.from({
+                    length: 6,
+                  }).map(
+                    (_, index) => (
+                      <line
+                        key={
+                          index
+                        }
+                        x1={
+                          x -
+                          width *
+                            0.2
+                        }
+                        x2={
+                          x +
+                          width *
+                            0.2
+                        }
+                        y1={
+                          53 +
+                          index *
+                            4.5
+                        }
+                        y2={
+                          53 +
+                          index *
+                            4.5
+                        }
+                        stroke="#2563eb"
+                        strokeWidth="0.55"
+                      />
+                    )
+                  )}
+                </g>
               )}
 
-              {/* FURCA */}
+              {/* =================================================
+                  FURCA
+              ================================================= */}
 
               {(tooth.buccalFurcation !==
                 null ||
                 tooth.lingualFurcation !==
                   null) && (
-                <span className="pointer-events-none absolute bottom-4 left-1/2 z-50 -translate-x-1/2 rounded bg-secondary/15 px-1.5 py-0.5 text-[7px] font-bold text-secondary">
+                <text
+                  x={x}
+                  y={88}
+                  textAnchor="middle"
+                  fontSize="2"
+                  fontWeight="700"
+                  fill="#7c3aed"
+                >
                   F
-                </span>
+                </text>
               )}
-            </div>
+            </g>
           );
         })}
-      </div>
+      </svg>
     </div>
   );
 }
@@ -584,29 +1258,39 @@ function NumberInput({
   value,
   onChange,
   placeholder = "—",
+  min = -20,
+  max = 20,
 }: {
   value: number | null;
-  onChange: (value: number | null) => void;
+  onChange: (
+    value: number | null
+  ) => void;
   placeholder?: string;
+  min?: number;
+  max?: number;
 }) {
   return (
     <input
       type="number"
-      min={0}
-      max={20}
+      min={min}
+      max={max}
       value={value ?? ""}
       placeholder={placeholder}
       onChange={(event) => {
-        const raw = event.target.value;
+        const raw =
+          event.target.value;
 
         if (raw === "") {
           onChange(null);
           return;
         }
 
-        const number = Number(raw);
+        const number =
+          Number(raw);
 
-        if (!Number.isNaN(number)) {
+        if (
+          !Number.isNaN(number)
+        ) {
           onChange(number);
         }
       }}
@@ -640,55 +1324,75 @@ export function Odontogram({
 
   const [teeth, setTeeth] =
     useState<Tooth[]>(() => [
-      ...createTeeth(upperTeeth),
-      ...createTeeth(lowerTeeth),
+      ...createTeeth(
+        upperTeeth
+      ),
+      ...createTeeth(
+        lowerTeeth
+      ),
     ]);
 
-  const [selectedTooth, setSelectedTooth] =
-    useState<number | null>(null);
+  const [
+    selectedTooth,
+    setSelectedTooth,
+  ] = useState<number | null>(
+    null
+  );
 
   const [surface, setSurface] =
-    useState<Surface>("VESTIBULAR");
+    useState<Surface>(
+      "VESTIBULAR"
+    );
 
-  const [isSavingExam, setIsSavingExam] =
-    useState(false);
+  const [
+    isSavingExam,
+    setIsSavingExam,
+  ] = useState(false);
 
   const [isSaved, setIsSaved] =
     useState(false);
 
-  const [isOfflineDraft, setIsOfflineDraft] =
-    useState(false);
+  const [
+    isOfflineDraft,
+    setIsOfflineDraft,
+  ] = useState(false);
 
-  const [hasLoadedDraft, setHasLoadedDraft] =
-    useState(false);
+  const [
+    hasLoadedDraft,
+    setHasLoadedDraft,
+  ] = useState(false);
 
   const saveTimerRef =
-    useRef<ReturnType<typeof setTimeout> | null>(
-      null
-    );
+    useRef<ReturnType<
+      typeof setTimeout
+    > | null>(null);
 
-  const saveVersionRef = useRef(0);
+  const saveVersionRef =
+    useRef(0);
 
   const selected = useMemo(
     () =>
       teeth.find(
         (tooth) =>
-          tooth.number === selectedTooth
+          tooth.number ===
+          selectedTooth
       ),
     [teeth, selectedTooth]
   );
 
-  const selectedIndex = useMemo(
-    () =>
-      teeth.findIndex(
-        (tooth) =>
-          tooth.number === selectedTooth
-      ),
-    [teeth, selectedTooth]
-  );
+  const selectedIndex =
+    useMemo(
+      () =>
+        teeth.findIndex(
+          (tooth) =>
+            tooth.number ===
+            selectedTooth
+        ),
+      [teeth, selectedTooth]
+    );
 
   /* =======================================================
-     RECUPERAR RASCUNHO
+     RASCUNHO
   ======================================================= */
 
   useEffect(() => {
@@ -704,13 +1408,18 @@ export function Odontogram({
         );
 
       if (raw) {
-        const parsed = JSON.parse(raw);
+        const parsed =
+          JSON.parse(raw);
 
         if (
-          Array.isArray(parsed?.teeth) &&
+          Array.isArray(
+            parsed?.teeth
+          ) &&
           parsed.teeth.length > 0
         ) {
-          setTeeth(parsed.teeth);
+          setTeeth(
+            parsed.teeth
+          );
         }
 
         if (
@@ -725,9 +1434,12 @@ export function Odontogram({
         if (
           parsed?.surface ===
             "VESTIBULAR" ||
-          parsed?.surface === "LINGUAL"
+          parsed?.surface ===
+            "LINGUAL"
         ) {
-          setSurface(parsed.surface);
+          setSurface(
+            parsed.surface
+          );
         }
 
         setIsSaved(false);
@@ -748,7 +1460,10 @@ export function Odontogram({
   ======================================================= */
 
   useEffect(() => {
-    if (!storageKey || !hasLoadedDraft) {
+    if (
+      !storageKey ||
+      !hasLoadedDraft
+    ) {
       return;
     }
 
@@ -782,15 +1497,22 @@ export function Odontogram({
   ======================================================= */
 
   function updateToothLocal(
-    updater: (tooth: Tooth) => Tooth
+    updater: (
+      tooth: Tooth
+    ) => Tooth
   ) {
-    if (selectedTooth === null) return;
+    if (
+      selectedTooth === null
+    ) {
+      return;
+    }
 
     saveVersionRef.current += 1;
 
     setTeeth((current) =>
       current.map((tooth) =>
-        tooth.number === selectedTooth
+        tooth.number ===
+        selectedTooth
           ? updater(tooth)
           : tooth
       )
@@ -800,59 +1522,88 @@ export function Odontogram({
     setIsOfflineDraft(true);
   }
 
-  function updateStatus(status: ToothStatus) {
-    updateToothLocal((tooth) => ({
-      ...tooth,
-      status,
-    }));
+  function updateStatus(
+    status: ToothStatus
+  ) {
+    updateToothLocal(
+      (tooth) => ({
+        ...tooth,
+        status,
+      })
+    );
   }
 
   function updateSite(
     point: Point,
     field: keyof SiteData,
-    value: number | boolean | null
+    value:
+      | number
+      | boolean
+      | null
   ) {
-    updateToothLocal((tooth) => ({
-      ...tooth,
-      sites: {
-        ...tooth.sites,
-        [surface]: {
-          ...tooth.sites[surface],
-          [point]: {
-            ...tooth.sites[surface][point],
-            [field]: value,
+    updateToothLocal(
+      (tooth) => ({
+        ...tooth,
+
+        sites: {
+          ...tooth.sites,
+
+          [surface]: {
+            ...tooth.sites[
+              surface
+            ],
+
+            [point]: {
+              ...tooth.sites[
+                surface
+              ][point],
+
+              [field]: value,
+            },
           },
         },
-      },
-    }));
+      })
+    );
   }
 
   function updateObservation(
     value: string
   ) {
-    updateToothLocal((tooth) => ({
-      ...tooth,
-      observations: value,
-    }));
+    updateToothLocal(
+      (tooth) => ({
+        ...tooth,
+        observations: value,
+      })
+    );
   }
 
-  function updateMobility(value: number) {
-    updateToothLocal((tooth) => ({
-      ...tooth,
-      mobility: value,
-    }));
+  function updateMobility(
+    value: number
+  ) {
+    updateToothLocal(
+      (tooth) => ({
+        ...tooth,
+        mobility: value,
+      })
+    );
   }
 
   function updateFurcation(
-    type: "buccal" | "lingual",
+    type:
+      | "buccal"
+      | "lingual",
     value: number | null
   ) {
-    updateToothLocal((tooth) => ({
-      ...tooth,
-      [type === "buccal"
-        ? "buccalFurcation"
-        : "lingualFurcation"]: value,
-    }));
+    updateToothLocal(
+      (tooth) => ({
+        ...tooth,
+
+        [type === "buccal"
+          ? "buccalFurcation"
+          : "lingualFurcation"]:
+          value,
+      })
+    );
   }
 
   /* =======================================================
@@ -862,7 +1613,10 @@ export function Odontogram({
   async function persistTooth(
     tooth: Tooth
   ) {
-    if (!examId || !patientId) {
+    if (
+      !examId ||
+      !patientId
+    ) {
       return false;
     }
 
@@ -872,13 +1626,19 @@ export function Odontogram({
       const savedTooth =
         await createTooth({
           examId,
-          toothNumber: tooth.number,
-          status: tooth.status,
+          toothNumber:
+            tooth.number,
+          status:
+            tooth.status,
         });
 
       const hasSuppuration =
-        Object.values(tooth.sites).some(
-          (surfaceSites) =>
+        Object.values(
+          tooth.sites
+        ).some(
+          (
+            surfaceSites
+          ) =>
             Object.values(
               surfaceSites
             ).some(
@@ -888,29 +1648,45 @@ export function Odontogram({
         );
 
       const hasPlaque =
-        Object.values(tooth.sites).some(
-          (surfaceSites) =>
+        Object.values(
+          tooth.sites
+        ).some(
+          (
+            surfaceSites
+          ) =>
             Object.values(
               surfaceSites
             ).some(
-              (site) => site.plaque
+              (site) =>
+                site.plaque
             )
         );
 
       await updateTooth({
         id: savedTooth.id,
+
         input: {
-          status: tooth.status,
-          mobility: tooth.mobility,
+          status:
+            tooth.status,
+
+          mobility:
+            tooth.mobility,
+
           furcationBuccal:
             tooth.buccalFurcation,
+
           furcationLingual:
             tooth.lingualFurcation,
+
           suppuration:
             hasSuppuration,
-          plaque: hasPlaque,
+
+          plaque:
+            hasPlaque,
+
           observations:
-            tooth.observations || null,
+            tooth.observations ||
+            null,
         },
       });
 
@@ -925,25 +1701,39 @@ export function Odontogram({
             ][point];
 
           const cal =
-            calculateCAL(site);
+            calculateCAL(
+              site
+            );
 
           await saveSite({
-            toothId: savedTooth.id,
-            surface: currentSurface,
+            toothId:
+              savedTooth.id,
+
+            surface:
+              currentSurface,
+
             point,
+
             probingDepth:
               site.probingDepth,
+
             gingivalRecession:
               site.gingivalRecession,
+
             clinicalAttachmentLevel:
               cal,
+
             bleeding:
               site.bleeding,
+
             plaque:
               site.plaque,
+
             suppuration:
               site.suppuration,
-            observations: null,
+
+            observations:
+              null,
           });
         }
       }
@@ -974,13 +1764,17 @@ export function Odontogram({
     }
 
     if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
+      clearTimeout(
+        saveTimerRef.current
+      );
     }
 
-    const toothToSave = teeth.find(
-      (tooth) =>
-        tooth.number === selectedTooth
-    );
+    const toothToSave =
+      teeth.find(
+        (tooth) =>
+          tooth.number ===
+          selectedTooth
+      );
 
     if (!toothToSave) {
       return;
@@ -990,27 +1784,34 @@ export function Odontogram({
       saveVersionRef.current;
 
     saveTimerRef.current =
-      setTimeout(async () => {
-        if (
-          currentVersion !==
-          saveVersionRef.current
-        ) {
-          return;
-        }
+      setTimeout(
+        async () => {
+          if (
+            currentVersion !==
+            saveVersionRef.current
+          ) {
+            return;
+          }
 
-        const success =
-          await persistTooth(
-            toothToSave
-          );
+          const success =
+            await persistTooth(
+              toothToSave
+            );
 
-        if (success) {
-          setIsSaved(true);
-          setIsOfflineDraft(false);
-        } else {
-          setIsSaved(false);
-          setIsOfflineDraft(true);
-        }
-      }, 700);
+          if (success) {
+            setIsSaved(true);
+            setIsOfflineDraft(
+              false
+            );
+          } else {
+            setIsSaved(false);
+            setIsOfflineDraft(
+              true
+            );
+          }
+        },
+        700
+      );
 
     return () => {
       if (saveTimerRef.current) {
@@ -1033,8 +1834,12 @@ export function Odontogram({
 
   function resetOdontogram() {
     setTeeth([
-      ...createTeeth(upperTeeth),
-      ...createTeeth(lowerTeeth),
+      ...createTeeth(
+        upperTeeth
+      ),
+      ...createTeeth(
+        lowerTeeth
+      ),
     ]);
 
     setSelectedTooth(null);
@@ -1063,14 +1868,20 @@ export function Odontogram({
   function goToTooth(
     direction: -1 | 1
   ) {
-    if (selectedIndex < 0) return;
+    if (
+      selectedIndex < 0
+    ) {
+      return;
+    }
 
     const nextIndex =
-      selectedIndex + direction;
+      selectedIndex +
+      direction;
 
     if (
       nextIndex < 0 ||
-      nextIndex >= teeth.length
+      nextIndex >=
+        teeth.length
     ) {
       return;
     }
@@ -1085,11 +1896,16 @@ export function Odontogram({
   ======================================================= */
 
   async function saveExam() {
-    if (!examId || !patientId) {
+    if (
+      !examId ||
+      !patientId
+    ) {
       return;
     }
 
-    if (isSavingExam) return;
+    if (isSavingExam) {
+      return;
+    }
 
     try {
       setIsSavingExam(true);
@@ -1099,15 +1915,22 @@ export function Odontogram({
 
       for (const tooth of teeth) {
         const success =
-          await persistTooth(tooth);
+          await persistTooth(
+            tooth
+          );
 
         if (!success) {
           allSuccess = false;
         }
       }
 
-      setIsSaved(allSuccess);
-      setIsOfflineDraft(!allSuccess);
+      setIsSaved(
+        allSuccess
+      );
+
+      setIsOfflineDraft(
+        !allSuccess
+      );
     } catch (error) {
       console.error(
         "ERRO AO SALVAR EXAME PERIODONTAL:",
@@ -1115,7 +1938,9 @@ export function Odontogram({
       );
 
       setIsSaved(false);
-      setIsOfflineDraft(true);
+      setIsOfflineDraft(
+        true
+      );
     } finally {
       setIsSavingExam(false);
     }
@@ -1126,17 +1951,24 @@ export function Odontogram({
   ======================================================= */
 
   async function handleFinalizeExam() {
-    if (!examId || !patientId) {
+    if (
+      !examId ||
+      !patientId
+    ) {
       return;
     }
 
     try {
       await saveExam();
 
-      await finalizeExam(examId);
+      await finalizeExam(
+        examId
+      );
 
       setIsSaved(true);
-      setIsOfflineDraft(false);
+      setIsOfflineDraft(
+        false
+      );
 
       if (storageKey) {
         try {
@@ -1180,10 +2012,9 @@ export function Odontogram({
               </CardTitle>
 
               <p className="mt-1 text-sm text-text-secondary">
-                Avaliação periodontal sobre
-                a anatomia real da arcada.
-                Clique em um dente para
-                registrar a sondagem.
+                Avaliação periodontal
+                sobre a anatomia real
+                da arcada.
               </p>
             </div>
 
@@ -1283,11 +2114,10 @@ export function Odontogram({
               </CardTitle>
 
               <p className="mt-1 text-xs text-text-secondary">
-                A anatomia da arcada é
-                representada pela imagem
-                original. As linhas, pontos
-                e valores periodontais são
-                desenhados sobre ela.
+                Preto = escala milimetrada.
+                Vermelho = margem gengival.
+                Azul = profundidade de
+                sondagem.
               </p>
             </div>
 
@@ -1314,7 +2144,8 @@ export function Odontogram({
                 type="button"
                 size="sm"
                 variant={
-                  surface === "LINGUAL"
+                  surface ===
+                  "LINGUAL"
                     ? "primary"
                     : "ghost"
                 }
@@ -1330,56 +2161,41 @@ export function Odontogram({
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-6 px-2 sm:px-4">
+        <CardContent className="space-y-5 px-2 sm:px-4">
           {/* =================================================
-              SUPERIOR VESTIBULAR
+              SUPERIOR
           ================================================= */}
 
           <div>
-            <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted">
-              Arcada superior — Vestibular
+            <div className="mb-2 text-center text-xs font-bold uppercase tracking-[0.2em] text-text-muted">
+              Arcada superior
             </div>
 
             <PeriodontalImageArch
-              image="/superior-vestibular.png.png"
-              teeth={teeth.filter((tooth) =>
-                upperTeeth.includes(
-                  tooth.number
-                )
+              image={
+                surface ===
+                "VESTIBULAR"
+                  ? IMAGES.upperVestibular
+                  : IMAGES.upperLingual
+              }
+              teeth={teeth.filter(
+                (tooth) =>
+                  upperTeeth.includes(
+                    tooth.number
+                  )
               )}
-              surface="VESTIBULAR"
               selectedTooth={
                 selectedTooth
               }
               onSelectTooth={
                 setSelectedTooth
               }
-            />
-          </div>
-
-          {/* =================================================
-              SUPERIOR LINGUAL
-          ================================================= */}
-
-          <div>
-            <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted">
-              Arcada superior — Lingual /
-              Palatina
-            </div>
-
-            <PeriodontalImageArch
-              image="/superior-lingual.png.png"
-              teeth={teeth.filter((tooth) =>
-                upperTeeth.includes(
-                  tooth.number
-                )
-              )}
-              surface="LINGUAL"
-              selectedTooth={
-                selectedTooth
+              surface={
+                surface
               }
-              onSelectTooth={
-                setSelectedTooth
+              flipY={
+                surface ===
+                "VESTIBULAR"
               }
             />
           </div>
@@ -1391,7 +2207,7 @@ export function Odontogram({
           <div className="relative flex items-center">
             <div className="h-px flex-1 bg-border" />
 
-            <span className="mx-3 rounded-full border border-border bg-card px-3 py-1 text-[8px] font-bold uppercase tracking-wider text-text-muted">
+            <span className="mx-3 rounded-full border border-border bg-card px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-text-muted">
               Linha média
             </span>
 
@@ -1399,80 +2215,61 @@ export function Odontogram({
           </div>
 
           {/* =================================================
-              INFERIOR VESTIBULAR
+              INFERIOR
           ================================================= */}
 
           <div>
-            <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted">
-              Arcada inferior — Vestibular
-            </div>
-
             <PeriodontalImageArch
-              image="/inferior-vestibular.png.png"
-              teeth={teeth.filter((tooth) =>
-                lowerTeeth.includes(
-                  tooth.number
-                )
+              image={
+                surface ===
+                "VESTIBULAR"
+                  ? IMAGES.lowerVestibular
+                  : IMAGES.lowerLingual
+              }
+              teeth={teeth.filter(
+                (tooth) =>
+                  lowerTeeth.includes(
+                    tooth.number
+                  )
               )}
-              surface="VESTIBULAR"
               selectedTooth={
                 selectedTooth
               }
               onSelectTooth={
                 setSelectedTooth
               }
+              surface={
+                surface
+              }
+              flipY={
+                surface ===
+                "LINGUAL"
+              }
             />
-          </div>
 
-          {/* =================================================
-              INFERIOR LINGUAL
-          ================================================= */}
-
-          <div>
-            <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted">
-              Arcada inferior — Lingual
+            <div className="mt-2 text-center text-xs font-bold uppercase tracking-[0.2em] text-text-muted">
+              Arcada inferior
             </div>
-
-            <PeriodontalImageArch
-              image="/inferior-lingual.png.png"
-              teeth={teeth.filter((tooth) =>
-                lowerTeeth.includes(
-                  tooth.number
-                )
-              )}
-              surface="LINGUAL"
-              selectedTooth={
-                selectedTooth
-              }
-              onSelectTooth={
-                setSelectedTooth
-              }
-            />
           </div>
 
           {/* =================================================
               LEGENDA
           ================================================= */}
 
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-border pt-3 text-[9px] text-text-muted">
-            <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-primary" />
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-border pt-4 text-[10px] text-text-muted">
+            <span className="flex items-center gap-1.5">
+              <span className="h-3 w-3 border border-black bg-white" />
+              Escala mm
+            </span>
+
+            <span className="flex items-center gap-1.5">
+              <span className="h-0.5 w-5 bg-red-600" />
+              Margem gengival
+            </span>
+
+            <span className="flex items-center gap-1.5">
+              <span className="h-0.5 w-5 bg-blue-600" />
               Sondagem
-            </span>
-
-            <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              Sangramento
-            </span>
-
-            <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-secondary" />
-              Supuração
-            </span>
-
-            <span className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-primary/60" />
-              Placa
             </span>
 
             <span>
@@ -1497,7 +2294,9 @@ export function Odontogram({
       <AnimatePresence mode="wait">
         {selected && (
           <motion.div
-            key={selected.number}
+            key={
+              selected.number
+            }
             initial={{
               opacity: 0,
               y: 12,
@@ -1515,7 +2314,9 @@ export function Odontogram({
             }}
             className="space-y-6"
           >
-            {/* CABEÇALHO DO DENTE */}
+            {/* =================================================
+                CABEÇALHO DO DENTE
+            ================================================= */}
 
             <Card>
               <CardHeader>
@@ -1524,7 +2325,9 @@ export function Odontogram({
                     <div className="flex items-center gap-3">
                       <CardTitle>
                         Dente{" "}
-                        {selected.number}
+                        {
+                          selected.number
+                        }
                       </CardTitle>
 
                       <Badge
@@ -1563,7 +2366,9 @@ export function Odontogram({
                         0
                       }
                       onClick={() =>
-                        goToTooth(-1)
+                        goToTooth(
+                          -1
+                        )
                       }
                     >
                       <ChevronLeft className="mr-1 h-4 w-4" />
@@ -1575,10 +2380,13 @@ export function Odontogram({
                       variant="ghost"
                       disabled={
                         selectedIndex >=
-                        teeth.length - 1
+                        teeth.length -
+                          1
                       }
                       onClick={() =>
-                        goToTooth(1)
+                        goToTooth(
+                          1
+                        )
                       }
                     >
                       Próximo
@@ -1644,7 +2452,9 @@ export function Odontogram({
               </CardContent>
             </Card>
 
-            {/* SONDAGEM */}
+            {/* =================================================
+                SONDAGEM
+            ================================================= */}
 
             <Card>
               <CardHeader>
@@ -1653,10 +2463,12 @@ export function Odontogram({
                 </CardTitle>
 
                 <p className="mt-1 text-sm text-text-secondary">
-                  Informe os valores do
-                  sítio selecionado. Eles
-                  aparecem automaticamente
-                  sobre a imagem da arcada.
+                  Informe a margem gengival
+                  e a profundidade de
+                  sondagem de cada sítio.
+                  Valores positivos e
+                  negativos de margem são
+                  aceitos.
                 </p>
               </CardHeader>
 
@@ -1672,7 +2484,9 @@ export function Odontogram({
                         {points.map(
                           (point) => (
                             <th
-                              key={point}
+                              key={
+                                point
+                              }
                               className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-text-muted"
                             >
                               {pointLetter(
@@ -1685,6 +2499,8 @@ export function Odontogram({
                     </thead>
 
                     <tbody>
+                      {/* PROFUNDIDADE */}
+
                       <tr className="border-b border-border/50">
                         <td className="px-3 py-3 text-sm font-medium">
                           Profundidade
@@ -1693,7 +2509,9 @@ export function Odontogram({
                         {points.map(
                           (point) => (
                             <td
-                              key={point}
+                              key={
+                                point
+                              }
                               className="px-3 py-3"
                             >
                               <NumberInput
@@ -1705,6 +2523,12 @@ export function Odontogram({
                                       point
                                     ]
                                       .probingDepth
+                                }
+                                min={
+                                  0
+                                }
+                                max={
+                                  20
                                 }
                                 onChange={(
                                   value
@@ -1721,15 +2545,19 @@ export function Odontogram({
                         )}
                       </tr>
 
+                      {/* MARGEM */}
+
                       <tr className="border-b border-border/50">
                         <td className="px-3 py-3 text-sm font-medium">
-                          Recessão
+                          Margem gengival
                         </td>
 
                         {points.map(
                           (point) => (
                             <td
-                              key={point}
+                              key={
+                                point
+                              }
                               className="px-3 py-3"
                             >
                               <NumberInput
@@ -1741,6 +2569,12 @@ export function Odontogram({
                                       point
                                     ]
                                       .gingivalRecession
+                                }
+                                min={
+                                  -20
+                                }
+                                max={
+                                  20
                                 }
                                 onChange={(
                                   value
@@ -1757,6 +2591,8 @@ export function Odontogram({
                         )}
                       </tr>
 
+                      {/* NIC */}
+
                       <tr>
                         <td className="px-3 py-3 text-sm font-medium">
                           NIC
@@ -1768,7 +2604,9 @@ export function Odontogram({
                               selected
                                 .sites[
                                 surface
-                              ][point];
+                              ][
+                                point
+                              ];
 
                             const cal =
                               calculateCAL(
@@ -1777,7 +2615,9 @@ export function Odontogram({
 
                             return (
                               <td
-                                key={point}
+                                key={
+                                  point
+                                }
                                 className="px-3 py-3 text-center"
                               >
                                 <div className="flex h-9 items-center justify-center rounded-md border border-border bg-background text-sm font-semibold">
@@ -1795,7 +2635,9 @@ export function Odontogram({
               </CardContent>
             </Card>
 
-            {/* MARCADORES */}
+            {/* =================================================
+                MARCADORES
+            ================================================= */}
 
             <Card>
               <CardHeader>
@@ -1814,13 +2656,16 @@ export function Odontogram({
                   {points.map(
                     (point) => {
                       const site =
-                        selected.sites[
+                        selected
+                          .sites[
                           surface
                         ][point];
 
                       return (
                         <div
-                          key={point}
+                          key={
+                            point
+                          }
                           className="rounded-xl border border-border p-4"
                         >
                           <div className="mb-3 flex items-center justify-between">
@@ -1920,7 +2765,9 @@ export function Odontogram({
               </CardContent>
             </Card>
 
-            {/* MOBILIDADE E FURCA */}
+            {/* =================================================
+                MOBILIDADE E FURCA
+            ================================================= */}
 
             <Card>
               <CardHeader>
@@ -1940,10 +2787,13 @@ export function Odontogram({
                       value={
                         selected.mobility
                       }
-                      onChange={(event) =>
+                      onChange={(
+                        event
+                      ) =>
                         updateMobility(
                           Number(
-                            event.target
+                            event
+                              .target
                               .value
                           )
                         )
@@ -1977,7 +2827,11 @@ export function Odontogram({
                       value={
                         selected.buccalFurcation
                       }
-                      onChange={(value) =>
+                      min={0}
+                      max={10}
+                      onChange={(
+                        value
+                      ) =>
                         updateFurcation(
                           "buccal",
                           value
@@ -1995,7 +2849,11 @@ export function Odontogram({
                       value={
                         selected.lingualFurcation
                       }
-                      onChange={(value) =>
+                      min={0}
+                      max={10}
+                      onChange={(
+                        value
+                      ) =>
                         updateFurcation(
                           "lingual",
                           value
@@ -2007,7 +2865,9 @@ export function Odontogram({
               </CardContent>
             </Card>
 
-            {/* OBSERVAÇÕES */}
+            {/* =================================================
+                OBSERVAÇÕES
+            ================================================= */}
 
             <Card>
               <CardHeader>
@@ -2021,9 +2881,12 @@ export function Odontogram({
                   value={
                     selected.observations
                   }
-                  onChange={(event) =>
+                  onChange={(
+                    event
+                  ) =>
                     updateObservation(
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                   rows={4}
