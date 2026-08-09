@@ -374,7 +374,7 @@ function PeriodontalTable({
   ) => (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-text-primary">
+        <h3 className="text-sm font-semibold text-text-primary">
           {title}
         </h3>
 
@@ -461,6 +461,7 @@ function PeriodontalTable({
                         <span className="font-semibold text-text-primary">
                           {formatNumber(vestibular)}
                         </span>
+
                         <span className="text-[9px] text-text-muted">
                           {formatNumber(lingual)}
                         </span>
@@ -495,6 +496,7 @@ function PeriodontalTable({
                         <span className="font-semibold text-text-primary">
                           {formatNumber(vestibular)}
                         </span>
+
                         <span className="text-[9px] text-text-muted">
                           {formatNumber(lingual)}
                         </span>
@@ -531,6 +533,7 @@ function PeriodontalTable({
                         <span className="font-semibold text-text-primary">
                           {formatNumber(vestibular)}
                         </span>
+
                         <span className="text-[9px] text-text-muted">
                           {formatNumber(lingual)}
                         </span>
@@ -732,16 +735,14 @@ function PeriodontalTable({
   return (
     <Card>
       <CardHeader>
-        <div>
-          <CardTitle>
-            Periodontograma
-          </CardTitle>
+        <CardTitle>
+          Periodontograma
+        </CardTitle>
 
-          <p className="mt-1 text-sm text-text-secondary">
-            Visão clínica de todos os dentes e sítios
-            registrados.
-          </p>
-        </div>
+        <p className="mt-1 text-sm text-text-secondary">
+          Visão clínica de todos os dentes e sítios
+          registrados.
+        </p>
       </CardHeader>
 
       <CardContent className="space-y-8">
@@ -801,19 +802,36 @@ export function Odontogram({
   const [hasLoadedDraft, setHasLoadedDraft] =
     useState(false);
 
+  /*
+   * ==========================================================
+   * AUTOSAVE
+   * ==========================================================
+   */
+
   const saveTimerRef =
     useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const saveVersionRef = useRef(0);
+  const saveVersionRef =
+    useRef(0);
 
   /*
-   * NOVO:
-   * Guarda os IDs dos dentes já criados no banco.
-   * Isso evita criar o mesmo dente novamente
-   * a cada autosave.
+   * Mantém os IDs dos dentes já criados no banco.
+   * Isso impede duplicação durante o autosave.
    */
   const toothIdsRef =
     useRef<Record<number, string>>({});
+
+  /*
+   * Mantém sempre a versão mais recente dos dentes.
+   * É útil para o autosave e para evitar dados antigos
+   * em callbacks assíncronos.
+   */
+  const teethRef =
+    useRef<Tooth[]>(teeth);
+
+  useEffect(() => {
+    teethRef.current = teeth;
+  }, [teeth]);
 
   const selected = useMemo(
     () =>
@@ -889,6 +907,7 @@ export function Odontogram({
           parsed.teeth.length > 0
         ) {
           setTeeth(parsed.teeth);
+          teethRef.current = parsed.teeth;
         }
 
         if (
@@ -903,18 +922,16 @@ export function Odontogram({
         if (
           parsed?.surface ===
             "VESTIBULAR" ||
-          parsed?.surface === "LINGUAL"
+          parsed?.surface ===
+            "LINGUAL"
         ) {
           setSurface(parsed.surface);
         }
 
-        /*
-         * Recupera também os IDs já conhecidos,
-         * quando existirem no rascunho.
-         */
         if (
           parsed?.toothIds &&
-          typeof parsed.toothIds === "object"
+          typeof parsed.toothIds ===
+            "object"
         ) {
           toothIdsRef.current =
             parsed.toothIds;
@@ -935,11 +952,8 @@ export function Odontogram({
 
   /*
    * ==========================================================
-   * SALVAR RASCUNHO LOCAL
+   * SALVAR RASCUNHO LOCAL AUTOMATICAMENTE
    * ==========================================================
-   *
-   * Este é o backup imediato.
-   * Cada alteração de estado é persistida no navegador.
    */
 
   useEffect(() => {
@@ -992,13 +1006,18 @@ export function Odontogram({
 
     saveVersionRef.current += 1;
 
-    setTeeth((current) =>
-      current.map((tooth) =>
-        tooth.number === selectedTooth
-          ? updater(tooth)
-          : tooth
-      )
-    );
+    setTeeth((current) => {
+      const updated = current.map(
+        (tooth) =>
+          tooth.number === selectedTooth
+            ? updater(tooth)
+            : tooth
+      );
+
+      teethRef.current = updated;
+
+      return updated;
+    });
 
     setIsSaved(false);
     setIsOfflineDraft(true);
@@ -1072,17 +1091,6 @@ export function Odontogram({
    * ==========================================================
    * SALVAR DENTE NO SUPABASE
    * ==========================================================
-   *
-   * CORREÇÃO PRINCIPAL:
-   *
-   * 1. Se o dente ainda não existe no banco,
-   *    cria uma única vez.
-   *
-   * 2. Depois disso, usa SEMPRE o mesmo ID
-   *    para atualizar.
-   *
-   * Assim o autosave não fica criando novos
-   * registros do mesmo dente.
    */
 
   async function persistTooth(
@@ -1099,14 +1107,16 @@ export function Odontogram({
         ];
 
       /*
-       * Cria o dente somente na primeira vez.
+       * Cria o dente somente uma vez.
        */
       if (!toothId) {
         const savedTooth =
           await createTooth({
             examId,
-            toothNumber: tooth.number,
-            status: tooth.status,
+            toothNumber:
+              tooth.number,
+            status:
+              tooth.status,
           });
 
         toothId = savedTooth.id;
@@ -1117,7 +1127,9 @@ export function Odontogram({
       }
 
       const hasSuppuration =
-        Object.values(tooth.sites).some(
+        Object.values(
+          tooth.sites
+        ).some(
           (surfaceSites) =>
             Object.values(
               surfaceSites
@@ -1128,7 +1140,9 @@ export function Odontogram({
         );
 
       const hasPlaque =
-        Object.values(tooth.sites).some(
+        Object.values(
+          tooth.sites
+        ).some(
           (surfaceSites) =>
             Object.values(
               surfaceSites
@@ -1145,7 +1159,8 @@ export function Odontogram({
         id: toothId,
         input: {
           status: tooth.status,
-          mobility: tooth.mobility,
+          mobility:
+            tooth.mobility,
           furcationBuccal:
             tooth.buccalFurcation,
           furcationLingual:
@@ -1155,12 +1170,13 @@ export function Odontogram({
           plaque:
             hasPlaque,
           observations:
-            tooth.observations || null,
+            tooth.observations ||
+            null,
         },
       });
 
       /*
-       * Atualiza todos os 6 sítios.
+       * Atualiza os 6 sítios.
        */
       for (const currentSurface of [
         "VESTIBULAR",
@@ -1177,7 +1193,8 @@ export function Odontogram({
 
           await saveSite({
             toothId,
-            surface: currentSurface,
+            surface:
+              currentSurface,
             point,
             probingDepth:
               site.probingDepth,
@@ -1191,20 +1208,22 @@ export function Odontogram({
               site.plaque,
             suppuration:
               site.suppuration,
-            observations: null,
+            observations:
+              null,
           });
         }
       }
 
       /*
-       * Mantém o backup local atualizado também.
+       * Mantém o backup local atualizado.
        */
       if (storageKey) {
         try {
           window.localStorage.setItem(
             storageKey,
             JSON.stringify({
-              teeth,
+              teeth:
+                teethRef.current,
               selectedTooth,
               surface,
               toothIds:
@@ -1214,7 +1233,7 @@ export function Odontogram({
             })
           );
         } catch {
-          // O banco já foi salvo.
+          // Banco já salvo.
         }
       }
 
@@ -1231,10 +1250,21 @@ export function Odontogram({
 
   /*
    * ==========================================================
-   * AUTOSAVE
+   * AUTOSAVE DO DENTE SELECIONADO
    * ==========================================================
    *
-   * Qualquer alteração espera 700ms e salva.
+   * Qualquer alteração espera 700ms.
+   *
+   * Se o usuário continuar digitando/clicando,
+   * o contador reinicia.
+   *
+   * Quando parar por 700ms:
+   *
+   * 1. Salva no Supabase.
+   * 2. Atualiza o backup local.
+   * 3. Mostra "Salvo".
+   *
+   * Não precisa clicar em "Salvar exame".
    */
 
   useEffect(() => {
@@ -1269,6 +1299,11 @@ export function Odontogram({
 
     saveTimerRef.current =
       setTimeout(async () => {
+        /*
+         * Se houve uma nova alteração
+         * enquanto aguardávamos, cancela
+         * este salvamento antigo.
+         */
         if (
           currentVersion !==
           saveVersionRef.current
@@ -1276,10 +1311,24 @@ export function Odontogram({
           return;
         }
 
+        setIsSaved(false);
+
         const success =
           await persistTooth(
             toothToSave
           );
+
+        /*
+         * Depois de salvar, verifica se
+         * alguma alteração aconteceu durante
+         * a requisição.
+         */
+        if (
+          currentVersion !==
+          saveVersionRef.current
+        ) {
+          return;
+        }
 
         if (success) {
           setIsSaved(true);
@@ -1312,10 +1361,15 @@ export function Odontogram({
    */
 
   function resetOdontogram() {
-    setTeeth([
+    const initialTeeth = [
       ...createTeeth(upperTeeth),
       ...createTeeth(lowerTeeth),
-    ]);
+    ];
+
+    setTeeth(initialTeeth);
+
+    teethRef.current =
+      initialTeeth;
 
     setSelectedTooth(null);
     setSurface("VESTIBULAR");
@@ -1323,10 +1377,15 @@ export function Odontogram({
     setIsSaved(false);
     setIsOfflineDraft(false);
 
-    /*
-     * Limpa também os IDs dos dentes.
-     */
+    saveVersionRef.current += 1;
+
     toothIdsRef.current = {};
+
+    if (saveTimerRef.current) {
+      clearTimeout(
+        saveTimerRef.current
+      );
+    }
 
     if (storageKey) {
       try {
@@ -1389,11 +1448,19 @@ export function Odontogram({
     try {
       setIsSaved(false);
 
+      if (saveTimerRef.current) {
+        clearTimeout(
+          saveTimerRef.current
+        );
+      }
+
       let allSuccessful = true;
 
-      for (const tooth of teeth) {
+      for (const tooth of teethRef.current) {
         const success =
-          await persistTooth(tooth);
+          await persistTooth(
+            tooth
+          );
 
         if (!success) {
           allSuccessful = false;
@@ -2451,4 +2518,3 @@ export function Odontogram({
 }
 
 export default Odontogram;
-
