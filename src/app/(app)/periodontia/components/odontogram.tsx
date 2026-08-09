@@ -123,18 +123,6 @@ function createTeeth(numbers: number[]): Tooth[] {
   }));
 }
 
-/*
- * NIC / CAL
- *
- * Quando a recessão é positiva:
- * NIC = PS + recessão
- *
- * Quando a margem gengival está coronal ao JCE,
- * a recessão pode ser negativa.
- *
- * Exemplo:
- * PS 4 + recessão -1 = NIC 3
- */
 function calculateCAL(site: SiteData) {
   if (
     site.probingDepth === null ||
@@ -157,7 +145,10 @@ function getAllSites(teeth: Tooth[]) {
   for (const tooth of teeth) {
     if (tooth.status === "AUSENTE") continue;
 
-    for (const surface of ["VESTIBULAR", "LINGUAL"] as Surface[]) {
+    for (const surface of [
+      "VESTIBULAR",
+      "LINGUAL",
+    ] as Surface[]) {
       for (const point of points) {
         result.push({
           tooth,
@@ -383,7 +374,7 @@ function PeriodontalTable({
   ) => (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-text-primary">
+        <h3 className="font-semibold text-text-primary">
           {title}
         </h3>
 
@@ -468,9 +459,7 @@ function PeriodontalTable({
                     >
                       <div className="flex flex-col items-center gap-0.5">
                         <span className="font-semibold text-text-primary">
-                          {formatNumber(
-                            vestibular
-                          )}
+                          {formatNumber(vestibular)}
                         </span>
                         <span className="text-[9px] text-text-muted">
                           {formatNumber(lingual)}
@@ -504,9 +493,7 @@ function PeriodontalTable({
                     >
                       <div className="flex flex-col items-center gap-0.5">
                         <span className="font-semibold text-text-primary">
-                          {formatNumber(
-                            vestibular
-                          )}
+                          {formatNumber(vestibular)}
                         </span>
                         <span className="text-[9px] text-text-muted">
                           {formatNumber(lingual)}
@@ -542,9 +529,7 @@ function PeriodontalTable({
                     >
                       <div className="flex flex-col items-center gap-0.5">
                         <span className="font-semibold text-text-primary">
-                          {formatNumber(
-                            vestibular
-                          )}
+                          {formatNumber(vestibular)}
                         </span>
                         <span className="text-[9px] text-text-muted">
                           {formatNumber(lingual)}
@@ -747,19 +732,15 @@ function PeriodontalTable({
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-3">
-          <ClipboardList className="h-5 w-5 text-primary" />
+        <div>
+          <CardTitle>
+            Periodontograma
+          </CardTitle>
 
-          <div>
-            <CardTitle>
-              Periodontograma
-            </CardTitle>
-
-            <p className="mt-1 text-sm text-text-secondary">
-              Visão clínica de todos os dentes e sítios
-              registrados.
-            </p>
-          </div>
+          <p className="mt-1 text-sm text-text-secondary">
+            Visão clínica de todos os dentes e sítios
+            registrados.
+          </p>
         </div>
       </CardHeader>
 
@@ -821,11 +802,18 @@ export function Odontogram({
     useState(false);
 
   const saveTimerRef =
-    useRef<ReturnType<typeof setTimeout> | null>(
-      null
-    );
+    useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const saveVersionRef = useRef(0);
+
+  /*
+   * NOVO:
+   * Guarda os IDs dos dentes já criados no banco.
+   * Isso evita criar o mesmo dente novamente
+   * a cada autosave.
+   */
+  const toothIdsRef =
+    useRef<Record<number, string>>({});
 
   const selected = useMemo(
     () =>
@@ -920,6 +908,18 @@ export function Odontogram({
           setSurface(parsed.surface);
         }
 
+        /*
+         * Recupera também os IDs já conhecidos,
+         * quando existirem no rascunho.
+         */
+        if (
+          parsed?.toothIds &&
+          typeof parsed.toothIds === "object"
+        ) {
+          toothIdsRef.current =
+            parsed.toothIds;
+        }
+
         setIsSaved(false);
         setIsOfflineDraft(true);
       }
@@ -937,6 +937,9 @@ export function Odontogram({
    * ==========================================================
    * SALVAR RASCUNHO LOCAL
    * ==========================================================
+   *
+   * Este é o backup imediato.
+   * Cada alteração de estado é persistida no navegador.
    */
 
   useEffect(() => {
@@ -954,6 +957,8 @@ export function Odontogram({
           teeth,
           selectedTooth,
           surface,
+          toothIds:
+            toothIdsRef.current,
           updatedAt:
             new Date().toISOString(),
         })
@@ -1055,9 +1060,11 @@ export function Odontogram({
   ) {
     updateToothLocal((tooth) => ({
       ...tooth,
-      [type === "buccal"
-        ? "buccalFurcation"
-        : "lingualFurcation"]: value,
+      [
+        type === "buccal"
+          ? "buccalFurcation"
+          : "lingualFurcation"
+      ]: value,
     }));
   }
 
@@ -1065,6 +1072,17 @@ export function Odontogram({
    * ==========================================================
    * SALVAR DENTE NO SUPABASE
    * ==========================================================
+   *
+   * CORREÇÃO PRINCIPAL:
+   *
+   * 1. Se o dente ainda não existe no banco,
+   *    cria uma única vez.
+   *
+   * 2. Depois disso, usa SEMPRE o mesmo ID
+   *    para atualizar.
+   *
+   * Assim o autosave não fica criando novos
+   * registros do mesmo dente.
    */
 
   async function persistTooth(
@@ -1075,12 +1093,28 @@ export function Odontogram({
     }
 
     try {
-      const savedTooth =
-        await createTooth({
-          examId,
-          toothNumber: tooth.number,
-          status: tooth.status,
-        });
+      let toothId =
+        toothIdsRef.current[
+          tooth.number
+        ];
+
+      /*
+       * Cria o dente somente na primeira vez.
+       */
+      if (!toothId) {
+        const savedTooth =
+          await createTooth({
+            examId,
+            toothNumber: tooth.number,
+            status: tooth.status,
+          });
+
+        toothId = savedTooth.id;
+
+        toothIdsRef.current[
+          tooth.number
+        ] = toothId;
+      }
 
       const hasSuppuration =
         Object.values(tooth.sites).some(
@@ -1104,8 +1138,11 @@ export function Odontogram({
             )
         );
 
+      /*
+       * Atualiza os dados gerais do dente.
+       */
       await updateTooth({
-        id: savedTooth.id,
+        id: toothId,
         input: {
           status: tooth.status,
           mobility: tooth.mobility,
@@ -1115,12 +1152,16 @@ export function Odontogram({
             tooth.lingualFurcation,
           suppuration:
             hasSuppuration,
-          plaque: hasPlaque,
+          plaque:
+            hasPlaque,
           observations:
             tooth.observations || null,
         },
       });
 
+      /*
+       * Atualiza todos os 6 sítios.
+       */
       for (const currentSurface of [
         "VESTIBULAR",
         "LINGUAL",
@@ -1135,7 +1176,7 @@ export function Odontogram({
             calculateCAL(site);
 
           await saveSite({
-            toothId: savedTooth.id,
+            toothId,
             surface: currentSurface,
             point,
             probingDepth:
@@ -1155,6 +1196,28 @@ export function Odontogram({
         }
       }
 
+      /*
+       * Mantém o backup local atualizado também.
+       */
+      if (storageKey) {
+        try {
+          window.localStorage.setItem(
+            storageKey,
+            JSON.stringify({
+              teeth,
+              selectedTooth,
+              surface,
+              toothIds:
+                toothIdsRef.current,
+              updatedAt:
+                new Date().toISOString(),
+            })
+          );
+        } catch {
+          // O banco já foi salvo.
+        }
+      }
+
       return true;
     } catch (error) {
       console.error(
@@ -1170,6 +1233,8 @@ export function Odontogram({
    * ==========================================================
    * AUTOSAVE
    * ==========================================================
+   *
+   * Qualquer alteração espera 700ms e salva.
    */
 
   useEffect(() => {
@@ -1257,6 +1322,11 @@ export function Odontogram({
     setActiveTab("dentist");
     setIsSaved(false);
     setIsOfflineDraft(false);
+
+    /*
+     * Limpa também os IDs dos dentes.
+     */
+    toothIdsRef.current = {};
 
     if (storageKey) {
       try {
@@ -1395,7 +1465,6 @@ export function Odontogram({
 
   return (
     <div className="space-y-6">
-
       {/* ======================================================
           CABEÇALHO
       ======================================================= */}
@@ -1403,7 +1472,6 @@ export function Odontogram({
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-
             <div>
               <CardTitle>
                 Avaliação periodontal
@@ -1417,7 +1485,6 @@ export function Odontogram({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-
               {isOfflineDraft ? (
                 <Badge
                   variant="secondary"
@@ -1499,11 +1566,7 @@ export function Odontogram({
         </CardHeader>
 
         <CardContent>
-
-          {/* ABAS */}
-
           <div className="flex flex-col gap-2 rounded-xl border border-border bg-background/50 p-2 sm:flex-row">
-
             <Button
               type="button"
               variant={
@@ -1534,7 +1597,6 @@ export function Odontogram({
               <ClipboardList className="mr-2 h-4 w-4" />
               Periodontograma
             </Button>
-
           </div>
         </CardContent>
       </Card>
@@ -1555,11 +1617,7 @@ export function Odontogram({
           }}
           className="space-y-6"
         >
-
-          {/* RESUMO */}
-
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
             <Card>
               <CardContent className="p-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
@@ -1635,14 +1693,10 @@ export function Odontogram({
                 </p>
               </CardContent>
             </Card>
-
           </div>
-
-          {/* EXPLICAÇÃO */}
 
           <Card>
             <CardContent className="flex gap-3 p-5">
-
               <Info className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
 
               <div>
@@ -1668,7 +1722,6 @@ export function Odontogram({
                   registrada.
                 </p>
               </div>
-
             </CardContent>
           </Card>
 
@@ -1698,11 +1751,6 @@ export function Odontogram({
           }}
           className="space-y-6"
         >
-
-          {/* ==================================================
-              ODONTOGRAMA
-          =================================================== */}
-
           <Card>
             <CardHeader>
               <div>
@@ -1720,9 +1768,6 @@ export function Odontogram({
             <CardContent>
               <div className="overflow-x-auto pb-4">
                 <div className="mx-auto min-w-[850px] space-y-8">
-
-                  {/* SUPERIOR */}
-
                   <div>
                     <p className="mb-4 text-center text-xs font-semibold uppercase tracking-wider text-text-muted">
                       Arcada superior
@@ -1757,8 +1802,6 @@ export function Odontogram({
 
                   <div className="mx-auto h-px max-w-4xl bg-border" />
 
-                  {/* INFERIOR */}
-
                   <div>
                     <p className="mb-4 text-center text-xs font-semibold uppercase tracking-wider text-text-muted">
                       Arcada inferior
@@ -1790,18 +1833,12 @@ export function Odontogram({
                         ))}
                     </div>
                   </div>
-
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* ==================================================
-              DENTE SELECIONADO
-          =================================================== */}
-
           <AnimatePresence mode="wait">
-
             {selected && (
               <motion.div
                 key={selected.number}
@@ -1822,16 +1859,11 @@ export function Odontogram({
                 }}
                 className="space-y-6"
               >
-
-                {/* CABEÇALHO */}
-
                 <Card>
                   <CardHeader>
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
                       <div>
                         <div className="flex items-center gap-3">
-
                           <CardTitle>
                             Dente{" "}
                             {selected.number}
@@ -1856,7 +1888,6 @@ export function Odontogram({
                                 ? "Implante"
                                 : "Ausente"}
                           </Badge>
-
                         </div>
 
                         <p className="mt-1 text-sm text-text-secondary">
@@ -1866,7 +1897,6 @@ export function Odontogram({
                       </div>
 
                       <div className="flex gap-2">
-
                         <Button
                           type="button"
                           variant="ghost"
@@ -1896,15 +1926,12 @@ export function Odontogram({
                           Próximo
                           <ChevronRight className="ml-1 h-4 w-4" />
                         </Button>
-
                       </div>
-
                     </div>
                   </CardHeader>
 
                   <CardContent>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-
                       <Button
                         type="button"
                         variant={
@@ -1955,18 +1982,13 @@ export function Odontogram({
                       >
                         Implante
                       </Button>
-
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* SONDAGEM */}
-
                 <Card>
                   <CardHeader>
-
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
                       <div>
                         <CardTitle>
                           Sondagem periodontal
@@ -1980,7 +2002,6 @@ export function Odontogram({
                       </div>
 
                       <div className="flex rounded-lg border border-border p-1">
-
                         <Button
                           type="button"
                           size="sm"
@@ -2016,21 +2037,15 @@ export function Odontogram({
                         >
                           Lingual
                         </Button>
-
                       </div>
                     </div>
-
                   </CardHeader>
 
                   <CardContent>
-
                     <div className="overflow-x-auto">
-
                       <table className="w-full min-w-[650px] border-collapse">
-
                         <thead>
                           <tr className="border-b border-border">
-
                             <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-text-muted">
                               Sítio
                             </th>
@@ -2053,16 +2068,11 @@ export function Odontogram({
                                 </th>
                               )
                             )}
-
                           </tr>
                         </thead>
 
                         <tbody>
-
-                          {/* PS */}
-
                           <tr className="border-b border-border/50">
-
                             <td className="px-3 py-3 text-sm font-medium text-text-primary">
                               PS
                             </td>
@@ -2098,13 +2108,9 @@ export function Odontogram({
                                 </td>
                               )
                             )}
-
                           </tr>
 
-                          {/* RECESSÃO */}
-
                           <tr className="border-b border-border/50">
-
                             <td className="px-3 py-3 text-sm font-medium text-text-primary">
                               Recessão
                             </td>
@@ -2140,13 +2146,9 @@ export function Odontogram({
                                 </td>
                               )
                             )}
-
                           </tr>
 
-                          {/* NIC */}
-
                           <tr>
-
                             <td className="px-3 py-3 text-sm font-medium text-text-primary">
                               NIC
                             </td>
@@ -2179,13 +2181,9 @@ export function Odontogram({
                                 );
                               }
                             )}
-
                           </tr>
-
                         </tbody>
-
                       </table>
-
                     </div>
 
                     <div className="mt-4 rounded-lg border border-border bg-background/50 p-3 text-xs text-text-secondary">
@@ -2197,15 +2195,11 @@ export function Odontogram({
                       JCE, registre a recessão com
                       valor negativo.
                     </div>
-
                   </CardContent>
                 </Card>
 
-                {/* MARCADORES */}
-
                 <Card>
                   <CardHeader>
-
                     <CardTitle>
                       Marcadores clínicos
                     </CardTitle>
@@ -2215,13 +2209,10 @@ export function Odontogram({
                       placa/biofilme e supuração
                       por sítio.
                     </p>
-
                   </CardHeader>
 
                   <CardContent>
-
                     <div className="grid gap-4 md:grid-cols-3">
-
                       {points.map(
                         (point) => {
                           const site =
@@ -2237,9 +2228,7 @@ export function Odontogram({
                               }
                               className="rounded-xl border border-border p-4"
                             >
-
                               <div className="mb-3 flex items-center justify-between">
-
                                 <span className="text-sm font-semibold text-text-primary">
                                   {point ===
                                   "MESIAL"
@@ -2253,11 +2242,9 @@ export function Odontogram({
                                 {site.bleeding && (
                                   <CircleAlert className="h-4 w-4 text-error" />
                                 )}
-
                               </div>
 
                               <div className="space-y-2">
-
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -2329,19 +2316,14 @@ export function Odontogram({
                                     <Check className="h-4 w-4" />
                                   )}
                                 </button>
-
                               </div>
                             </div>
                           );
                         }
                       )}
-
                     </div>
-
                   </CardContent>
                 </Card>
-
-                {/* MOBILIDADE E FURCA */}
 
                 <Card>
                   <CardHeader>
@@ -2351,11 +2333,8 @@ export function Odontogram({
                   </CardHeader>
 
                   <CardContent>
-
                     <div className="grid gap-6 md:grid-cols-3">
-
                       <div>
-
                         <label className="mb-2 block text-sm font-medium text-text-primary">
                           Mobilidade
                         </label>
@@ -2393,11 +2372,9 @@ export function Odontogram({
                             3 — Grau III
                           </option>
                         </select>
-
                       </div>
 
                       <div>
-
                         <label className="mb-2 block text-sm font-medium text-text-primary">
                           Furca vestibular
                         </label>
@@ -2415,11 +2392,9 @@ export function Odontogram({
                             )
                           }
                         />
-
                       </div>
 
                       <div>
-
                         <label className="mb-2 block text-sm font-medium text-text-primary">
                           Furca lingual
                         </label>
@@ -2437,15 +2412,10 @@ export function Odontogram({
                             )
                           }
                         />
-
                       </div>
-
                     </div>
-
                   </CardContent>
                 </Card>
-
-                {/* OBSERVAÇÕES */}
 
                 <Card>
                   <CardHeader>
@@ -2455,7 +2425,6 @@ export function Odontogram({
                   </CardHeader>
 
                   <CardContent>
-
                     <textarea
                       value={
                         selected.observations
@@ -2470,29 +2439,16 @@ export function Odontogram({
                       placeholder="Digite observações sobre este dente..."
                       className="w-full resize-none rounded-xl border border-border bg-background p-3 text-sm text-text-primary outline-none transition placeholder:text-text-muted focus:border-primary focus:ring-1 focus:ring-primary/20"
                     />
-
                   </CardContent>
                 </Card>
-
               </motion.div>
             )}
-
           </AnimatePresence>
-
         </motion.div>
       )}
-
     </div>
   );
 }
 
-/*
- * IMPORTANTE:
- * O page.tsx atual usa:
- *
- * import Odontogram from "./components/odontogram";
- *
- * Por isso deixamos também o default export.
- */
-
 export default Odontogram;
+
