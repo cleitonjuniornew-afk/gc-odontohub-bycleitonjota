@@ -36,6 +36,58 @@ const TOOTH_NUMBERS = [
   31, 32, 33, 34, 35, 36, 37, 38,
 ];
 
+const LAST_DATE_KEY = "gc-odontohub-periodontia-last-date";
+
+function getTodayInputDate() {
+  const now = new Date();
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getLastUsedDate() {
+  if (typeof window === "undefined") {
+    return getTodayInputDate();
+  }
+
+  const saved = localStorage.getItem(LAST_DATE_KEY);
+
+  if (!saved) {
+    return getTodayInputDate();
+  }
+
+  // Garante que o valor salvo realmente seja YYYY-MM-DD.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(saved)) {
+    return saved;
+  }
+
+  return getTodayInputDate();
+}
+
+function formatDateBR(value?: string | null) {
+  if (!value) return "—";
+
+  // Caso venha diretamente como YYYY-MM-DD
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (match) {
+    const [, year, month, day] = match;
+    return `${day}/${month}/${year}`;
+  }
+
+  // Fallback para outros formatos eventualmente vindos do banco.
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString("pt-BR");
+}
+
 export default function PeriodontiaPage() {
   const {
     patients,
@@ -45,15 +97,29 @@ export default function PeriodontiaPage() {
   const {
     exams,
     createExam,
+    updateExam,
     initializeTeeth,
     isCreatingExam,
     isInitializingTeeth,
+    isUpdatingExam,
   } = usePeriodontia();
 
   const [patientId, setPatientId] = useState("");
-  const [examStarted, setExamStarted] = useState(false);
+
+  const [examStarted, setExamStarted] =
+    useState(false);
+
   const [currentExam, setCurrentExam] =
     useState<PeriodontalExam | null>(null);
+
+  /*
+   * Data usada no calendário.
+   *
+   * Começa com a última data utilizada.
+   */
+  const [examDate, setExamDate] = useState(
+    getLastUsedDate
+  );
 
   const selectedPatient = useMemo(
     () =>
@@ -63,6 +129,10 @@ export default function PeriodontiaPage() {
     [patients, patientId]
   );
 
+  /*
+   * Quando seleciona um paciente, procura
+   * automaticamente um exame em andamento.
+   */
   useEffect(() => {
     if (!patientId) {
       setCurrentExam(null);
@@ -79,23 +149,68 @@ export default function PeriodontiaPage() {
     if (existingExam) {
       setCurrentExam(existingExam);
       setExamStarted(true);
+
+      /*
+       * Se já existe exame, usa a data dele.
+       */
+      if (existingExam.date) {
+        const normalizedDate =
+          String(existingExam.date).slice(0, 10);
+
+        if (
+          /^\d{4}-\d{2}-\d{2}$/.test(
+            normalizedDate
+          )
+        ) {
+          setExamDate(normalizedDate);
+          localStorage.setItem(
+            LAST_DATE_KEY,
+            normalizedDate
+          );
+        }
+      }
     } else {
       setCurrentExam(null);
       setExamStarted(false);
+
+      /*
+       * Novo paciente sem exame:
+       * mantém a última data utilizada.
+       */
+      setExamDate(getLastUsedDate());
     }
   }, [patientId, exams]);
 
+  /*
+   * Cria um novo exame.
+   */
   async function handleStartExam() {
     if (!patientId) return;
 
     try {
+      /*
+       * Garante que temos uma data válida.
+       */
+      const date =
+        examDate || getLastUsedDate();
+
+      /*
+       * Salva a data para ser a última
+       * data utilizada no próximo exame.
+       */
+      localStorage.setItem(
+        LAST_DATE_KEY,
+        date
+      );
+
       const exam = await createExam({
         patientId,
-        date: new Date().toISOString().slice(0, 10),
+        date,
       });
 
       setCurrentExam(exam);
       setExamStarted(true);
+      setExamDate(date);
 
       await initializeTeeth({
         examId: exam.id,
@@ -106,12 +221,75 @@ export default function PeriodontiaPage() {
     }
   }
 
+  /*
+   * Altera a data do calendário.
+   *
+   * A alteração é salva imediatamente
+   * no exame atual.
+   */
+  async function handleChangeExamDate(
+    value: string
+  ) {
+    if (!value) return;
+
+    /*
+     * Atualiza visualmente imediatamente.
+     */
+    setExamDate(value);
+
+    /*
+     * Guarda como última data usada.
+     */
+    localStorage.setItem(
+      LAST_DATE_KEY,
+      value
+    );
+
+    /*
+     * Se ainda não existe exame,
+     * apenas atualiza o calendário.
+     *
+     * Quando clicar em "Novo exame",
+     * essa data será usada.
+     */
+    if (!currentExam?.id) {
+      return;
+    }
+
+    try {
+      const updatedExam = await updateExam({
+        id: currentExam.id,
+        input: {
+          date: value,
+        },
+      });
+
+      /*
+       * Mantém o exame local sincronizado.
+       */
+      setCurrentExam((current) =>
+        current
+          ? {
+              ...current,
+              ...updatedExam,
+            }
+          : current
+      );
+    } catch (error) {
+      console.error(
+        "ERRO AO ATUALIZAR DATA DO EXAME:",
+        error
+      );
+    }
+  }
+
   function handleSelectPatient(value: string) {
     setPatientId(value);
 
     if (!value) {
       setCurrentExam(null);
       setExamStarted(false);
+      setExamDate(getLastUsedDate());
       return;
     }
 
@@ -124,9 +302,27 @@ export default function PeriodontiaPage() {
     if (existingExam) {
       setCurrentExam(existingExam);
       setExamStarted(true);
+
+      if (existingExam.date) {
+        const normalizedDate =
+          String(existingExam.date).slice(0, 10);
+
+        if (
+          /^\d{4}-\d{2}-\d{2}$/.test(
+            normalizedDate
+          )
+        ) {
+          setExamDate(normalizedDate);
+          localStorage.setItem(
+            LAST_DATE_KEY,
+            normalizedDate
+          );
+        }
+      }
     } else {
       setCurrentExam(null);
       setExamStarted(false);
+      setExamDate(getLastUsedDate());
     }
   }
 
@@ -134,6 +330,7 @@ export default function PeriodontiaPage() {
     setPatientId("");
     setCurrentExam(null);
     setExamStarted(false);
+    setExamDate(getLastUsedDate());
   }
 
   function handleExportPdf() {
@@ -153,7 +350,7 @@ export default function PeriodontiaPage() {
             {examStarted && (
               <Button
                 type="button"
-                variant="secondary"
+                variant="ghost"
                 onClick={handleExportPdf}
               >
                 Exportar PDF
@@ -208,7 +405,7 @@ export default function PeriodontiaPage() {
                 </CardTitle>
 
                 <p className="mt-1 text-sm text-text-secondary">
-                  Escolha primeiro o paciente para
+                  Escolha o paciente e a data para
                   iniciar o exame periodontal.
                 </p>
               </div>
@@ -216,81 +413,126 @@ export default function PeriodontiaPage() {
           </CardHeader>
 
           <CardContent>
-            <div className="max-w-xl">
-              <label className="mb-2 block text-sm font-medium text-text-primary">
-                Paciente
-              </label>
+            <div className="grid max-w-3xl gap-5 md:grid-cols-2">
+              {/* PACIENTE */}
 
-              <select
-                value={patientId}
-                onChange={(event) =>
-                  handleSelectPatient(
-                    event.target.value
-                  )
-                }
-                disabled={isLoadingPatients}
-                className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm text-text-primary outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/20"
-              >
-                <option value="">
-                  {isLoadingPatients
-                    ? "Carregando pacientes..."
-                    : "Selecione um paciente"}
-                </option>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-text-primary">
+                  Paciente
+                </label>
 
-                {patients.map((patient) => (
-                  <option
-                    key={patient.id}
-                    value={patient.id}
-                  >
-                    {patient.name}
-                    {patient.phone
-                      ? ` — ${patient.phone}`
-                      : ""}
+                <select
+                  value={patientId}
+                  onChange={(event) =>
+                    handleSelectPatient(
+                      event.target.value
+                    )
+                  }
+                  disabled={isLoadingPatients}
+                  className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm text-text-primary outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/20"
+                >
+                  <option value="">
+                    {isLoadingPatients
+                      ? "Carregando pacientes..."
+                      : "Selecione um paciente"}
                   </option>
-                ))}
-              </select>
 
-              {!isLoadingPatients &&
-                patients.length === 0 && (
-                  <div className="mt-3 rounded-lg border border-dashed border-border bg-card p-4">
-                    <p className="text-sm font-medium text-text-primary">
-                      Nenhum paciente cadastrado
-                    </p>
+                  {patients.map((patient) => (
+                    <option
+                      key={patient.id}
+                      value={patient.id}
+                    >
+                      {patient.name}
+                      {patient.phone
+                        ? ` — ${patient.phone}`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                    <p className="mt-1 text-sm text-text-secondary">
-                      Cadastre o paciente primeiro
-                      na área de Pacientes.
-                    </p>
-                  </div>
-                )}
+              {/* DATA DO EXAME */}
 
-              {patientId && (
-                <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
-                  <div className="flex items-start gap-3">
-                    <UserRound className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+              <div>
+                <label className="mb-2 block text-sm font-medium text-text-primary">
+                  Data do exame
+                </label>
 
-                    <div>
-                      <p className="font-medium text-text-primary">
-                        {patientName}
-                      </p>
+                <div className="relative">
+                  <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
 
-                      {selectedPatient?.phone && (
-                        <p className="mt-1 text-sm text-text-secondary">
-                          {selectedPatient.phone}
-                        </p>
-                      )}
+                  <input
+                    type="date"
+                    value={examDate}
+                    onChange={(event) =>
+                      handleChangeExamDate(
+                        event.target.value
+                      )
+                    }
+                    className="h-11 w-full rounded-lg border border-border bg-background pl-10 pr-3 text-sm text-text-primary outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/20"
+                  />
+                </div>
 
-                      <p className="mt-2 text-sm text-text-secondary">
-                        Agora clique em{" "}
-                        <strong>Novo exame</strong>{" "}
-                        para iniciar o periodontograma
-                        deste paciente.
-                      </p>
-                    </div>
-                  </div>
+                <p className="mt-2 text-xs text-text-muted">
+                  Última data utilizada:
+                  {" "}
+                  <strong>
+                    {formatDateBR(examDate)}
+                  </strong>
+                </p>
+              </div>
+            </div>
+
+            {!isLoadingPatients &&
+              patients.length === 0 && (
+                <div className="mt-4 rounded-lg border border-dashed border-border bg-card p-4">
+                  <p className="text-sm font-medium text-text-primary">
+                    Nenhum paciente cadastrado
+                  </p>
+
+                  <p className="mt-1 text-sm text-text-secondary">
+                    Cadastre o paciente primeiro
+                    na área de Pacientes.
+                  </p>
                 </div>
               )}
-            </div>
+
+            {patientId && (
+              <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <div className="flex items-start gap-3">
+                  <UserRound className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+
+                  <div>
+                    <p className="font-medium text-text-primary">
+                      {patientName}
+                    </p>
+
+                    {selectedPatient?.phone && (
+                      <p className="mt-1 text-sm text-text-secondary">
+                        {selectedPatient.phone}
+                      </p>
+                    )}
+
+                    <p className="mt-2 text-sm text-text-secondary">
+                      Data selecionada:
+                      {" "}
+                      <strong>
+                        {formatDateBR(
+                          examDate
+                        )}
+                      </strong>
+                    </p>
+
+                    <p className="mt-2 text-sm text-text-secondary">
+                      Agora clique em{" "}
+                      <strong>Novo exame</strong>{" "}
+                      para iniciar o periodontograma
+                      deste paciente.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -300,6 +542,8 @@ export default function PeriodontiaPage() {
       {examStarted && (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* PACIENTE */}
+
             <Card>
               <CardContent className="flex items-center gap-3 p-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
@@ -318,31 +562,53 @@ export default function PeriodontiaPage() {
               </CardContent>
             </Card>
 
+            {/* DATA */}
+
             <Card>
-              <CardContent className="flex items-center gap-3 p-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                  <CalendarDays className="h-5 w-5 text-primary" />
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                    <CalendarDays className="h-5 w-5 text-primary" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-text-muted">
+                      Data do exame
+                    </p>
+
+                    <p className="text-sm font-semibold text-text-primary">
+                      {formatDateBR(
+                        examDate
+                      )}
+                    </p>
+                  </div>
                 </div>
 
-                <div>
-                  <p className="text-xs text-text-muted">
-                    Data do exame
-                  </p>
+                {/* CALENDÁRIO */}
 
-                  <p className="text-sm font-semibold text-text-primary">
-                    {currentExam
-                      ? new Date(
-                          `${currentExam.date}T00:00:00`
-                        ).toLocaleDateString(
-                          "pt-BR"
-                        )
-                      : new Date().toLocaleDateString(
-                          "pt-BR"
-                        )}
-                  </p>
+                <div className="mt-3">
+                  <input
+                    type="date"
+                    value={examDate}
+                    onChange={(event) =>
+                      handleChangeExamDate(
+                        event.target.value
+                      )
+                    }
+                    disabled={isUpdatingExam}
+                    className="h-9 w-full rounded-md border border-border bg-background px-2 text-xs text-text-primary outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+
+                  {isUpdatingExam && (
+                    <p className="mt-1 text-[11px] text-text-muted">
+                      Salvando data...
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
+
+            {/* STATUS */}
 
             <Card>
               <CardContent className="flex items-center gap-3 p-4">
@@ -361,6 +627,8 @@ export default function PeriodontiaPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* DENTES */}
 
             <Card>
               <CardContent className="flex items-center gap-3 p-4">
