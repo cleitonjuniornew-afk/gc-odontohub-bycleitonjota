@@ -193,11 +193,9 @@ export interface UpdatePeriodontalSiteInput {
 function mapSite(row: any): PeriodontalSite {
   return {
     id: row.id,
-
     toothId: row.dente_id,
 
     surface: row.superficie,
-
     point: row.ponto,
 
     probingDepth:
@@ -306,21 +304,12 @@ function mapExam(row: any): PeriodontalExam {
 
 async function getCurrentUserId(): Promise<string | null> {
   console.log(
-    "========== DEBUG SUPABASE AUTH =========="
-  );
-
-  console.log(
-    "isSupabaseConfigured:",
-    isSupabaseConfigured
+    "🔵 [PERIODONTIA] Verificando usuário atual..."
   );
 
   if (!isSupabaseConfigured) {
-    console.error(
-      "❌ SUPABASE NÃO ESTÁ CONFIGURADO"
-    );
-
     console.log(
-      "=========================================="
+      "🔴 [PERIODONTIA] Supabase NÃO está configurado."
     );
 
     return null;
@@ -334,23 +323,20 @@ async function getCurrentUserId(): Promise<string | null> {
   } = await supabase.auth.getUser();
 
   console.log(
-    "Supabase auth user:",
-    user
+    "🔵 [PERIODONTIA] auth.getUser():",
+    {
+      userId: user?.id ?? null,
+      email: user?.email ?? null,
+      error,
+    }
   );
 
-  console.log(
-    "Supabase auth error:",
-    error
-  );
-
-  console.log(
-    "UID:",
-    user?.id ?? null
-  );
-
-  console.log(
-    "=========================================="
-  );
+  if (error) {
+    console.error(
+      "🔴 [PERIODONTIA] Erro ao obter usuário:",
+      error
+    );
+  }
 
   return user?.id ?? null;
 }
@@ -434,6 +420,11 @@ async function getSupabase(
 async function createExam(
   input: CreatePeriodontalExamInput
 ): Promise<PeriodontalExam> {
+  console.log(
+    "🟢 [PERIODONTIA] createExam chamado:",
+    input
+  );
+
   if (!input.patientId) {
     throw new Error(
       "É necessário selecionar um paciente."
@@ -445,8 +436,8 @@ async function createExam(
     .slice(0, 10);
 
   if (!isSupabaseConfigured) {
-    console.error(
-      "❌ Tentativa de criar exame sem Supabase configurado."
+    console.log(
+      "🟡 [PERIODONTIA] Criando exame LOCAL porque Supabase não está configurado."
     );
 
     return {
@@ -473,106 +464,79 @@ async function createExam(
 
   const supabase = createClient();
 
+  // ========================================================
+  // TESTE DE AUTENTICAÇÃO
+  // ========================================================
+
   const userId =
     await getCurrentUserId();
 
   console.log(
-    "========== CRIANDO EXAME PERIODONTAL =========="
-  );
-
-  console.log(
-    "Paciente:",
-    input.patientId
-  );
-
-  console.log(
-    "Usuário:",
+    "🟢 [PERIODONTIA] userId obtido:",
     userId
   );
 
-  console.log(
-    "Supabase configurado:",
-    isSupabaseConfigured
-  );
+  // ========================================================
+  // PAYLOAD DO EXAME
+  // ========================================================
+
+  const payload = {
+    user_id:
+      userId,
+
+    paciente_id:
+      input.patientId,
+
+    data_exame:
+      input.date ?? today,
+
+    observacoes:
+      input.observations ?? null,
+
+    diagnostico:
+      input.diagnosis ?? null,
+
+    status:
+      input.status ?? "EM_ANDAMENTO",
+  };
 
   console.log(
-    "==============================================="
+    "🟢 [PERIODONTIA] Enviando exame para Supabase:",
+    payload
   );
 
-  // IMPORTANTE:
-  // A tabela possui RLS exigindo user_id = auth.uid().
-  // Portanto, não devemos tentar inserir user_id = null.
-
-  if (!userId) {
-    console.error(
-      "❌ NENHUM USUÁRIO AUTENTICADO NO SUPABASE."
-    );
-
-    throw new Error(
-      "Usuário não autenticado no Supabase. Faça login novamente antes de criar o exame."
-    );
-  }
+  // ========================================================
+  // INSERT
+  // ========================================================
 
   const {
     data,
     error,
   } = await supabase
     .from("exames_periodontais")
-    .insert({
-      user_id:
-        userId,
-
-      paciente_id:
-        input.patientId,
-
-      data_exame:
-        input.date ?? today,
-
-      observacoes:
-        input.observations ?? null,
-
-      diagnostico:
-        input.diagnosis ?? null,
-
-      status:
-        input.status ?? "EM_ANDAMENTO",
-    })
+    .insert(payload)
     .select(EXAM_SELECT)
     .single();
 
+  console.log(
+    "🟢 [PERIODONTIA] Resposta Supabase:",
+    {
+      data,
+      error,
+    }
+  );
+
   if (error) {
     console.error(
-      "❌ ERRO SUPABASE AO CRIAR EXAME:"
-    );
-
-    console.error(
-      "message:",
-      error.message
-    );
-
-    console.error(
-      "details:",
-      error.details
-    );
-
-    console.error(
-      "hint:",
-      error.hint
-    );
-
-    console.error(
-      "code:",
-      error.code
+      "🔴 [PERIODONTIA] ERRO AO CRIAR EXAME:",
+      error
     );
 
     throw error;
   }
 
   console.log(
-    "✅ EXAME PERIODONTAL SALVO:"
-  );
-
-  console.log(
+    "✅ [PERIODONTIA] EXAME CRIADO:",
     data
   );
 
@@ -649,8 +613,7 @@ async function finalizeExam(
   id: string
 ): Promise<PeriodontalExam> {
   return updateExam(id, {
-    status:
-      "FINALIZADO",
+    status: "FINALIZADO",
   });
 }
 
@@ -1367,8 +1330,7 @@ async function initializeExamTeeth(
       new Set(toothNumbers)
     );
 
-  const results:
-    PeriodontalTooth[] = [];
+  const results: PeriodontalTooth[] = [];
 
   for (
     const toothNumber of uniqueNumbers
@@ -1404,7 +1366,6 @@ async function initializeExamTeeth(
 
 export const periodontiaRepository = {
   // Exames
-
   list:
     listSupabase,
 
@@ -1441,7 +1402,6 @@ export const periodontiaRepository = {
   restore,
 
   // Dentes
-
   createTooth,
 
   saveTooth,
@@ -1451,7 +1411,6 @@ export const periodontiaRepository = {
   deleteTooth,
 
   // Sites
-
   upsertSite,
 
   saveSite,
@@ -1461,7 +1420,5 @@ export const periodontiaRepository = {
   deleteSite,
 
   // Inicialização
-
   initializeExamTeeth,
 };
-
