@@ -33,6 +33,7 @@ export const MAIN_NAV: NavItem[] = [
   { label: "Agenda", href: "/agenda", icon: CalendarDays },
   { label: "Planejamento", href: "/planejamento", icon: ListTodo },
   { label: "Disciplinas", href: "/disciplinas", icon: BookOpen },
+  { label: "Periodontia", href: "/periodontia", icon: Stethoscope },
   { label: "Biblioteca", href: "/biblioteca", icon: Library },
   { label: "Fotos", href: "/fotos", icon: Images },
   { label: "Flashcards", href: "/flashcards", icon: Layers, future: true },
