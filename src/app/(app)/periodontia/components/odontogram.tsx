@@ -131,10 +131,7 @@ function calculateCAL(site: SiteData) {
     return null;
   }
 
-  return (
-    site.probingDepth +
-    site.gingivalRecession
-  );
+  return site.probingDepth + site.gingivalRecession;
 }
 
 function getAllSites(teeth: Tooth[]) {
@@ -168,70 +165,53 @@ function getAllSites(teeth: Tooth[]) {
   return result;
 }
 
-function getBleedingPercentage(
-  teeth: Tooth[]
-) {
+function getBleedingPercentage(teeth: Tooth[]) {
   const sites = getAllSites(teeth);
 
   const examinedSites = sites.filter(
-    ({ site }) =>
-      site.probingDepth !== null
+    ({ site }) => site.probingDepth !== null
   );
 
   if (examinedSites.length === 0) {
     return 0;
   }
 
-  const bleedingSites =
-    examinedSites.filter(
-      ({ site }) => site.bleeding
-    ).length;
+  const bleedingSites = examinedSites.filter(
+    ({ site }) => site.bleeding
+  ).length;
 
   return (
-    (bleedingSites /
-      examinedSites.length) *
-    100
+    (bleedingSites / examinedSites.length) * 100
   );
 }
 
-function getPlaquePercentage(
-  teeth: Tooth[]
-) {
+function getPlaquePercentage(teeth: Tooth[]) {
   const sites = getAllSites(teeth);
 
   const examinedSites = sites.filter(
-    ({ site }) =>
-      site.probingDepth !== null
+    ({ site }) => site.probingDepth !== null
   );
 
   if (examinedSites.length === 0) {
     return 0;
   }
 
-  const plaqueSites =
-    examinedSites.filter(
-      ({ site }) => site.plaque
-    ).length;
+  const plaqueSites = examinedSites.filter(
+    ({ site }) => site.plaque
+  ).length;
 
   return (
-    (plaqueSites /
-      examinedSites.length) *
-    100
+    (plaqueSites / examinedSites.length) * 100
   );
 }
 
-function getExaminedSites(
-  teeth: Tooth[]
-) {
+function getExaminedSites(teeth: Tooth[]) {
   return getAllSites(teeth).filter(
-    ({ site }) =>
-      site.probingDepth !== null
+    ({ site }) => site.probingDepth !== null
   ).length;
 }
 
-function getBleedingSites(
-  teeth: Tooth[]
-) {
+function getBleedingSites(teeth: Tooth[]) {
   return getAllSites(teeth).filter(
     ({ site }) =>
       site.probingDepth !== null &&
@@ -239,9 +219,7 @@ function getBleedingSites(
   ).length;
 }
 
-function getPlaqueSites(
-  teeth: Tooth[]
-) {
+function getPlaqueSites(teeth: Tooth[]) {
   return getAllSites(teeth).filter(
     ({ site }) =>
       site.probingDepth !== null &&
@@ -351,9 +329,7 @@ function NumberInput({
   placeholder = "—",
 }: {
   value: number | null;
-  onChange: (
-    value: number | null
-  ) => void;
+  onChange: (value: number | null) => void;
   placeholder?: string;
 }) {
   return (
@@ -364,8 +340,7 @@ function NumberInput({
       value={value ?? ""}
       placeholder={placeholder}
       onChange={(event) => {
-        const raw =
-          event.target.value;
+        const raw = event.target.value;
 
         if (raw === "") {
           onChange(null);
@@ -388,9 +363,7 @@ function PeriodontalTable({
   onSelectTooth,
 }: {
   teeth: Tooth[];
-  onSelectTooth: (
-    number: number
-  ) => void;
+  onSelectTooth: (number: number) => void;
 }) {
   const upper = teeth.filter((tooth) =>
     upperTeeth.includes(tooth.number)
@@ -400,9 +373,15 @@ function PeriodontalTable({
     lowerTeeth.includes(tooth.number)
   );
 
+  /*
+   * CORREÇÃO:
+   * O traço aparece somente quando não existe valor.
+   * Quando existe valor, ele é exibido normalmente,
+   * sem ficar pequeno ou com traço sobreposto.
+   */
   const formatNumber = (
     value: number | null
-  ) => (value === null ? "—" : value);
+  ) => (value === null ? "—" : String(value));
 
   const renderArch = (
     title: string,
@@ -410,7 +389,7 @@ function PeriodontalTable({
   ) => (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-text-primary">
+        <h3 className="text-sm font-semibold text-text-primary">
           {title}
         </h3>
 
@@ -436,13 +415,10 @@ function PeriodontalTable({
                   <button
                     type="button"
                     onClick={() =>
-                      onSelectTooth(
-                        tooth.number
-                      )
+                      onSelectTooth(tooth.number)
                     }
                     className={`font-bold transition hover:text-primary ${
-                      tooth.status ===
-                      "AUSENTE"
+                      tooth.status === "AUSENTE"
                         ? "text-error"
                         : "text-text-primary"
                     }`}
@@ -458,388 +434,379 @@ function PeriodontalTable({
                 Sítio
               </th>
 
-              {archTeeth.flatMap(
-                (tooth) =>
-                  points.map(
-                    (point) => (
-                      <th
-                        key={`${tooth.number}-${point}`}
-                        className="border-b border-r border-border px-2 py-2 text-center font-medium text-text-muted"
-                      >
-                        {point ===
-                        "MESIAL"
-                          ? "M"
-                          : point ===
-                              "CENTRAL"
-                            ? "C"
-                            : "D"}
-                      </th>
-                    )
-                  )
+              {archTeeth.flatMap((tooth) =>
+                points.map((point) => (
+                  <th
+                    key={`${tooth.number}-${point}`}
+                    className="border-b border-r border-border px-2 py-2 text-center font-medium text-text-muted"
+                  >
+                    {point === "MESIAL"
+                      ? "M"
+                      : point === "CENTRAL"
+                        ? "C"
+                        : "D"}
+                  </th>
+                ))
               )}
             </tr>
           </thead>
 
           <tbody>
+            {/* PS */}
             <tr className="bg-primary/5">
               <td className="sticky left-0 z-10 border-b border-r border-border bg-primary/5 px-3 py-2 font-semibold text-text-primary">
                 PS
               </td>
 
-              {archTeeth.flatMap(
-                (tooth) =>
-                  points.map(
-                    (point) => {
-                      const vestibular =
-                        tooth.sites
-                          .VESTIBULAR[
-                          point
-                        ]
-                          .probingDepth;
+              {archTeeth.flatMap((tooth) =>
+                points.map((point) => {
+                  const vestibular =
+                    tooth.sites.VESTIBULAR[
+                      point
+                    ].probingDepth;
 
-                      const lingual =
-                        tooth.sites
-                          .LINGUAL[
-                          point
-                        ]
-                          .probingDepth;
+                  const lingual =
+                    tooth.sites.LINGUAL[
+                      point
+                    ].probingDepth;
 
-                      return (
-                        <td
-                          key={`${tooth.number}-${point}`}
-                          className="border-b border-r border-border px-2 py-2 text-center"
+                  return (
+                    <td
+                      key={`${tooth.number}-${point}`}
+                      className="border-b border-r border-border px-2 py-2 text-center"
+                    >
+                      <div className="flex flex-col items-center justify-center gap-0.5 leading-tight">
+                        <span
+                          className={
+                            vestibular === null
+                              ? "text-sm text-text-muted"
+                              : "text-sm font-semibold text-text-primary"
+                          }
                         >
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span className="font-semibold text-text-primary">
-                              {formatNumber(
-                                vestibular
-                              )}
-                            </span>
+                          {formatNumber(
+                            vestibular
+                          )}
+                        </span>
 
-                            <span className="text-[9px] text-text-muted">
-                              {formatNumber(
-                                lingual
-                              )}
-                            </span>
-                          </div>
-                        </td>
-                      );
-                    }
-                  )
+                        <span
+                          className={
+                            lingual === null
+                              ? "text-sm text-text-muted"
+                              : "text-sm font-semibold text-text-primary"
+                          }
+                        >
+                          {formatNumber(
+                            lingual
+                          )}
+                        </span>
+                      </div>
+                    </td>
+                  );
+                })
               )}
             </tr>
 
+            {/* RECESSÃO */}
             <tr>
               <td className="sticky left-0 z-10 border-b border-r border-border bg-background px-3 py-2 font-semibold text-text-primary">
                 Recessão
               </td>
 
-              {archTeeth.flatMap(
-                (tooth) =>
-                  points.map(
-                    (point) => {
-                      const vestibular =
-                        tooth.sites
-                          .VESTIBULAR[
-                          point
-                        ]
-                          .gingivalRecession;
+              {archTeeth.flatMap((tooth) =>
+                points.map((point) => {
+                  const vestibular =
+                    tooth.sites.VESTIBULAR[
+                      point
+                    ].gingivalRecession;
 
-                      const lingual =
-                        tooth.sites
-                          .LINGUAL[
-                          point
-                        ]
-                          .gingivalRecession;
+                  const lingual =
+                    tooth.sites.LINGUAL[
+                      point
+                    ].gingivalRecession;
 
-                      return (
-                        <td
-                          key={`${tooth.number}-${point}`}
-                          className="border-b border-r border-border px-2 py-2 text-center"
+                  return (
+                    <td
+                      key={`${tooth.number}-${point}`}
+                      className="border-b border-r border-border px-2 py-2 text-center"
+                    >
+                      <div className="flex flex-col items-center justify-center gap-0.5 leading-tight">
+                        <span
+                          className={
+                            vestibular === null
+                              ? "text-sm text-text-muted"
+                              : "text-sm font-semibold text-text-primary"
+                          }
                         >
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span className="font-semibold text-text-primary">
-                              {formatNumber(
-                                vestibular
-                              )}
-                            </span>
+                          {formatNumber(
+                            vestibular
+                          )}
+                        </span>
 
-                            <span className="text-[9px] text-text-muted">
-                              {formatNumber(
-                                lingual
-                              )}
-                            </span>
-                          </div>
-                        </td>
-                      );
-                    }
-                  )
+                        <span
+                          className={
+                            lingual === null
+                              ? "text-sm text-text-muted"
+                              : "text-sm font-semibold text-text-primary"
+                          }
+                        >
+                          {formatNumber(
+                            lingual
+                          )}
+                        </span>
+                      </div>
+                    </td>
+                  );
+                })
               )}
             </tr>
 
+            {/* NIC */}
             <tr className="bg-secondary/5">
               <td className="sticky left-0 z-10 border-b border-r border-border bg-secondary/5 px-3 py-2 font-semibold text-text-primary">
                 NIC
               </td>
 
-              {archTeeth.flatMap(
-                (tooth) =>
-                  points.map(
-                    (point) => {
-                      const vestibular =
-                        calculateCAL(
-                          tooth.sites
-                            .VESTIBULAR[
-                            point
-                          ]
-                        );
+              {archTeeth.flatMap((tooth) =>
+                points.map((point) => {
+                  const vestibular =
+                    calculateCAL(
+                      tooth.sites.VESTIBULAR[
+                        point
+                      ]
+                    );
 
-                      const lingual =
-                        calculateCAL(
-                          tooth.sites
-                            .LINGUAL[
-                            point
-                          ]
-                        );
+                  const lingual =
+                    calculateCAL(
+                      tooth.sites.LINGUAL[
+                        point
+                      ]
+                    );
 
-                      return (
-                        <td
-                          key={`${tooth.number}-${point}`}
-                          className="border-b border-r border-border px-2 py-2 text-center"
+                  return (
+                    <td
+                      key={`${tooth.number}-${point}`}
+                      className="border-b border-r border-border px-2 py-2 text-center"
+                    >
+                      <div className="flex flex-col items-center justify-center gap-0.5 leading-tight">
+                        <span
+                          className={
+                            vestibular === null
+                              ? "text-sm text-text-muted"
+                              : "text-sm font-semibold text-text-primary"
+                          }
                         >
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span className="font-semibold text-text-primary">
-                              {formatNumber(
-                                vestibular
-                              )}
-                            </span>
+                          {formatNumber(
+                            vestibular
+                          )}
+                        </span>
 
-                            <span className="text-[9px] text-text-muted">
-                              {formatNumber(
-                                lingual
-                              )}
-                            </span>
-                          </div>
-                        </td>
-                      );
-                    }
-                  )
+                        <span
+                          className={
+                            lingual === null
+                              ? "text-sm text-text-muted"
+                              : "text-sm font-semibold text-text-primary"
+                          }
+                        >
+                          {formatNumber(
+                            lingual
+                          )}
+                        </span>
+                      </div>
+                    </td>
+                  );
+                })
               )}
             </tr>
 
+            {/* SS */}
             <tr>
               <td className="sticky left-0 z-10 border-b border-r border-border bg-background px-3 py-2 font-semibold text-text-primary">
                 SS
               </td>
 
-              {archTeeth.flatMap(
-                (tooth) =>
-                  points.map(
-                    (point) => {
-                      const v =
-                        tooth.sites
-                          .VESTIBULAR[
-                          point
-                        ];
+              {archTeeth.flatMap((tooth) =>
+                points.map((point) => {
+                  const v =
+                    tooth.sites.VESTIBULAR[
+                      point
+                    ];
 
-                      const l =
-                        tooth.sites
-                          .LINGUAL[
-                          point
-                        ];
+                  const l =
+                    tooth.sites.LINGUAL[
+                      point
+                    ];
 
-                      const hasV =
-                        v.probingDepth !==
-                        null;
+                  const hasV =
+                    v.probingDepth !== null;
 
-                      const hasL =
-                        l.probingDepth !==
-                        null;
+                  const hasL =
+                    l.probingDepth !== null;
 
-                      return (
-                        <td
-                          key={`${tooth.number}-${point}`}
-                          className="border-b border-r border-border px-2 py-2 text-center"
+                  return (
+                    <td
+                      key={`${tooth.number}-${point}`}
+                      className="border-b border-r border-border px-2 py-2 text-center"
+                    >
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span
+                          className={
+                            hasV && v.bleeding
+                              ? "font-bold text-error"
+                              : "text-text-muted"
+                          }
                         >
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span
-                              className={
-                                hasV &&
-                                v.bleeding
-                                  ? "font-bold text-error"
-                                  : "text-text-muted"
-                              }
-                            >
-                              {hasV
-                                ? v.bleeding
-                                  ? "●"
-                                  : "○"
-                                : "—"}
-                            </span>
+                          {hasV
+                            ? v.bleeding
+                              ? "●"
+                              : "○"
+                            : "—"}
+                        </span>
 
-                            <span
-                              className={
-                                hasL &&
-                                l.bleeding
-                                  ? "text-[9px] font-bold text-error"
-                                  : "text-[9px] text-text-muted"
-                              }
-                            >
-                              {hasL
-                                ? l.bleeding
-                                  ? "●"
-                                  : "○"
-                                : "—"}
-                            </span>
-                          </div>
-                        </td>
-                      );
-                    }
-                  )
+                        <span
+                          className={
+                            hasL && l.bleeding
+                              ? "text-sm font-bold text-error"
+                              : "text-sm text-text-muted"
+                          }
+                        >
+                          {hasL
+                            ? l.bleeding
+                              ? "●"
+                              : "○"
+                            : "—"}
+                        </span>
+                      </div>
+                    </td>
+                  );
+                })
               )}
             </tr>
 
+            {/* PI */}
             <tr>
               <td className="sticky left-0 z-10 border-b border-r border-border bg-background px-3 py-2 font-semibold text-text-primary">
                 PI
               </td>
 
-              {archTeeth.flatMap(
-                (tooth) =>
-                  points.map(
-                    (point) => {
-                      const v =
-                        tooth.sites
-                          .VESTIBULAR[
-                          point
-                        ];
+              {archTeeth.flatMap((tooth) =>
+                points.map((point) => {
+                  const v =
+                    tooth.sites.VESTIBULAR[
+                      point
+                    ];
 
-                      const l =
-                        tooth.sites
-                          .LINGUAL[
-                          point
-                        ];
+                  const l =
+                    tooth.sites.LINGUAL[
+                      point
+                    ];
 
-                      const hasV =
-                        v.probingDepth !==
-                        null;
+                  const hasV =
+                    v.probingDepth !== null;
 
-                      const hasL =
-                        l.probingDepth !==
-                        null;
+                  const hasL =
+                    l.probingDepth !== null;
 
-                      return (
-                        <td
-                          key={`${tooth.number}-${point}`}
-                          className="border-b border-r border-border px-2 py-2 text-center"
+                  return (
+                    <td
+                      key={`${tooth.number}-${point}`}
+                      className="border-b border-r border-border px-2 py-2 text-center"
+                    >
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span
+                          className={
+                            hasV && v.plaque
+                              ? "font-bold text-primary"
+                              : "text-text-muted"
+                          }
                         >
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span
-                              className={
-                                hasV &&
-                                v.plaque
-                                  ? "font-bold text-primary"
-                                  : "text-text-muted"
-                              }
-                            >
-                              {hasV
-                                ? v.plaque
-                                  ? "●"
-                                  : "○"
-                                : "—"}
-                            </span>
+                          {hasV
+                            ? v.plaque
+                              ? "●"
+                              : "○"
+                            : "—"}
+                        </span>
 
-                            <span
-                              className={
-                                hasL &&
-                                l.plaque
-                                  ? "text-[9px] font-bold text-primary"
-                                  : "text-[9px] text-text-muted"
-                              }
-                            >
-                              {hasL
-                                ? l.plaque
-                                  ? "●"
-                                  : "○"
-                                : "—"}
-                            </span>
-                          </div>
-                        </td>
-                      );
-                    }
-                  )
+                        <span
+                          className={
+                            hasL && l.plaque
+                              ? "text-sm font-bold text-primary"
+                              : "text-sm text-text-muted"
+                          }
+                        >
+                          {hasL
+                            ? l.plaque
+                              ? "●"
+                              : "○"
+                            : "—"}
+                        </span>
+                      </div>
+                    </td>
+                  );
+                })
               )}
             </tr>
 
+            {/* SUPURAÇÃO */}
             <tr>
               <td className="sticky left-0 z-10 border-r border-border bg-background px-3 py-2 font-semibold text-text-primary">
                 Supuração
               </td>
 
-              {archTeeth.flatMap(
-                (tooth) =>
-                  points.map(
-                    (point) => {
-                      const v =
-                        tooth.sites
-                          .VESTIBULAR[
-                          point
-                        ];
+              {archTeeth.flatMap((tooth) =>
+                points.map((point) => {
+                  const v =
+                    tooth.sites.VESTIBULAR[
+                      point
+                    ];
 
-                      const l =
-                        tooth.sites
-                          .LINGUAL[
-                          point
-                        ];
+                  const l =
+                    tooth.sites.LINGUAL[
+                      point
+                    ];
 
-                      const hasV =
-                        v.probingDepth !==
-                        null;
+                  const hasV =
+                    v.probingDepth !== null;
 
-                      const hasL =
-                        l.probingDepth !==
-                        null;
+                  const hasL =
+                    l.probingDepth !== null;
 
-                      return (
-                        <td
-                          key={`${tooth.number}-${point}`}
-                          className="border-r border-border px-2 py-2 text-center"
+                  return (
+                    <td
+                      key={`${tooth.number}-${point}`}
+                      className="border-r border-border px-2 py-2 text-center"
+                    >
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span
+                          className={
+                            hasV && v.suppuration
+                              ? "font-bold text-secondary"
+                              : "text-text-muted"
+                          }
                         >
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span
-                              className={
-                                hasV &&
-                                v.suppuration
-                                  ? "font-bold text-secondary"
-                                  : "text-text-muted"
-                              }
-                            >
-                              {hasV
-                                ? v.suppuration
-                                  ? "●"
-                                  : "○"
-                                : "—"}
-                            </span>
+                          {hasV
+                            ? v.suppuration
+                              ? "●"
+                              : "○"
+                            : "—"}
+                        </span>
 
-                            <span
-                              className={
-                                hasL &&
-                                l.suppuration
-                                  ? "text-[9px] font-bold text-secondary"
-                                  : "text-[9px] text-text-muted"
-                              }
-                            >
-                              {hasL
-                                ? l.suppuration
-                                  ? "●"
-                                  : "○"
-                                : "—"}
-                            </span>
-                          </div>
-                        </td>
-                      );
-                    }
-                  )
+                        <span
+                          className={
+                            hasL && l.suppuration
+                              ? "text-sm font-bold text-secondary"
+                              : "text-sm text-text-muted"
+                          }
+                        >
+                          {hasL
+                            ? l.suppuration
+                              ? "●"
+                              : "○"
+                            : "—"}
+                        </span>
+                      </div>
+                    </td>
+                  );
+                })
               )}
             </tr>
           </tbody>
@@ -858,9 +825,7 @@ function PeriodontalTable({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>
-          Periodontograma
-        </CardTitle>
+        <CardTitle>Periodontograma</CardTitle>
 
         <p className="mt-1 text-sm text-text-secondary">
           Visão clínica de todos os dentes e
@@ -902,11 +867,10 @@ export function Odontogram({
     ? `gc-odontohub-periodontia-draft-${examId}`
     : null;
 
-  const [teeth, setTeeth] =
-    useState<Tooth[]>(() => [
-      ...createTeeth(upperTeeth),
-      ...createTeeth(lowerTeeth),
-    ]);
+  const [teeth, setTeeth] = useState<Tooth[]>(() => [
+    ...createTeeth(upperTeeth),
+    ...createTeeth(lowerTeeth),
+  ]);
 
   const [selectedTooth, setSelectedTooth] =
     useState<number | null>(null);
@@ -1001,12 +965,6 @@ export function Odontogram({
     [teeth]
   );
 
-  /*
-   * ==========================================================
-   * RECUPERA RASCUNHO LOCAL
-   * ==========================================================
-   */
-
   useEffect(() => {
     if (!storageKey) {
       setHasLoadedDraft(true);
@@ -1076,12 +1034,6 @@ export function Odontogram({
     }
   }, [storageKey]);
 
-  /*
-   * ==========================================================
-   * SALVA RASCUNHO LOCAL
-   * ==========================================================
-   */
-
   useEffect(() => {
     if (
       !storageKey ||
@@ -1116,12 +1068,6 @@ export function Odontogram({
     storageKey,
     hasLoadedDraft,
   ]);
-
-  /*
-   * ==========================================================
-   * ATUALIZAÇÃO LOCAL
-   * ==========================================================
-   */
 
   function updateToothLocal(
     updater: (tooth: Tooth) => Tooth
@@ -1210,17 +1156,13 @@ export function Odontogram({
   ) {
     updateToothLocal((tooth) => ({
       ...tooth,
-      [type === "buccal"
-        ? "buccalFurcation"
-        : "lingualFurcation"]: value,
+      [
+        type === "buccal"
+          ? "buccalFurcation"
+          : "lingualFurcation"
+      ]: value,
     }));
   }
-
-  /*
-   * ==========================================================
-   * SALVA UM DENTE NO SUPABASE
-   * ==========================================================
-   */
 
   async function persistTooth(
     tooth: Tooth
@@ -1243,9 +1185,6 @@ export function Odontogram({
           tooth.number
         ];
 
-      /*
-       * Cria o dente no banco apenas uma vez.
-       */
       if (!toothId) {
         const savedTooth =
           await createTooth({
@@ -1299,9 +1238,6 @@ export function Odontogram({
             )
         );
 
-      /*
-       * Atualiza informações gerais.
-       */
       await updateTooth({
         id: toothId,
         input: {
@@ -1323,9 +1259,6 @@ export function Odontogram({
         },
       });
 
-      /*
-       * Atualiza os 6 sítios.
-       */
       for (const currentSurface of [
         "VESTIBULAR",
         "LINGUAL",
@@ -1362,10 +1295,6 @@ export function Odontogram({
         }
       }
 
-      /*
-       * Atualiza também o backup local
-       * com a versão mais recente.
-       */
       if (storageKey) {
         try {
           window.localStorage.setItem(
@@ -1396,19 +1325,6 @@ export function Odontogram({
       return false;
     }
   }
-
-  /*
-   * ==========================================================
-   * AUTOSAVE
-   * ==========================================================
-   *
-   * Toda alteração:
-   *
-   * 1. Atualiza imediatamente a tela.
-   * 2. Salva no localStorage.
-   * 3. Aguarda 700 ms.
-   * 4. Salva o dente no Supabase.
-   */
 
   useEffect(() => {
     if (
@@ -1442,10 +1358,6 @@ export function Odontogram({
 
     saveTimerRef.current =
       setTimeout(async () => {
-        /*
-         * Se uma alteração mais nova
-         * aconteceu, não salva esta versão.
-         */
         if (
           currentVersion !==
           saveVersionRef.current
@@ -1461,11 +1373,6 @@ export function Odontogram({
             toothToSave
           );
 
-        /*
-         * Se houve nova alteração durante
-         * o salvamento, não marcamos como
-         * salvo a versão antiga.
-         */
         if (
           currentVersion !==
           saveVersionRef.current
@@ -1499,12 +1406,6 @@ export function Odontogram({
     patientId,
     hasLoadedDraft,
   ]);
-
-  /*
-   * ==========================================================
-   * LIMPAR
-   * ==========================================================
-   */
 
   function resetOdontogram() {
     const initialTeeth = [
@@ -1547,12 +1448,6 @@ export function Odontogram({
     }
   }
 
-  /*
-   * ==========================================================
-   * NAVEGAÇÃO ENTRE DENTES
-   * ==========================================================
-   */
-
   function goToTooth(
     direction: -1 | 1
   ) {
@@ -1577,12 +1472,6 @@ export function Odontogram({
 
     setActiveTab("dentist");
   }
-
-  /*
-   * ==========================================================
-   * SALVAR TODOS
-   * ==========================================================
-   */
 
   async function saveExam() {
     if (!examId || !patientId) {
@@ -1609,10 +1498,6 @@ export function Odontogram({
 
       let allSuccessful = true;
 
-      /*
-       * Salva todos os dentes usando
-       * sempre a versão atual do ref.
-       */
       for (const tooth of teethRef.current) {
         const success =
           await persistTooth(
@@ -1643,12 +1528,6 @@ export function Odontogram({
       setIsAutoSaving(false);
     }
   }
-
-  /*
-   * ==========================================================
-   * FINALIZAR
-   * ==========================================================
-   */
 
   async function handleFinalizeExam() {
     if (!examId || !patientId) {
@@ -1686,12 +1565,6 @@ export function Odontogram({
     }
   }
 
-  /*
-   * ==========================================================
-   * ESTADO DOS BOTÕES
-   * ==========================================================
-   */
-
   const saving =
     isCreatingTooth ||
     isUpdatingTooth ||
@@ -1699,23 +1572,11 @@ export function Odontogram({
     isFinalizingExam ||
     isAutoSaving;
 
-  /*
-   * IMPORTANTE:
-   *
-   * O botão NÃO depende de saving para ficar
-   * clicável. Ele só fica desabilitado quando
-   * não existe examId/patientId.
-   */
-
   const canSave =
     Boolean(examId && patientId);
 
   return (
     <div className="space-y-6">
-      {/* =====================================================
-          CABEÇALHO
-      ====================================================== */}
-
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -1838,9 +1699,7 @@ export function Odontogram({
                   : "ghost"
               }
               onClick={() =>
-                setActiveTab(
-                  "dentist"
-                )
+                setActiveTab("dentist")
               }
               className="flex-1"
             >
@@ -1855,9 +1714,7 @@ export function Odontogram({
                   : "ghost"
               }
               onClick={() =>
-                setActiveTab(
-                  "chart"
-                )
+                setActiveTab("chart")
               }
               className="flex-1"
             >
@@ -1867,10 +1724,6 @@ export function Odontogram({
           </div>
         </CardContent>
       </Card>
-
-      {/* =====================================================
-          ABA — PERIODONTOGRAMA
-      ====================================================== */}
 
       {activeTab === "chart" && (
         <motion.div
@@ -1908,9 +1761,7 @@ export function Odontogram({
                 </p>
 
                 <p className="mt-2 text-2xl font-bold text-error">
-                  {bleedingPercentage.toFixed(
-                    1
-                  )}
+                  {bleedingPercentage.toFixed(1)}
                   %
                 </p>
 
@@ -1928,9 +1779,7 @@ export function Odontogram({
                 </p>
 
                 <p className="mt-2 text-2xl font-bold text-primary">
-                  {plaquePercentage.toFixed(
-                    1
-                  )}
+                  {plaquePercentage.toFixed(1)}
                   %
                 </p>
 
@@ -1977,8 +1826,8 @@ export function Odontogram({
                   Cada dente possui três
                   sítios por face: M (mesial),
                   C (central) e D (distal).
-                  Na linha PS, o valor maior
-                  é o vestibular e o menor é
+                  Na linha PS, o valor superior
+                  é o vestibular e o inferior é
                   o lingual. SS indica
                   sangramento à sondagem e PI
                   indica presença de
@@ -1998,20 +1847,12 @@ export function Odontogram({
           <PeriodontalTable
             teeth={teeth}
             onSelectTooth={(number) => {
-              setSelectedTooth(
-                number
-              );
-              setActiveTab(
-                "dentist"
-              );
+              setSelectedTooth(number);
+              setActiveTab("dentist");
             }}
           />
         </motion.div>
       )}
-
-      {/* =====================================================
-          ABA — AVALIAÇÃO DO DENTE
-      ====================================================== */}
 
       {activeTab === "dentist" && (
         <motion.div
@@ -2050,33 +1891,26 @@ export function Odontogram({
 
                     <div className="flex justify-center gap-2">
                       {teeth
-                        .filter(
-                          (tooth) =>
-                            upperTeeth.includes(
-                              tooth.number
-                            )
-                        )
-                        .map(
-                          (tooth) => (
-                            <ToothVisual
-                              key={
-                                tooth.number
-                              }
-                              tooth={
-                                tooth
-                              }
-                              selected={
-                                selectedTooth ===
-                                tooth.number
-                              }
-                              onClick={() =>
-                                setSelectedTooth(
-                                  tooth.number
-                                )
-                              }
-                            />
+                        .filter((tooth) =>
+                          upperTeeth.includes(
+                            tooth.number
                           )
-                        )}
+                        )
+                        .map((tooth) => (
+                          <ToothVisual
+                            key={tooth.number}
+                            tooth={tooth}
+                            selected={
+                              selectedTooth ===
+                              tooth.number
+                            }
+                            onClick={() =>
+                              setSelectedTooth(
+                                tooth.number
+                              )
+                            }
+                          />
+                        ))}
                     </div>
                   </div>
 
@@ -2089,33 +1923,26 @@ export function Odontogram({
 
                     <div className="flex justify-center gap-2">
                       {teeth
-                        .filter(
-                          (tooth) =>
-                            lowerTeeth.includes(
-                              tooth.number
-                            )
-                        )
-                        .map(
-                          (tooth) => (
-                            <ToothVisual
-                              key={
-                                tooth.number
-                              }
-                              tooth={
-                                tooth
-                              }
-                              selected={
-                                selectedTooth ===
-                                tooth.number
-                              }
-                              onClick={() =>
-                                setSelectedTooth(
-                                  tooth.number
-                                )
-                              }
-                            />
+                        .filter((tooth) =>
+                          lowerTeeth.includes(
+                            tooth.number
                           )
-                        )}
+                        )
+                        .map((tooth) => (
+                          <ToothVisual
+                            key={tooth.number}
+                            tooth={tooth}
+                            selected={
+                              selectedTooth ===
+                              tooth.number
+                            }
+                            onClick={() =>
+                              setSelectedTooth(
+                                tooth.number
+                              )
+                            }
+                          />
+                        ))}
                     </div>
                   </div>
                 </div>
@@ -2126,9 +1953,7 @@ export function Odontogram({
           <AnimatePresence mode="wait">
             {selected && (
               <motion.div
-                key={
-                  selected.number
-                }
+                key={selected.number}
                 initial={{
                   opacity: 0,
                   y: 12,
@@ -2153,9 +1978,7 @@ export function Odontogram({
                         <div className="flex items-center gap-3">
                           <CardTitle>
                             Dente{" "}
-                            {
-                              selected.number
-                            }
+                            {selected.number}
                           </CardTitle>
 
                           <Badge
@@ -2190,13 +2013,10 @@ export function Odontogram({
                           type="button"
                           variant="ghost"
                           disabled={
-                            selectedIndex <=
-                            0
+                            selectedIndex <= 0
                           }
                           onClick={() =>
-                            goToTooth(
-                              -1
-                            )
+                            goToTooth(-1)
                           }
                         >
                           <ChevronLeft className="mr-1 h-4 w-4" />
@@ -2208,13 +2028,10 @@ export function Odontogram({
                           variant="ghost"
                           disabled={
                             selectedIndex >=
-                            teeth.length -
-                              1
+                            teeth.length - 1
                           }
                           onClick={() =>
-                            goToTooth(
-                              1
-                            )
+                            goToTooth(1)
                           }
                         >
                           Próximo
@@ -2348,13 +2165,9 @@ export function Odontogram({
                             </th>
 
                             {points.map(
-                              (
-                                point
-                              ) => (
+                              (point) => (
                                 <th
-                                  key={
-                                    point
-                                  }
+                                  key={point}
                                   className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-text-muted"
                                 >
                                   {point ===
@@ -2377,13 +2190,9 @@ export function Odontogram({
                             </td>
 
                             {points.map(
-                              (
-                                point
-                              ) => (
+                              (point) => (
                                 <td
-                                  key={
-                                    point
-                                  }
+                                  key={point}
                                   className="px-3 py-3"
                                 >
                                   <NumberInput
@@ -2417,13 +2226,9 @@ export function Odontogram({
                             </td>
 
                             {points.map(
-                              (
-                                point
-                              ) => (
+                              (point) => (
                                 <td
-                                  key={
-                                    point
-                                  }
+                                  key={point}
                                   className="px-3 py-3"
                                 >
                                   <NumberInput
@@ -2457,9 +2262,7 @@ export function Odontogram({
                             </td>
 
                             {points.map(
-                              (
-                                point
-                              ) => {
+                              (point) => {
                                 const site =
                                   selected
                                     .sites[
@@ -2475,9 +2278,7 @@ export function Odontogram({
 
                                 return (
                                   <td
-                                    key={
-                                      point
-                                    }
+                                    key={point}
                                     className="px-3 py-3 text-center"
                                   >
                                     <div className="flex h-9 items-center justify-center rounded-md border border-border bg-background text-sm font-semibold text-text-primary">
@@ -2531,9 +2332,7 @@ export function Odontogram({
 
                           return (
                             <div
-                              key={
-                                point
-                              }
+                              key={point}
                               className="rounded-xl border border-border p-4"
                             >
                               <div className="mb-3 flex items-center justify-between">
@@ -2739,12 +2538,9 @@ export function Odontogram({
                       value={
                         selected.observations
                       }
-                      onChange={(
-                        event
-                      ) =>
+                      onChange={(event) =>
                         updateObservation(
-                          event.target
-                            .value
+                          event.target.value
                         )
                       }
                       rows={4}
