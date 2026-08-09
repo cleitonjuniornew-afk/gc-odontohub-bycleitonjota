@@ -69,13 +69,41 @@ interface OdontogramProps {
 }
 
 const upperTeeth = [
-  18, 17, 16, 15, 14, 13, 12, 11,
-  21, 22, 23, 24, 25, 26, 27, 28,
+  18,
+  17,
+  16,
+  15,
+  14,
+  13,
+  12,
+  11,
+  21,
+  22,
+  23,
+  24,
+  25,
+  26,
+  27,
+  28,
 ];
 
 const lowerTeeth = [
-  48, 47, 46, 45, 44, 43, 42, 41,
-  31, 32, 33, 34, 35, 36, 37, 38,
+  48,
+  47,
+  46,
+  45,
+  44,
+  43,
+  42,
+  41,
+  31,
+  32,
+  33,
+  34,
+  35,
+  36,
+  37,
+  38,
 ];
 
 const points: Point[] = [
@@ -135,636 +163,422 @@ function calculateCAL(site: SiteData) {
 }
 
 /* =========================================================
-   ANATOMIA SVG
-   ========================================================= */
+   MAPA DAS POSIÇÕES DOS DENTES
 
-type ToothKind =
-  | "incisor"
-  | "canine"
-  | "premolar"
-  | "molar";
+   Todas as coordenadas são percentuais.
+   Isso faz com que as marcações acompanhem a imagem
+   quando ela aumentar ou diminuir.
 
-function getToothKind(number: number): ToothKind {
-  const digit = number % 10;
+   x / y = centro da área do dente
+   width / height = área clicável do dente
 
-  if (digit === 1 || digit === 2) {
-    return "incisor";
-  }
+   Estes valores ficam centralizados aqui para facilitar
+   pequenos ajustes depois do primeiro preview.
+========================================================= */
 
-  if (digit === 3) {
-    return "canine";
-  }
-
-  if (digit === 4 || digit === 5) {
-    return "premolar";
-  }
-
-  return "molar";
+interface ToothPosition {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
-function ToothSvg({
-  number,
-  upper,
-}: {
-  number: number;
-  upper: boolean;
-}) {
-  const kind = getToothKind(number);
+const TOOTH_POSITIONS: Record<number, ToothPosition> = {
+  /* SUPERIOR - lado direito */
+  18: { x: 8.5, y: 54, width: 5.8, height: 35 },
+  17: { x: 14.2, y: 47, width: 5.8, height: 38 },
+  16: { x: 20.0, y: 41, width: 6.0, height: 40 },
+  15: { x: 26.0, y: 36, width: 5.7, height: 39 },
+  14: { x: 32.0, y: 32, width: 5.5, height: 37 },
+  13: { x: 38.0, y: 29, width: 5.5, height: 36 },
+  12: { x: 43.5, y: 27, width: 5.0, height: 34 },
+  11: { x: 48.0, y: 26, width: 5.0, height: 34 },
 
-  const transform = upper
-    ? "translate(0 0)"
-    : "translate(0 100) rotate(180 50 50)";
+  /* SUPERIOR - lado esquerdo */
+  21: { x: 52.0, y: 26, width: 5.0, height: 34 },
+  22: { x: 56.5, y: 27, width: 5.0, height: 34 },
+  23: { x: 62.0, y: 29, width: 5.5, height: 36 },
+  24: { x: 68.0, y: 32, width: 5.5, height: 37 },
+  25: { x: 74.0, y: 36, width: 5.7, height: 39 },
+  26: { x: 80.0, y: 41, width: 6.0, height: 40 },
+  27: { x: 85.8, y: 47, width: 5.8, height: 38 },
+  28: { x: 91.5, y: 54, width: 5.8, height: 35 },
 
-  return (
-    <svg
-      viewBox="0 0 100 100"
-      preserveAspectRatio="xMidYMid meet"
-      className="absolute inset-0 h-full w-full"
-      aria-label={`Dente ${number}`}
-    >
-      <g transform={transform}>
-        {/* RAIZ */}
-        {kind === "incisor" && (
-          <path
-            d="M43 48 C43 62 41 73 45 92 C47 97 49 99 50 99 C51 99 53 97 55 92 C59 73 57 62 57 48"
-            fill="#f7f7f5"
-            stroke="#8d8d8d"
-            strokeWidth="1.5"
-          />
-        )}
+  /* INFERIOR - lado direito */
+  48: { x: 8.5, y: 46, width: 5.8, height: 35 },
+  47: { x: 14.2, y: 53, width: 5.8, height: 38 },
+  46: { x: 20.0, y: 59, width: 6.0, height: 40 },
+  45: { x: 26.0, y: 64, width: 5.7, height: 39 },
+  44: { x: 32.0, y: 68, width: 5.5, height: 37 },
+  43: { x: 38.0, y: 71, width: 5.5, height: 36 },
+  42: { x: 43.5, y: 73, width: 5.0, height: 34 },
+  41: { x: 48.0, y: 74, width: 5.0, height: 34 },
 
-        {kind === "canine" && (
-          <path
-            d="M40 45 C40 61 37 72 42 94 C44 99 47 100 50 100 C53 100 56 99 58 94 C63 72 60 61 60 45"
-            fill="#f7f7f5"
-            stroke="#8d8d8d"
-            strokeWidth="1.5"
-          />
-        )}
+  /* INFERIOR - lado esquerdo */
+  31: { x: 52.0, y: 74, width: 5.0, height: 34 },
+  32: { x: 56.5, y: 73, width: 5.0, height: 34 },
+  33: { x: 62.0, y: 71, width: 5.5, height: 36 },
+  34: { x: 68.0, y: 68, width: 5.5, height: 37 },
+  35: { x: 74.0, y: 64, width: 5.7, height: 39 },
+  36: { x: 80.0, y: 59, width: 6.0, height: 40 },
+  37: { x: 85.8, y: 53, width: 5.8, height: 38 },
+  38: { x: 91.5, y: 46, width: 5.8, height: 35 },
+};
 
-        {kind === "premolar" && (
-          <>
-            <path
-              d="M36 47 C36 63 34 73 38 91 C39 96 43 98 46 98"
-              fill="#f7f7f5"
-              stroke="#8d8d8d"
-              strokeWidth="1.5"
-            />
-            <path
-              d="M64 47 C64 63 66 73 62 91 C61 96 57 98 54 98"
-              fill="#f7f7f5"
-              stroke="#8d8d8d"
-              strokeWidth="1.5"
-            />
-          </>
-        )}
+/* =========================================================
+   POSIÇÕES RELATIVAS DAS 3 SONDAGENS
+========================================================= */
 
-        {kind === "molar" && (
-          <>
-            <path
-              d="M30 47 C30 62 29 70 34 88 C35 93 39 96 43 96"
-              fill="#f7f7f5"
-              stroke="#8d8d8d"
-              strokeWidth="1.5"
-            />
-            <path
-              d="M50 47 C50 63 48 75 50 91"
-              fill="#f7f7f5"
-              stroke="#8d8d8d"
-              strokeWidth="1.5"
-            />
-            <path
-              d="M70 47 C70 62 71 70 66 88 C65 93 61 96 57 96"
-              fill="#f7f7f5"
-              stroke="#8d8d8d"
-              strokeWidth="1.5"
-            />
-          </>
-        )}
+const POINT_X: Record<Point, number> = {
+  MESIAL: 22,
+  CENTRAL: 50,
+  DISTAL: 78,
+};
 
-        {/* COROA */}
-
-        {kind === "incisor" && (
-          <path
-            d="M38 15
-               C40 8 45 5 50 5
-               C55 5 60 8 62 15
-               L60 43
-               C58 50 54 53 50 53
-               C46 53 42 50 40 43
-               Z"
-            fill="#fffefa"
-            stroke="#777"
-            strokeWidth="1.7"
-          />
-        )}
-
-        {kind === "canine" && (
-          <path
-            d="M34 17
-               C36 9 43 5 50 5
-               C57 5 64 9 66 17
-               L58 45
-               C56 51 53 54 50 57
-               C47 54 44 51 42 45
-               Z"
-            fill="#fffefa"
-            stroke="#777"
-            strokeWidth="1.7"
-          />
-        )}
-
-        {kind === "premolar" && (
-          <path
-            d="M29 18
-               C31 9 39 5 46 7
-               C49 8 51 10 53 7
-               C61 5 69 10 71 18
-               L68 39
-               C66 48 59 52 50 52
-               C41 52 34 48 32 39
-               Z"
-            fill="#fffefa"
-            stroke="#777"
-            strokeWidth="1.7"
-          />
-
-        )}
-
-        {kind === "molar" && (
-          <path
-            d="M24 18
-               C25 8 34 4 43 7
-               C47 8 50 10 53 7
-               C62 4 71 8 75 18
-               L73 37
-               C72 47 63 53 50 53
-               C37 53 28 47 27 37
-               Z"
-            fill="#fffefa"
-            stroke="#777"
-            strokeWidth="1.7"
-          />
-        )}
-
-        {/* SULCOS / ANATOMIA DA COROA */}
-
-        {kind === "incisor" && (
-          <path
-            d="M50 9 L50 46"
-            stroke="#d1d1ce"
-            strokeWidth="1"
-          />
-        )}
-
-        {kind === "canine" && (
-          <>
-            <path
-              d="M50 10 L50 48"
-              stroke="#d1d1ce"
-              strokeWidth="1"
-            />
-            <path
-              d="M39 24 Q50 31 61 24"
-              fill="none"
-              stroke="#d1d1ce"
-              strokeWidth="1"
-            />
-          </>
-        )}
-
-        {kind === "premolar" && (
-          <>
-            <ellipse
-              cx="41"
-              cy="27"
-              rx="7"
-              ry="10"
-              fill="none"
-              stroke="#d1d1ce"
-              strokeWidth="1"
-            />
-            <ellipse
-              cx="59"
-              cy="27"
-              rx="7"
-              ry="10"
-              fill="none"
-              stroke="#d1d1ce"
-              strokeWidth="1"
-            />
-            <path
-              d="M50 17 L50 39"
-              stroke="#d1d1ce"
-              strokeWidth="1"
-            />
-          </>
-        )}
-
-        {kind === "molar" && (
-          <>
-            <ellipse
-              cx="40"
-              cy="25"
-              rx="9"
-              ry="8"
-              fill="none"
-              stroke="#d1d1ce"
-              strokeWidth="1"
-            />
-            <ellipse
-              cx="60"
-              cy="25"
-              rx="9"
-              ry="8"
-              fill="none"
-              stroke="#d1d1ce"
-              strokeWidth="1"
-            />
-            <path
-              d="M50 15 L50 39"
-              stroke="#d1d1ce"
-              strokeWidth="1"
-            />
-            <path
-              d="M31 25 Q50 31 69 25"
-              fill="none"
-              stroke="#d1d1ce"
-              strokeWidth="1"
-            />
-          </>
-        )}
-      </g>
-    </svg>
-  );
+function pointLetter(point: Point) {
+  if (point === "MESIAL") return "M";
+  if (point === "CENTRAL") return "C";
+  return "D";
 }
 
 /* =========================================================
-   ESCALA PERIODONTAL SOBRE O DENTE
-   ========================================================= */
+   IMAGEM + CAMADA PERIODONTAL
+========================================================= */
 
-function PeriodontalTooth({
-  tooth,
-  upper,
-  selected,
+function PeriodontalImageArch({
+  image,
+  teeth,
   surface,
-  onClick,
+  selectedTooth,
+  onSelectTooth,
 }: {
-  tooth: Tooth;
-  upper: boolean;
-  selected: boolean;
+  image: string;
+  teeth: Tooth[];
   surface: Surface;
-  onClick: () => void;
+  selectedTooth: number | null;
+  onSelectTooth: (number: number) => void;
 }) {
-  const sites = tooth.sites[surface];
-
-  const hasBleeding = Object.values(sites).some(
-    (site) => site.bleeding
+  const presentTeeth = teeth.filter((tooth) =>
+    teeth.some((item) => item.number === tooth.number)
   );
-
-  const hasPlaque = Object.values(sites).some(
-    (site) => site.plaque
-  );
-
-  const hasSuppuration = Object.values(sites).some(
-    (site) => site.suppuration
-  );
-
-  const toothKind = getToothKind(tooth.number);
-
-  const recessionValues = points.map(
-    (point) => sites[point].gingivalRecession
-  );
-
-  const maxRecession = Math.max(
-    0,
-    ...recessionValues.map((value) =>
-      value ?? 0
-    )
-  );
-
-  /*
-   * Área gráfica:
-   *
-   * 0 = margem gengival / região cervical
-   * 10 = região apical
-   *
-   * A escala fica DENTRO da coluna do dente.
-   */
-  const chartTop = upper ? 44 : 44;
-  const chartHeight = 190;
-
-  function yForDepth(depth: number) {
-    const safeDepth = Math.max(
-      0,
-      Math.min(SCALE_MAX, depth)
-    );
-
-    return (
-      chartTop +
-      (safeDepth / SCALE_MAX) * chartHeight
-    );
-  }
-
-  function yForRecession(recession: number) {
-    const safe = Math.max(
-      0,
-      Math.min(SCALE_MAX, recession)
-    );
-
-    return chartTop + safe * 4;
-  }
-
-  const selectedClass = selected
-    ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-    : "";
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`relative flex min-w-0 flex-1 flex-col items-center outline-none transition-all ${selectedClass}`}
-      style={{
-        minWidth:
-          "clamp(38px, 5.4vw, 72px)",
-      }}
-    >
-      {/* NÚMERO */}
-      <div
-        className={`mb-1 text-[8px] font-bold sm:text-[9px] md:text-[10px] ${
-          selected
-            ? "text-primary"
-            : "text-text-primary"
-        }`}
-      >
-        {tooth.number}
-      </div>
+    <div className="relative w-full overflow-hidden rounded-xl border border-border bg-background">
+      {/* IMAGEM ANATÔMICA REAL */}
+      <img
+        src={image}
+        alt={`Arcada periodontal ${surface.toLowerCase()}`}
+        className="block h-auto w-full select-none"
+        draggable={false}
+      />
 
-      {/* UNIDADE DO DENTE */}
-      <div
-        className="relative w-full"
-        style={{
-          height:
-            "clamp(245px, 27vw, 315px)",
-        }}
-      >
-        {/* LINHAS MILIMETRADAS */}
-        <div className="pointer-events-none absolute left-[8%] right-[8%] top-0 bottom-0">
-          {Array.from({
-            length: SCALE_MAX + 1,
-          }).map((_, index) => {
-            const y =
-              ((chartTop +
-                (index / SCALE_MAX) *
-                  chartHeight) /
-                315) *
-              100;
+      {/* =================================================
+          CAMADA INTERATIVA
+      ================================================= */}
+      <div className="pointer-events-none absolute inset-0">
+        {/* LINHAS GERAIS MILIMETRADAS */}
 
-            return (
+        {Array.from({
+          length: SCALE_MAX + 1,
+        }).map((_, index) => {
+          const top = 34 + index * 4.2;
+
+          return (
+            <div
+              key={`scale-${index}`}
+              className="absolute left-[4%] right-[4%]"
+              style={{
+                top: `${top}%`,
+              }}
+            >
               <div
-                key={index}
-                className="absolute left-0 right-0"
-                style={{
-                  top: `${y}%`,
-                }}
-              >
-                <div
-                  className={`h-px w-full ${
-                    index === 0
-                      ? "bg-primary/70"
-                      : "bg-border/50"
-                  }`}
-                />
-                <span
-                  className="absolute -left-1 -translate-x-full -translate-y-1/2 text-[7px] leading-none text-text-muted"
-                >
-                  {index}
-                </span>
-              </div>
+                className={`h-px ${
+                  index === 0
+                    ? "bg-primary/60"
+                    : "bg-primary/20"
+                }`}
+              />
+
+              <span className="absolute right-full mr-1 -translate-y-1/2 text-[8px] font-semibold text-text-muted">
+                {index}
+              </span>
+            </div>
+          );
+        })}
+
+        {/* DENTES */}
+
+        {presentTeeth.map((tooth) => {
+          const position =
+            TOOTH_POSITIONS[tooth.number];
+
+          if (!position) return null;
+
+          const sites = tooth.sites[surface];
+
+          const hasBleeding =
+            Object.values(sites).some(
+              (site) => site.bleeding
             );
-          })}
-        </div>
 
-        {/* DENTE SVG */}
-        {tooth.status === "PRESENTE" && (
-          <div
-            className="absolute left-[9%] right-[9%] top-0 z-10"
-            style={{
-              height:
-                "clamp(190px, 20vw, 235px)",
-            }}
-          >
-            <ToothSvg
-              number={tooth.number}
-              upper={upper}
-            />
-          </div>
-        )}
+          const hasPlaque =
+            Object.values(sites).some(
+              (site) => site.plaque
+            );
 
-        {/* DENTE AUSENTE */}
-        {tooth.status === "AUSENTE" && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center">
-            <div className="h-24 w-px rotate-45 bg-error" />
-            <div className="absolute h-24 w-px -rotate-45 bg-error" />
-          </div>
-        )}
+          const hasSuppuration =
+            Object.values(sites).some(
+              (site) => site.suppuration
+            );
 
-        {/* IMPLANTE */}
-        {tooth.status === "IMPLANTE" && (
-          <div className="absolute inset-x-0 top-10 z-20 flex justify-center">
-            <div className="flex h-28 w-8 flex-col items-center rounded-b-lg border-2 border-secondary">
-              <div className="h-full w-1 bg-secondary/70" />
-              {Array.from({ length: 6 }).map(
-                (_, index) => (
+          const isSelected =
+            selectedTooth === tooth.number;
+
+          return (
+            <div
+              key={tooth.number}
+              className="absolute"
+              style={{
+                left: `${position.x - position.width / 2}%`,
+                top: `${position.y - position.height / 2}%`,
+                width: `${position.width}%`,
+                height: `${position.height}%`,
+              }}
+            >
+              {/* ÁREA CLICÁVEL */}
+
+              <button
+                type="button"
+                aria-label={`Selecionar dente ${tooth.number}`}
+                onClick={() =>
+                  onSelectTooth(tooth.number)
+                }
+                className={`pointer-events-auto absolute inset-0 rounded-lg transition ${
+                  isSelected
+                    ? "bg-primary/10 ring-2 ring-primary"
+                    : "hover:bg-primary/5"
+                }`}
+              />
+
+              {/* NÚMERO */}
+
+              <span
+                className={`pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-1/2 text-[9px] font-bold ${
+                  isSelected
+                    ? "text-primary"
+                    : "text-text-primary"
+                }`}
+              >
+                {tooth.number}
+              </span>
+
+              {/* CAMADA DE SONDAGEM */}
+
+              {points.map((point) => {
+                const site = sites[point];
+
+                const probing =
+                  site.probingDepth;
+
+                const recession =
+                  site.gingivalRecession;
+
+                const x =
+                  POINT_X[point];
+
+                /*
+                 * A sondagem ocupa aproximadamente
+                 * a região radicular da área do dente.
+                 */
+                const probingTop =
+                  probing !== null
+                    ? 18 +
+                      (Math.min(
+                        Math.max(
+                          probing,
+                          0
+                        ),
+                        SCALE_MAX
+                      ) /
+                        SCALE_MAX) *
+                        72
+                    : null;
+
+                const recessionTop =
+                  recession !== null
+                    ? 18 +
+                      (Math.min(
+                        Math.max(
+                          recession,
+                          0
+                        ),
+                        SCALE_MAX
+                      ) /
+                        SCALE_MAX) *
+                        25
+                    : null;
+
+                return (
+                  <div
+                    key={`${tooth.number}-${point}`}
+                    className="pointer-events-none absolute inset-0 z-20"
+                  >
+                    {/* M / C / D */}
+
+                    <span
+                      className="absolute -translate-x-1/2 text-[7px] font-bold text-text-secondary"
+                      style={{
+                        left: `${x}%`,
+                        top: "8%",
+                      }}
+                    >
+                      {pointLetter(point)}
+                    </span>
+
+                    {/* RECESSÃO */}
+
+                    {recessionTop !== null &&
+                      recession !== null &&
+                      recession > 0 && (
+                        <span
+                          className="absolute z-30 h-2 w-2 -translate-x-1/2 rounded-full border border-rose-500 bg-background"
+                          style={{
+                            left: `${x}%`,
+                            top: `${recessionTop}%`,
+                          }}
+                          title={`Recessão ${recession} mm`}
+                        />
+                      )}
+
+                    {/* PROFUNDIDADE */}
+
+                    {probingTop !== null &&
+                      probing !== null && (
+                        <>
+                          <span
+                            className={`absolute z-40 flex h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 bg-background ${
+                              site.bleeding
+                                ? "border-red-500 bg-red-500/15"
+                                : "border-primary"
+                            }`}
+                            style={{
+                              left: `${x}%`,
+                              top: `${probingTop}%`,
+                            }}
+                          >
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                site.bleeding
+                                  ? "bg-red-500"
+                                  : "bg-primary"
+                              }`}
+                            />
+                          </span>
+
+                          <span
+                            className={`absolute z-40 -translate-x-1/2 text-[8px] font-bold ${
+                              site.bleeding
+                                ? "text-red-500"
+                                : "text-text-primary"
+                            }`}
+                            style={{
+                              left: `${x}%`,
+                              top: `calc(${probingTop}% + 7px)`,
+                            }}
+                          >
+                            {probing}
+                          </span>
+                        </>
+                      )}
+                  </div>
+                );
+              })}
+
+              {/* MARCADORES CLÍNICOS */}
+
+              <div className="pointer-events-none absolute bottom-1 left-1/2 z-50 flex -translate-x-1/2 items-center gap-1">
+                {hasBleeding && (
                   <span
-                    key={index}
-                    className="absolute h-px w-7 bg-secondary"
-                    style={{
-                      top:
-                        15 +
-                        index * 17,
-                    }}
+                    className="h-2 w-2 rounded-full bg-red-500"
+                    title="Sangramento"
                   />
-                )
+                )}
+
+                {hasPlaque && (
+                  <span
+                    className="h-2 w-2 rounded-full bg-primary"
+                    title="Placa"
+                  />
+                )}
+
+                {hasSuppuration && (
+                  <span
+                    className="h-2 w-2 rounded-full bg-secondary"
+                    title="Supuração"
+                  />
+                )}
+              </div>
+
+              {/* AUSENTE */}
+
+              {tooth.status ===
+                "AUSENTE" && (
+                <div className="pointer-events-none absolute inset-0 z-50">
+                  <div className="absolute left-1/2 top-1/2 h-[80%] w-[2px] -translate-x-1/2 -translate-y-1/2 rotate-45 bg-error" />
+
+                  <div className="absolute left-1/2 top-1/2 h-[80%] w-[2px] -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-error" />
+                </div>
+              )}
+
+              {/* IMPLANTE */}
+
+              {tooth.status ===
+                "IMPLANTE" && (
+                <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
+                  <div className="relative h-[65%] w-[24%] rounded-b-md border-2 border-secondary bg-secondary/10">
+                    <div className="absolute inset-y-1 left-1/2 w-1 -translate-x-1/2 rounded-full bg-secondary/60" />
+
+                    {Array.from({
+                      length: 5,
+                    }).map(
+                      (_, index) => (
+                        <span
+                          key={index}
+                          className="absolute left-1/2 h-px w-[85%] -translate-x-1/2 bg-secondary"
+                          style={{
+                            top: `${
+                              15 +
+                              index * 17
+                            }%`,
+                          }}
+                        />
+                      )
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* FURCA */}
+
+              {(tooth.buccalFurcation !==
+                null ||
+                tooth.lingualFurcation !==
+                  null) && (
+                <span className="pointer-events-none absolute bottom-4 left-1/2 z-50 -translate-x-1/2 rounded bg-secondary/15 px-1.5 py-0.5 text-[7px] font-bold text-secondary">
+                  F
+                </span>
               )}
             </div>
-          </div>
-        )}
-
-        {/* MARGEM GENGIVAL / RECESSÃO */}
-        {tooth.status === "PRESENTE" && (
-          <div
-            className="pointer-events-none absolute z-30"
-            style={{
-              top:
-                chartTop +
-                Math.min(
-                  maxRecession * 4,
-                  chartHeight
-                ),
-              left: "18%",
-              right: "18%",
-            }}
-          >
-            <div className="h-0.5 rounded-full bg-rose-400/80 shadow-[0_0_4px_rgba(251,113,133,0.45)]" />
-          </div>
-        )}
-
-        {/* PONTOS M/C/D */}
-        {tooth.status === "PRESENTE" && (
-          <>
-            {points.map((point, index) => {
-              const site = sites[point];
-
-              const x =
-                index === 0
-                  ? "23%"
-                  : index === 1
-                    ? "50%"
-                    : "77%";
-
-              const probing =
-                site.probingDepth;
-
-              const recession =
-                site.gingivalRecession;
-
-              /*
-               * A profundidade é posicionada
-               * diretamente sobre a escala.
-               */
-              const y =
-                probing !== null
-                  ? yForDepth(probing)
-                  : null;
-
-              /*
-               * Se houver recessão, mostramos
-               * também o ponto correspondente
-               * à margem gengival.
-               */
-              const recessionY =
-                recession !== null
-                  ? yForRecession(
-                      recession
-                    )
-                  : null;
-
-              return (
-                <div
-                  key={point}
-                  className="absolute z-40"
-                  style={{
-                    left: x,
-                    top: 0,
-                  }}
-                >
-                  {/* LETRA M/C/D */}
-                  <span
-                    className="absolute left-1/2 -translate-x-1/2 text-[7px] font-bold text-text-secondary sm:text-[8px]"
-                    style={{
-                      top: chartTop - 15,
-                    }}
-                  >
-                    {point === "MESIAL"
-                      ? "M"
-                      : point === "CENTRAL"
-                        ? "C"
-                        : "D"}
-                  </span>
-
-                  {/* RECESSÃO */}
-                  {recessionY !== null &&
-                    recession !== null &&
-                    recession > 0 && (
-                      <span
-                        className="absolute left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full border border-rose-500 bg-background"
-                        style={{
-                          top:
-                            recessionY -
-                            3,
-                        }}
-                        title={`Recessão ${recession} mm`}
-                      />
-                    )}
-
-                  {/* PROFUNDIDADE DE SONDAGEM */}
-                  {y !== null && (
-                    <span
-                      className={`absolute left-1/2 flex h-3.5 w-3.5 -translate-x-1/2 items-center justify-center rounded-full border-2 bg-background ${
-                        site.bleeding
-                          ? "border-red-500 bg-red-500/15"
-                          : "border-primary"
-                      }`}
-                      style={{
-                        top: y - 7,
-                      }}
-                      title={`${point} ${probing} mm`}
-                    >
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          site.bleeding
-                            ? "bg-red-500"
-                            : "bg-primary"
-                        }`}
-                      />
-                    </span>
-                  )}
-
-                  {/* VALOR */}
-                  {probing !== null && (
-                    <span
-                      className={`absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-[7px] font-bold ${
-                        site.bleeding
-                          ? "text-red-500"
-                          : "text-text-primary"
-                      }`}
-                      style={{
-                        top:
-                          (y ?? 0) + 8,
-                      }}
-                    >
-                      {probing}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </>
-        )}
-
-        {/* MARCADORES */}
-        <div className="absolute bottom-1 left-1/2 z-50 flex -translate-x-1/2 items-center gap-0.5">
-          {hasBleeding && (
-            <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-          )}
-
-          {hasPlaque && (
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-          )}
-
-          {hasSuppuration && (
-            <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
-          )}
-        </div>
-
-        {/* FURCA */}
-        {(toothKind === "molar" ||
-          toothKind === "premolar") &&
-          (tooth.buccalFurcation !== null ||
-            tooth.lingualFurcation !== null) && (
-            <span className="absolute bottom-4 left-1/2 z-50 -translate-x-1/2 rounded bg-secondary/15 px-1 text-[7px] font-bold text-secondary">
-              F
-            </span>
-          )}
+          );
+        })}
       </div>
-    </button>
+    </div>
   );
 }
 
 /* =========================================================
-   INPUT
-   ========================================================= */
+   INPUT NUMÉRICO
+========================================================= */
 
 function NumberInput({
   value,
@@ -803,7 +617,7 @@ function NumberInput({
 
 /* =========================================================
    COMPONENTE PRINCIPAL
-   ========================================================= */
+========================================================= */
 
 export function Odontogram({
   examId,
@@ -824,12 +638,11 @@ export function Odontogram({
     ? `gc-odontohub-periodontia-draft-${examId}`
     : null;
 
-  const [teeth, setTeeth] = useState<Tooth[]>(
-    () => [
+  const [teeth, setTeeth] =
+    useState<Tooth[]>(() => [
       ...createTeeth(upperTeeth),
       ...createTeeth(lowerTeeth),
-    ]
-  );
+    ]);
 
   const [selectedTooth, setSelectedTooth] =
     useState<number | null>(null);
@@ -876,7 +689,7 @@ export function Odontogram({
 
   /* =======================================================
      RECUPERAR RASCUNHO
-     ======================================================= */
+  ======================================================= */
 
   useEffect(() => {
     if (!storageKey) {
@@ -910,7 +723,8 @@ export function Odontogram({
         }
 
         if (
-          parsed?.surface === "VESTIBULAR" ||
+          parsed?.surface ===
+            "VESTIBULAR" ||
           parsed?.surface === "LINGUAL"
         ) {
           setSurface(parsed.surface);
@@ -931,7 +745,7 @@ export function Odontogram({
 
   /* =======================================================
      SALVAR RASCUNHO LOCAL
-     ======================================================= */
+  ======================================================= */
 
   useEffect(() => {
     if (!storageKey || !hasLoadedDraft) {
@@ -965,7 +779,7 @@ export function Odontogram({
 
   /* =======================================================
      ATUALIZAÇÃO LOCAL
-     ======================================================= */
+  ======================================================= */
 
   function updateToothLocal(
     updater: (tooth: Tooth) => Tooth
@@ -1043,7 +857,7 @@ export function Odontogram({
 
   /* =======================================================
      SALVAR DENTE
-     ======================================================= */
+  ======================================================= */
 
   async function persistTooth(
     tooth: Tooth
@@ -1147,7 +961,7 @@ export function Odontogram({
 
   /* =======================================================
      AUTOSAVE
-     ======================================================= */
+  ======================================================= */
 
   useEffect(() => {
     if (
@@ -1215,7 +1029,7 @@ export function Odontogram({
 
   /* =======================================================
      LIMPAR
-     ======================================================= */
+  ======================================================= */
 
   function resetOdontogram() {
     setTeeth([
@@ -1244,7 +1058,7 @@ export function Odontogram({
 
   /* =======================================================
      NAVEGAÇÃO
-     ======================================================= */
+  ======================================================= */
 
   function goToTooth(
     direction: -1 | 1
@@ -1268,7 +1082,7 @@ export function Odontogram({
 
   /* =======================================================
      SALVAR TODOS
-     ======================================================= */
+  ======================================================= */
 
   async function saveExam() {
     if (!examId || !patientId) {
@@ -1309,7 +1123,7 @@ export function Odontogram({
 
   /* =======================================================
      FINALIZAR
-     ======================================================= */
+  ======================================================= */
 
   async function handleFinalizeExam() {
     if (!examId || !patientId) {
@@ -1349,7 +1163,7 @@ export function Odontogram({
 
   /* =======================================================
      RENDER
-     ======================================================= */
+  ======================================================= */
 
   return (
     <div className="space-y-6">
@@ -1366,9 +1180,10 @@ export function Odontogram({
               </CardTitle>
 
               <p className="mt-1 text-sm text-text-secondary">
-                Visualização periodontal da
-                arcada. Clique em um dente
-                para registrar a sondagem.
+                Avaliação periodontal sobre
+                a anatomia real da arcada.
+                Clique em um dente para
+                registrar a sondagem.
               </p>
             </div>
 
@@ -1456,7 +1271,7 @@ export function Odontogram({
       </Card>
 
       {/* ===================================================
-          PERIODONTAL CHART
+          PERIODONTOGRAMA
       =================================================== */}
 
       <Card className="overflow-hidden">
@@ -1468,11 +1283,11 @@ export function Odontogram({
               </CardTitle>
 
               <p className="mt-1 text-xs text-text-secondary">
-                As linhas milimetradas ficam
-                sobre a região radicular do
-                dente. Os pontos M, C e D
-                representam os sítios de
-                sondagem.
+                A anatomia da arcada é
+                representada pela imagem
+                original. As linhas, pontos
+                e valores periodontais são
+                desenhados sobre ela.
               </p>
             </div>
 
@@ -1515,102 +1330,131 @@ export function Odontogram({
           </div>
         </CardHeader>
 
-        <CardContent className="px-2 sm:px-4">
-          {/* ===========================
-              SUPERIOR
-          ============================ */}
+        <CardContent className="space-y-6 px-2 sm:px-4">
+          {/* =================================================
+              SUPERIOR VESTIBULAR
+          ================================================= */}
 
-          <div className="w-full">
-            <div className="mb-1 text-center text-[9px] font-bold uppercase tracking-[0.2em] text-text-muted">
-              Arcada superior
+          <div>
+            <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted">
+              Arcada superior — Vestibular
             </div>
 
-            <div className="flex w-full items-start gap-0">
-              {teeth
-                .filter((tooth) =>
-                  upperTeeth.includes(
-                    tooth.number
-                  )
+            <PeriodontalImageArch
+              image="/superior-vestibular.png.png"
+              teeth={teeth.filter((tooth) =>
+                upperTeeth.includes(
+                  tooth.number
                 )
-                .map((tooth) => (
-                  <PeriodontalTooth
-                    key={
-                      tooth.number
-                    }
-                    tooth={tooth}
-                    upper
-                    selected={
-                      selectedTooth ===
-                      tooth.number
-                    }
-                    surface={surface}
-                    onClick={() =>
-                      setSelectedTooth(
-                        tooth.number
-                      )
-                    }
-                  />
-                ))}
-            </div>
+              )}
+              surface="VESTIBULAR"
+              selectedTooth={
+                selectedTooth
+              }
+              onSelectTooth={
+                setSelectedTooth
+              }
+            />
           </div>
 
-          {/* ===========================
-              LINHA MÉDIA
-          ============================ */}
+          {/* =================================================
+              SUPERIOR LINGUAL
+          ================================================= */}
 
-          <div className="relative my-2 flex items-center">
+          <div>
+            <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted">
+              Arcada superior — Lingual /
+              Palatina
+            </div>
+
+            <PeriodontalImageArch
+              image="/superior-lingual.png.png"
+              teeth={teeth.filter((tooth) =>
+                upperTeeth.includes(
+                  tooth.number
+                )
+              )}
+              surface="LINGUAL"
+              selectedTooth={
+                selectedTooth
+              }
+              onSelectTooth={
+                setSelectedTooth
+              }
+            />
+          </div>
+
+          {/* =================================================
+              LINHA MÉDIA
+          ================================================= */}
+
+          <div className="relative flex items-center">
             <div className="h-px flex-1 bg-border" />
 
-            <span className="mx-3 rounded-full border border-border bg-card px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-text-muted">
+            <span className="mx-3 rounded-full border border-border bg-card px-3 py-1 text-[8px] font-bold uppercase tracking-wider text-text-muted">
               Linha média
             </span>
 
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          {/* ===========================
-              INFERIOR
-          ============================ */}
+          {/* =================================================
+              INFERIOR VESTIBULAR
+          ================================================= */}
 
-          <div className="w-full">
-            <div className="flex w-full items-start gap-0">
-              {teeth
-                .filter((tooth) =>
-                  lowerTeeth.includes(
-                    tooth.number
-                  )
+          <div>
+            <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted">
+              Arcada inferior — Vestibular
+            </div>
+
+            <PeriodontalImageArch
+              image="/inferior-vestibular.png.png"
+              teeth={teeth.filter((tooth) =>
+                lowerTeeth.includes(
+                  tooth.number
                 )
-                .map((tooth) => (
-                  <PeriodontalTooth
-                    key={
-                      tooth.number
-                    }
-                    tooth={tooth}
-                    upper={false}
-                    selected={
-                      selectedTooth ===
-                      tooth.number
-                    }
-                    surface={surface}
-                    onClick={() =>
-                      setSelectedTooth(
-                        tooth.number
-                      )
-                    }
-                  />
-                ))}
-            </div>
-
-            <div className="mt-1 text-center text-[9px] font-bold uppercase tracking-[0.2em] text-text-muted">
-              Arcada inferior
-            </div>
+              )}
+              surface="VESTIBULAR"
+              selectedTooth={
+                selectedTooth
+              }
+              onSelectTooth={
+                setSelectedTooth
+              }
+            />
           </div>
 
-          {/* ===========================
-              LEGENDA
-          ============================ */}
+          {/* =================================================
+              INFERIOR LINGUAL
+          ================================================= */}
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-border pt-3 text-[9px] text-text-muted">
+          <div>
+            <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted">
+              Arcada inferior — Lingual
+            </div>
+
+            <PeriodontalImageArch
+              image="/inferior-lingual.png.png"
+              teeth={teeth.filter((tooth) =>
+                lowerTeeth.includes(
+                  tooth.number
+                )
+              )}
+              surface="LINGUAL"
+              selectedTooth={
+                selectedTooth
+              }
+              onSelectTooth={
+                setSelectedTooth
+              }
+            />
+          </div>
+
+          {/* =================================================
+              LEGENDA
+          ================================================= */}
+
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-border pt-3 text-[9px] text-text-muted">
             <span className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-primary" />
               Sondagem
@@ -1624,6 +1468,11 @@ export function Odontogram({
             <span className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-secondary" />
               Supuração
+            </span>
+
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-primary/60" />
+              Placa
             </span>
 
             <span>
@@ -1804,10 +1653,10 @@ export function Odontogram({
                 </CardTitle>
 
                 <p className="mt-1 text-sm text-text-secondary">
-                  Informe os valores. Eles
-                  serão posicionados
-                  automaticamente na escala
-                  milimetrada do dente.
+                  Informe os valores do
+                  sítio selecionado. Eles
+                  aparecem automaticamente
+                  sobre a imagem da arcada.
                 </p>
               </CardHeader>
 
@@ -1826,13 +1675,9 @@ export function Odontogram({
                               key={point}
                               className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-text-muted"
                             >
-                              {point ===
-                              "MESIAL"
-                                ? "M"
-                                : point ===
-                                    "CENTRAL"
-                                  ? "C"
-                                  : "D"}
+                              {pointLetter(
+                                point
+                              )}
                             </th>
                           )
                         )}
