@@ -2,490 +2,682 @@
 
 import React, { useMemo, useState } from "react";
 
-export interface OdontogramProps {
+type ToothKind = "incisor" | "canine" | "premolar" | "molar";
+type Arch = "upper" | "lower";
+
+interface Tooth {
+  number: number;
+  kind: ToothKind;
+  arch: Arch;
+  x: number;
+  y: number;
+  rotation: number;
+  ps: [number | null, number | null, number | null];
+  mg: [number | null, number | null, number | null];
+  bop: [boolean, boolean, boolean];
+}
+
+interface OdontogramProps {
   examId?: string;
   patientId?: string;
   className?: string;
 }
 
-type ToothStatus = "PRESENTE" | "AUSENTE" | "IMPLANTE";
+const UPPER = [
+  18, 17, 16, 15, 14, 13, 12, 11,
+  21, 22, 23, 24, 25, 26, 27, 28,
+];
 
-type Tooth = {
-  number: number;
-  status: ToothStatus;
-};
+const LOWER = [
+  48, 47, 46, 45, 44, 43, 42, 41,
+  31, 32, 33, 34, 35, 36, 37, 38,
+];
 
-const UPPER_LEFT = [18, 17, 16, 15, 14, 13, 12, 11];
-const UPPER_RIGHT = [21, 22, 23, 24, 25, 26, 27, 28];
-
-const LOWER_LEFT = [48, 47, 46, 45, 44, 43, 42, 41];
-const LOWER_RIGHT = [31, 32, 33, 34, 35, 36, 37, 38];
-
-function createTeeth(): Tooth[] {
-  return [
-    ...UPPER_LEFT,
-    ...UPPER_RIGHT,
-    ...LOWER_LEFT,
-    ...LOWER_RIGHT,
-  ].map((number) => ({
-    number,
-    status: "PRESENTE",
-  }));
-}
-
-function toothType(number: number) {
+function getKind(number: number): ToothKind {
   const last = number % 10;
 
   if (last === 1 || last === 2) return "incisor";
   if (last === 3) return "canine";
   if (last === 4 || last === 5) return "premolar";
+
   return "molar";
 }
 
-function ToothShape({
-  number,
-  status,
+function createTooth(
+  number: number,
+  arch: Arch,
+  index: number
+): Tooth {
+  const center = 7.5;
+  const distance = index - center;
+
+  return {
+    number,
+    kind: getKind(number),
+    arch,
+    x: 10 + index * 5.35,
+    y:
+      arch === "upper"
+        ? 42 - Math.abs(distance) * 0.55
+        : 58 + Math.abs(distance) * 0.55,
+    rotation:
+      arch === "upper"
+        ? distance * 1.8
+        : distance * -1.8,
+    ps: [null, null, null],
+    mg: [null, null, null],
+    bop: [false, false, false],
+  };
+}
+
+function createTeeth(): Tooth[] {
+  return [
+    ...UPPER.map((number, index) =>
+      createTooth(number, "upper", index)
+    ),
+    ...LOWER.map((number, index) =>
+      createTooth(number, "lower", index)
+    ),
+  ];
+}
+
+function ToothSvg({
+  tooth,
   selected,
-  upper,
   onClick,
 }: {
-  number: number;
-  status: ToothStatus;
+  tooth: Tooth;
   selected: boolean;
-  upper: boolean;
   onClick: () => void;
 }) {
-  const type = toothType(number);
+  const upper = tooth.arch === "upper";
 
-  const width =
-    type === "incisor"
-      ? 30
-      : type === "canine"
-        ? 32
-        : type === "premolar"
-          ? 36
-          : 40;
+  const crownY = upper ? 35 : 55;
 
-  const height =
-    type === "incisor"
-      ? 54
-      : type === "canine"
-        ? 58
-        : type === "premolar"
-          ? 61
-          : 64;
+  const crownWidth =
+    tooth.kind === "molar"
+      ? 4.5
+      : tooth.kind === "premolar"
+        ? 3.8
+        : tooth.kind === "canine"
+          ? 3
+          : 2.7;
 
-  const centerX = width / 2;
+  const crownHeight =
+    tooth.kind === "molar"
+      ? 6
+      : tooth.kind === "premolar"
+        ? 5.5
+        : 5;
 
-  const fill =
-    status === "AUSENTE"
-      ? "rgba(100,116,139,0.08)"
-      : status === "IMPLANTE"
-        ? "rgba(148,163,184,0.35)"
-        : selected
-          ? "#F8FAFC"
-          : "#E8EDF2";
+  const rootEnd = upper ? 25 : 75;
 
-  const stroke = selected ? "#38BDF8" : "#94A3B8";
+  let crown = "";
 
-  const crownPath =
-    type === "incisor"
-      ? `
-        M ${centerX - width * 0.30} ${height * 0.18}
-        Q ${centerX} ${height * 0.03} ${centerX + width * 0.30} ${height * 0.18}
-        L ${centerX + width * 0.36} ${height * 0.62}
-        Q ${centerX} ${height * 0.82} ${centerX - width * 0.36} ${height * 0.62}
-        Z
-      `
-      : type === "canine"
-        ? `
-          M ${centerX - width * 0.32} ${height * 0.20}
-          Q ${centerX} ${height * 0.02} ${centerX + width * 0.32} ${height * 0.20}
-          L ${centerX + width * 0.37} ${height * 0.62}
-          Q ${centerX} ${height * 0.82} ${centerX - width * 0.37} ${height * 0.62}
-          Z
-        `
-        : `
-          M ${centerX - width * 0.38} ${height * 0.18}
-          Q ${centerX - width * 0.18} ${height * 0.02} ${centerX} ${height * 0.15}
-          Q ${centerX + width * 0.18} ${height * 0.02} ${centerX + width * 0.38} ${height * 0.18}
-          L ${centerX + width * 0.39} ${height * 0.62}
-          Q ${centerX} ${height * 0.84} ${centerX - width * 0.39} ${height * 0.62}
-          Z
-        `;
+  if (tooth.kind === "molar") {
+    crown = `
+      M ${50 - crownWidth} ${crownY + 1}
+      Q 50 ${crownY - 1} ${50 + crownWidth} ${crownY + 1}
+      L ${50 + crownWidth - 0.4} ${crownY + crownHeight}
+      Q 50 ${crownY + crownHeight + 1}
+        ${50 - crownWidth + 0.4} ${crownY + crownHeight}
+      Z
+    `;
+  } else if (tooth.kind === "premolar") {
+    crown = `
+      M ${50 - crownWidth} ${crownY + 1}
+      Q 48 ${crownY - 1} 50 ${crownY}
+      Q 52 ${crownY - 1} ${50 + crownWidth} ${crownY + 1}
+      L ${50 + crownWidth - 0.4} ${crownY + crownHeight}
+      Q 50 ${crownY + crownHeight + 1}
+        ${50 - crownWidth + 0.4} ${crownY + crownHeight}
+      Z
+    `;
+  } else if (tooth.kind === "canine") {
+    crown = `
+      M ${50 - crownWidth} ${crownY + 1}
+      L 50 ${crownY - 2}
+      L ${50 + crownWidth} ${crownY + 1}
+      L ${50 + crownWidth - 0.3} ${crownY + crownHeight}
+      Q 50 ${crownY + crownHeight + 1}
+        ${50 - crownWidth + 0.3} ${crownY + crownHeight}
+      Z
+    `;
+  } else {
+    crown = `
+      M ${50 - crownWidth} ${crownY}
+      Q 50 ${crownY - 0.8} ${50 + crownWidth} ${crownY}
+      L ${50 + crownWidth} ${crownY + crownHeight}
+      L ${50 - crownWidth} ${crownY + crownHeight}
+      Z
+    `;
+  }
 
-  const rootY = upper ? height * 0.62 : height * 0.38;
-  const rootDirection = upper ? 1 : -1;
+  const rootPath = (
+    offset: number,
+    index: number
+  ) => {
+    const startY = upper
+      ? crownY + crownHeight
+      : crownY;
+
+    if (upper) {
+      return `
+        M ${50 + offset} ${startY}
+        Q ${50 + offset * 1.2} ${
+          startY + 3
+        } ${50 + offset} ${rootEnd}
+        Q ${50 + offset} ${
+          rootEnd + 1
+        } ${50 + offset * 0.4} ${startY}
+      `;
+    }
+
+    return `
+      M ${50 + offset} ${startY}
+      Q ${50 + offset * 1.2} ${
+        startY - 3
+      } ${50 + offset} ${rootEnd}
+      Q ${50 + offset} ${
+        rootEnd - 1
+      } ${50 + offset * 0.4} ${startY}
+    `;
+  };
+
+  let rootOffsets: number[];
+
+  if (tooth.kind === "molar") {
+    rootOffsets = upper
+      ? [-2.2, 0, 2.2]
+      : [-1.8, 1.8];
+  } else {
+    rootOffsets = [0];
+  }
 
   return (
-    <button
-      type="button"
+    <g
+      transform={`translate(${tooth.x} ${tooth.y}) rotate(${tooth.rotation} 50 50)`}
       onClick={onClick}
-      aria-label={`Dente ${number}`}
-      className="group relative flex shrink-0 flex-col items-center justify-center bg-transparent p-0 outline-none"
-      style={{
-        width: width + 10,
-        height: height + 34,
-      }}
+      style={{ cursor: "pointer" }}
     >
-      <svg
-        width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-        className="overflow-visible transition-transform duration-200 group-hover:scale-105"
+      <g
+        fill={
+          selected
+            ? "#E8F4FF"
+            : "#F8FAFC"
+        }
+        stroke={
+          selected
+            ? "#38BDF8"
+            : "#CBD5E1"
+        }
+        strokeWidth={
+          selected ? "1" : "0.7"
+        }
       >
-        <defs>
-          <linearGradient
-            id={`tooth-${number}`}
-            x1="0"
-            y1="0"
-            x2="0"
-            y2="1"
-          >
-            <stop offset="0%" stopColor="#FFFFFF" />
-            <stop offset="55%" stopColor={fill} />
-            <stop offset="100%" stopColor="#CBD5E1" />
-          </linearGradient>
-          <filter id={`shadow-${number}`}>
-            <feDropShadow
-              dx="0"
-              dy="2"
-              stdDeviation="1.5"
-              floodColor="#020617"
-              floodOpacity="0.55"
-            />
-          </filter>
-        </defs>
+        <path d={crown} />
 
-        <path
-          d={crownPath}
-          fill={
-            status === "PRESENTE"
-              ? `url(#tooth-${number})`
-              : fill
-          }
-          stroke={stroke}
-          strokeWidth={selected ? 2 : 1}
-          filter={`url(#shadow-${number})`}
-        />
-
-        {status === "PRESENTE" && (
-          <>
-            <ellipse
-              cx={centerX}
-              cy={height * 0.39}
-              rx={width * 0.22}
-              ry={height * 0.12}
-              fill="rgba(148,163,184,0.16)"
-            />
-
+        {rootOffsets.map(
+          (offset, index) => (
             <path
-              d={`M ${centerX - width * 0.20} ${height * 0.45}
-                  Q ${centerX} ${height * 0.54}
-                  ${centerX + width * 0.20} ${height * 0.45}`}
+              key={index}
+              d={rootPath(
+                offset,
+                index
+              )}
               fill="none"
-              stroke="rgba(100,116,139,0.45)"
-              strokeWidth="1"
             />
+          )
+        )}
+      </g>
 
+      <g
+        fill="none"
+        stroke={
+          selected
+            ? "#38BDF8"
+            : "#64748B"
+        }
+        strokeWidth="0.45"
+        strokeLinecap="round"
+      >
+        {tooth.kind === "molar" && (
+          <>
             <path
-              d={`M ${centerX} ${rootY}
-                  L ${centerX - width * 0.12} ${rootY + rootDirection * height * 0.30}
-                  Q ${centerX} ${rootY + rootDirection * height * 0.38}
-                  ${centerX + width * 0.12} ${rootY + rootDirection * height * 0.30}
-                  Z`}
-              fill="#D8DEE5"
-              stroke="#94A3B8"
-              strokeWidth="0.7"
+              d={`
+                M 47 ${crownY + 2}
+                Q 50 ${crownY + 5}
+                53 ${crownY + 2}
+              `}
             />
-
-            {type === "molar" && (
-              <>
-                <circle
-                  cx={centerX - width * 0.17}
-                  cy={height * 0.34}
-                  r={2.2}
-                  fill="rgba(100,116,139,0.35)"
-                />
-                <circle
-                  cx={centerX + width * 0.17}
-                  cy={height * 0.34}
-                  r={2.2}
-                  fill="rgba(100,116,139,0.35)"
-                />
-              </>
-            )}
+            <path
+              d={`
+                M 50 ${crownY}
+                L 50 ${crownY + crownHeight}
+              `}
+            />
+            <path
+              d={`
+                M 47.5 ${crownY + 4}
+                L 52.5 ${crownY + 4}
+              `}
+            />
           </>
         )}
 
-        {status === "AUSENTE" && (
+        {tooth.kind === "premolar" && (
+          <>
+            <path
+              d={`
+                M 48 ${crownY + 1}
+                L 50 ${crownY + 4}
+                L 52 ${crownY + 1}
+              `}
+            />
+            <path
+              d={`
+                M 50 ${crownY + 4}
+                L 50 ${crownY + crownHeight}
+              `}
+            />
+          </>
+        )}
+
+        {tooth.kind === "canine" && (
           <path
-            d={`M ${width * 0.18} ${height * 0.20}
-                L ${width * 0.82} ${height * 0.72}
-                M ${width * 0.82} ${height * 0.20}
-                L ${width * 0.18} ${height * 0.72}`}
-            stroke="#64748B"
-            strokeWidth="2"
+            d={`
+              M 50 ${crownY - 1}
+              L 50 ${crownY + crownHeight}
+            `}
           />
         )}
 
-        {status === "IMPLANTE" && (
-          <>
-            <rect
-              x={centerX - width * 0.14}
-              y={height * 0.28}
-              width={width * 0.28}
-              height={height * 0.40}
-              rx="2"
-              fill="#94A3B8"
-            />
-            <path
-              d={`M ${centerX - width * 0.13} ${height * 0.35}
-                  H ${centerX + width * 0.13}
-                  M ${centerX - width * 0.13} ${height * 0.45}
-                  H ${centerX + width * 0.13}
-                  M ${centerX - width * 0.13} ${height * 0.55}
-                  H ${centerX + width * 0.13}`}
-              stroke="#334155"
-              strokeWidth="1"
-            />
-          </>
+        {tooth.kind === "incisor" && (
+          <path
+            d={`
+              M 50 ${crownY + 1}
+              L 50 ${
+                crownY +
+                crownHeight -
+                0.5
+              }
+            `}
+          />
         )}
-      </svg>
+      </g>
 
-      <span
-        className={`absolute bottom-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
-          selected
-            ? "bg-sky-400/15 text-sky-300"
-            : "text-slate-500"
-        }`}
+      <text
+        x="50"
+        y={upper ? 19 : 86}
+        textAnchor="middle"
+        fontSize="3.8"
+        fontWeight="600"
+        fill="#CBD5E1"
       >
-        {number}
-      </span>
-    </button>
+        {tooth.number}
+      </text>
+    </g>
   );
 }
 
-function ArchRow({
-  teeth,
-  upper,
-  selectedTooth,
-  onSelect,
+function PeriodontalSites({
+  tooth,
+  selected,
+  onToggle,
 }: {
-  teeth: Tooth[];
-  upper: boolean;
-  selectedTooth: number | null;
-  onSelect: (number: number) => void;
+  tooth: Tooth;
+  selected: boolean;
+  onToggle: (
+    index: number
+  ) => void;
 }) {
-  return (
-    <div
-      className={`relative flex items-center justify-center ${
-        upper ? "pb-5" : "pt-5"
-      }`}
-    >
-      <div
-        className={`absolute left-[8%] right-[8%] ${
-          upper ? "top-[42%]" : "bottom-[42%]"
-        } h-20 rounded-[50%] border border-rose-400/20 bg-gradient-to-${
-          upper ? "b" : "t"
-        } from-rose-950/50 via-rose-900/20 to-transparent`}
-      />
+  const upper =
+    tooth.arch === "upper";
 
-      <div className="relative z-10 flex items-center justify-center">
-        <div className="flex items-center gap-[1px]">
-          {teeth.map((tooth) => (
-            <ToothShape
-              key={tooth.number}
-              number={tooth.number}
-              status={tooth.status}
-              upper={upper}
-              selected={selectedTooth === tooth.number}
-              onClick={() => onSelect(tooth.number)}
+  const y = upper
+    ? tooth.y - 5
+    : tooth.y + 5;
+
+  return (
+    <g>
+      {[0, 1, 2].map(
+        (index) => {
+          const x =
+            tooth.x +
+            (index - 1) * 1.8;
+
+          return (
+            <circle
+              key={index}
+              cx={x}
+              cy={y}
+              r={
+                tooth.bop[index]
+                  ? 0.9
+                  : 0.6
+              }
+              fill={
+                tooth.bop[index]
+                  ? "#EF4444"
+                  : selected
+                    ? "#38BDF8"
+                    : "#64748B"
+              }
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggle(index);
+              }}
+              style={{
+                cursor: "pointer",
+              }}
             />
-          ))}
-        </div>
-      </div>
-    </div>
+          );
+        }
+      )}
+    </g>
   );
 }
 
-function SiteLegend() {
-  return (
-    <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-slate-800/70 pt-4 text-[10px] text-slate-500">
-      <div className="flex items-center gap-2">
-        <span className="h-2.5 w-2.5 rounded-full border border-red-400 bg-red-400/70" />
-        Sangramento
-      </div>
-
-      <div className="flex items-center gap-2">
-        <span className="h-2.5 w-2.5 rounded-sm border border-amber-400 bg-amber-400/70" />
-        Placa
-      </div>
-
-      <div className="flex items-center gap-2">
-        <span className="h-2.5 w-2.5 rotate-45 border border-purple-300 bg-purple-300/60" />
-        Supuração
-      </div>
-
-      <div className="flex items-center gap-2">
-        <span className="h-2.5 w-2.5 rounded border border-sky-400 bg-sky-400/30" />
-        Dente selecionado
-      </div>
-    </div>
-  );
-}
-
-export function Odontogram({
+export default function Odontogram({
   examId,
   patientId,
-  className,
+  className = "",
 }: OdontogramProps) {
-  const [teeth] = useState<Tooth[]>(createTeeth);
-  const [selectedTooth, setSelectedTooth] =
-    useState<number | null>(null);
+  const [teeth, setTeeth] =
+    useState<Tooth[]>(
+      createTeeth
+    );
 
-  const selected = useMemo(
-    () =>
-      teeth.find(
-        (tooth) => tooth.number === selectedTooth
-      ),
-    [teeth, selectedTooth]
-  );
+  const [selected, setSelected] =
+    useState<number | null>(
+      null
+    );
+
+  const selectedTooth =
+    useMemo(
+      () =>
+        teeth.find(
+          (tooth) =>
+            tooth.number ===
+            selected
+        ) ?? null,
+      [teeth, selected]
+    );
+
+  function toggleBop(
+    number: number,
+    index: number
+  ) {
+    setTeeth(
+      (current) =>
+        current.map(
+          (tooth) => {
+            if (
+              tooth.number !==
+              number
+            ) {
+              return tooth;
+            }
+
+            const bop = [
+              ...tooth.bop,
+            ] as [
+              boolean,
+              boolean,
+              boolean
+            ];
+
+            bop[index] =
+              !bop[index];
+
+            return {
+              ...tooth,
+              bop,
+            };
+          }
+        )
+    );
+  }
 
   return (
     <div
       className={[
-        "w-full overflow-hidden rounded-3xl",
-        "border border-slate-800/80",
-        "bg-[#050A13]",
-        className ?? "",
+        "w-full",
+        "overflow-hidden",
+        "rounded-2xl",
+        "border",
+        "border-slate-800",
+        "bg-[#050B14]",
+        className,
       ].join(" ")}
       data-exam-id={examId}
       data-patient-id={patientId}
     >
-      <div className="border-b border-slate-800/70 bg-[#07101D] px-5 py-4">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <div className="border-b border-slate-800 px-5 py-4">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <h3 className="text-sm font-semibold text-slate-100">
               Odontograma periodontal
             </h3>
 
-            <p className="text-[11px] text-slate-500">
-              Selecione um dente para avaliação clínica.
+            <p className="mt-1 text-xs text-slate-500">
+              Arcadas anatômicas · 32 dentes · seis sítios periodontais
             </p>
           </div>
 
-          {selected && (
-            <div className="rounded-lg border border-sky-400/20 bg-sky-400/5 px-3 py-1.5 text-[11px] text-sky-300">
-              Dente {selected.number} selecionado
+          {selectedTooth && (
+            <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-300">
+              Dente{" "}
+              {selectedTooth.number}
             </div>
           )}
         </div>
       </div>
 
-      <div className="overflow-x-auto px-2 py-8 sm:px-5">
-        <div className="mx-auto min-w-[920px] max-w-[1250px]">
-          <div className="mb-2 text-center text-[9px] font-medium uppercase tracking-[0.3em] text-slate-600">
-            Arcada superior
-          </div>
+      <div className="w-full overflow-x-auto p-3 sm:p-5">
+        <div className="mx-auto min-w-[760px] max-w-[1150px]">
+          <svg
+            viewBox="0 0 100 100"
+            className="block w-full"
+            role="img"
+            aria-label="Odontograma periodontal"
+          >
+            <defs>
+              <linearGradient
+                id="upperGum"
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
+                <stop
+                  offset="0%"
+                  stopColor="#8B3A4E"
+                />
+                <stop
+                  offset="100%"
+                  stopColor="#4A1D2A"
+                />
+              </linearGradient>
 
-          <ArchRow
-            teeth={[
-              ...UPPER_LEFT,
-              ...UPPER_RIGHT,
-            ].map((number) => ({
-              number,
-              status:
-                teeth.find(
-                  (tooth) =>
-                    tooth.number === number
-                )?.status ?? "PRESENTE",
-            }))}
-            upper
-            selectedTooth={selectedTooth}
-            onSelect={setSelectedTooth}
-          />
+              <linearGradient
+                id="lowerGum"
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
+                <stop
+                  offset="0%"
+                  stopColor="#4A1D2A"
+                />
+                <stop
+                  offset="100%"
+                  stopColor="#8B3A4E"
+                />
+              </linearGradient>
+            </defs>
 
-          <div className="my-5 flex items-center gap-4 px-12">
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
+            <path
+              d="M 6 38 Q 50 7 94 38"
+              fill="none"
+              stroke="url(#upperGum)"
+              strokeWidth="7"
+              strokeLinecap="round"
+              opacity="0.8"
+            />
 
-            <div className="rounded-full border border-slate-800 bg-[#080F1A] px-4 py-1.5 text-[8px] uppercase tracking-[0.28em] text-slate-600">
-              plano oclusal
-            </div>
+            <path
+              d="M 6 62 Q 50 93 94 62"
+              fill="none"
+              stroke="url(#lowerGum)"
+              strokeWidth="7"
+              strokeLinecap="round"
+              opacity="0.8"
+            />
 
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
-          </div>
+            <path
+              d="M 9 38 Q 50 11 91 38"
+              fill="none"
+              stroke="#B85B70"
+              strokeWidth="0.65"
+              opacity="0.6"
+            />
 
-          <div className="mb-2 text-center text-[9px] font-medium uppercase tracking-[0.3em] text-slate-600">
-            Arcada inferior
-          </div>
+            <path
+              d="M 9 62 Q 50 89 91 62"
+              fill="none"
+              stroke="#B85B70"
+              strokeWidth="0.65"
+              opacity="0.6"
+            />
 
-          <ArchRow
-            teeth={[
-              ...LOWER_LEFT,
-              ...LOWER_RIGHT,
-            ].map((number) => ({
-              number,
-              status:
-                teeth.find(
-                  (tooth) =>
-                    tooth.number === number
-                )?.status ?? "PRESENTE",
-            }))}
-            upper={false}
-            selectedTooth={selectedTooth}
-            onSelect={setSelectedTooth}
-          />
+            <text
+              x="50"
+              y="9"
+              textAnchor="middle"
+              fontSize="3"
+              letterSpacing="1.5"
+              fill="#64748B"
+            >
+              ARCADA SUPERIOR
+            </text>
 
-          <div className="mt-2 text-center text-[9px] text-slate-700">
-            Vista clínica • Dentição permanente • Numeração FDI
-          </div>
+            <text
+              x="50"
+              y="94"
+              textAnchor="middle"
+              fontSize="3"
+              letterSpacing="1.5"
+              fill="#64748B"
+            >
+              ARCADA INFERIOR
+            </text>
+
+            {teeth.map(
+              (tooth) => (
+                <React.Fragment
+                  key={
+                    tooth.number
+                  }
+                >
+                  <PeriodontalSites
+                    tooth={tooth}
+                    selected={
+                      selected ===
+                      tooth.number
+                    }
+                    onToggle={(
+                      index
+                    ) =>
+                      toggleBop(
+                        tooth.number,
+                        index
+                      )
+                    }
+                  />
+
+                  <ToothSvg
+                    tooth={tooth}
+                    selected={
+                      selected ===
+                      tooth.number
+                    }
+                    onClick={() =>
+                      setSelected(
+                        tooth.number
+                      )
+                    }
+                  />
+                </React.Fragment>
+              )
+            )}
+
+            <path
+              d="M 18 50 H 82"
+              stroke="#334155"
+              strokeWidth="0.4"
+              strokeDasharray="1.5 1.5"
+              opacity="0.6"
+            />
+
+            <text
+              x="50"
+              y="50"
+              textAnchor="middle"
+              fontSize="2.5"
+              letterSpacing="1"
+              fill="#475569"
+            >
+              PLANO OCLUSAL
+            </text>
+          </svg>
         </div>
       </div>
 
-      <div className="border-t border-slate-800/70 bg-[#07101D] px-5 py-4">
-        <div className="grid gap-3 sm:grid-cols-4">
-          <div className="rounded-xl border border-slate-800 bg-[#050A13] p-3">
-            <p className="text-[9px] uppercase tracking-wider text-slate-600">
-              Profundidade de sondagem
-            </p>
-            <p className="mt-1 text-base font-semibold text-slate-200">
-              0.0 mm
-            </p>
-          </div>
+      <div className="grid border-t border-slate-800 sm:grid-cols-4">
+        <div className="border-b border-slate-800 p-3 sm:border-b-0 sm:border-r">
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">
+            Dente
+          </p>
 
-          <div className="rounded-xl border border-slate-800 bg-[#050A13] p-3">
-            <p className="text-[9px] uppercase tracking-wider text-slate-600">
-              Nível de inserção
-            </p>
-            <p className="mt-1 text-base font-semibold text-slate-200">
-              0.0 mm
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-slate-800 bg-[#050A13] p-3">
-            <p className="text-[9px] uppercase tracking-wider text-slate-600">
-              Sangramento
-            </p>
-            <p className="mt-1 text-base font-semibold text-red-400">
-              0%
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-slate-800 bg-[#050A13] p-3">
-            <p className="text-[9px] uppercase tracking-wider text-slate-600">
-              Índice de placa
-            </p>
-            <p className="mt-1 text-base font-semibold text-amber-400">
-              0%
-            </p>
-          </div>
+          <p className="mt-1 text-sm font-semibold text-slate-200">
+            {selectedTooth
+              ? selectedTooth.number
+              : "Nenhum selecionado"}
+          </p>
         </div>
 
-        <SiteLegend />
+        <div className="border-b border-slate-800 p-3 sm:border-b-0 sm:border-r">
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">
+            Vestibular
+          </p>
+
+          <p className="mt-1 text-sm font-semibold text-slate-200">
+            MV · V · DV
+          </p>
+        </div>
+
+        <div className="border-b border-slate-800 p-3 sm:border-b-0 sm:border-r">
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">
+            Lingual / palatino
+          </p>
+
+          <p className="mt-1 text-sm font-semibold text-slate-200">
+            ML · L · DL
+          </p>
+        </div>
+
+        <div className="p-3">
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">
+            Sangramento
+          </p>
+
+          <p className="mt-1 text-sm font-semibold text-red-400">
+            Clique nos pontos
+          </p>
+        </div>
       </div>
     </div>
   );
 }
-
-export default Odontogram;
