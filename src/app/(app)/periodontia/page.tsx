@@ -14,12 +14,12 @@ import { Badge } from "@/components/ui/badge";
 import {
   Activity,
   CalendarDays,
+  ClipboardCheck,
   ClipboardList,
   FileText,
   Plus,
   Stethoscope,
   UserRound,
-  ClipboardCheck,
 } from "lucide-react";
 
 import Odontogram from "./components/odontogram";
@@ -56,7 +56,9 @@ function getLastUsedDate() {
     return getTodayInputDate();
   }
 
-  const saved = localStorage.getItem(LAST_DATE_KEY);
+  const saved = localStorage.getItem(
+    LAST_DATE_KEY
+  );
 
   if (!saved) {
     return getTodayInputDate();
@@ -107,7 +109,8 @@ export default function PeriodontiaPage() {
     isUpdatingExam,
   } = usePeriodontia();
 
-  const [patientId, setPatientId] = useState("");
+  const [patientId, setPatientId] =
+    useState("");
 
   const [examStarted, setExamStarted] =
     useState(false);
@@ -347,7 +350,7 @@ export default function PeriodontiaPage() {
             {examStarted && (
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={handleExportPdf}
               >
                 <FileText className="mr-2 h-4 w-4" />
