@@ -1,1435 +1,1646 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+AlertTriangle,
+CheckCircle2,
+ClipboardCheck,
+Info,
+Save,
+Stethoscope,
+} from "lucide-react";
+
+import { PageHeader } from "@/components/shared/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type YesNo = "sim" | "nao" | "nao_informado";
 
-type Extent = "Localizada" | "Generalizada";
+type SmokingStatus =
+| "nao_fuma"
+| "fumante"
+| "ex_fumante"
+| "nao_informado";
+
+type DiabetesStatus =
+| "nao"
+| "sim"
+| "nao_informado";
+
+type DiabetesControl =
+| "controlado"
+| "nao_controlado"
+| "nao_informado";
+
+type BoneLossPattern =
+| "nenhuma"
+| "horizontal"
+| "vertical"
+| "mista";
+
+type Stage =
+| "I"
+| "II"
+| "III"
+| "IV"
+| "Não determinado";
+
+type Grade =
+| "A"
+| "B"
+| "C"
+| "Não determinado";
+
+type Extent =
+| "Localizada"
+| "Generalizada"
+| "Não determinado";
 
 type Distribution =
-  | "Nenhuma"
-  | "Padrão molar/incisivo";
+| "Nenhuma"
+| "Padrão molar/incisivo"
+| "Não determinado";
 
-type Stage = "I" | "II" | "III" | "IV" | "Não determinado";
+type Prognosis =
+| "Favorável"
+| "Questionável"
+| "Desfavorável"
+| "Reservado"
+| "Sem prognóstico determinado";
 
-type Grade = "A" | "B" | "C" | "Não determinado";
+type AcuteCondition =
+| "abscesso_periodontal"
+| "lesao_endo_periodontal"
+| "gengivite_ulcerativa"
+| "periodontite_ulcerativa";
 
-type Answers = {
-  interdentalCAL: YesNo;
-  freeSurfaceCAL: YesNo;
-  nonPeriodontalCause: boolean;
+type DiagnosticForm = {
+bleeding: YesNo;
+plaque: YesNo;
+calculus: YesNo;
+clinicalAttachmentLoss: YesNo;
+radiographicBoneLoss: YesNo;
 
-  bleeding: YesNo;
-  plaque: YesNo;
-  calculus: YesNo;
+maximumProbingDepth: string;
+maximumCAL: string;
+radiographicBoneLossPercent: string;
+teethLostToPeriodontitis: string;
+affectedTeethPercent: string;
 
-  maximumCAL: string;
-  maximumPD: string;
-  radiographicBoneLoss: string;
+mobility: YesNo;
+furcation: YesNo;
+furcationClassIIOrIII: YesNo;
+suppuration: YesNo;
+verticalBoneLoss: YesNo;
 
-  boneLossPattern:
-    | "horizontal"
-    | "vertical"
-    | "mista"
-    | "nao_informado";
+masticatoryDysfunction: YesNo;
+secondaryOcclusalTrauma: YesNo;
+ridgeDefectModerate: YesNo;
+ridgeDefectSevere: YesNo;
+occlusalCollapse: YesNo;
+complexRehabilitation: YesNo;
+remainingTeeth: string;
 
-  teethAffectedPercentage: string;
-  teethLostPeriodontitis: string;
+boneLossPattern: BoneLossPattern;
 
-  furcation:
-    | "nenhuma"
-    | "classe_I"
-    | "classe_II"
-    | "classe_III"
-    | "nao_informado";
+smoking: SmokingStatus;
+cigarettesPerDay: string;
 
-  verticalBoneLoss: string;
+diabetes: DiabetesStatus;
+diabetesControl: DiabetesControl;
+hba1c: string;
 
-  mobility:
-    | "nenhuma"
-    | "grau_1"
-    | "grau_2"
-    | "grau_3"
-    | "nao_informado";
+progressionEvidence: YesNo;
+boneLossFiveYears: string;
+calFiveYears: string;
+patientAge: string;
 
-  ridgeDefect:
-    | "nenhum"
-    | "moderado"
-    | "grave"
-    | "nao_informado";
+acuteConditions: AcuteCondition[];
 
-  masticatoryDysfunction: YesNo;
-  secondaryOcclusalTrauma: YesNo;
-  occlusalCollapse: YesNo;
-
-  remainingTeeth: string;
-  remainingPairs: string;
-
-  molarIncisorPattern: boolean;
-
-  longitudinalProgression:
-    | "sem_perda"
-    | "menor_2mm"
-    | "maior_igual_2mm"
-    | "nao_informado";
-
-  boneLossAgeRatio: string;
-
-  smoking:
-    | "nao_fumante"
-    | "menos_10"
-    | "10_ou_mais"
-    | "nao_informado";
-
-  diabetes:
-    | "nao"
-    | "hba1c_menor_7"
-    | "hba1c_maior_igual_7"
-    | "nao_informado";
-
-  acuteCondition:
-    | "nenhuma"
-    | "abscesso"
-    | "endo_perio"
-    | "necrosante"
-    | "outra";
-
-  progressionKnown: YesNo;
+prognosis: Prognosis;
 };
 
 type DiagnosisResult = {
-  condition: string;
-  stage: Stage;
-  grade: Grade;
-  extent: Extent | "Não determinado";
-  distribution: Distribution;
-  prognosis: string;
-  warnings: string[];
-  explanation: string;
+condition:
+| "Periodonto clinicamente saudável"
+| "Gengivite"
+| "Periodontite"
+| "Condição aguda necessita avaliação específica"
+| "Dados insuficientes";
+
+stage: Stage;
+grade: Grade;
+extent: Extent;
+distribution: Distribution;
+prognosis: Prognosis;
+modifiers: string[];
+warnings: string[];
+canClassify: boolean;
 };
 
-const initialAnswers: Answers = {
-  interdentalCAL: "nao_informado",
-  freeSurfaceCAL: "nao_informado",
-  nonPeriodontalCause: false,
+const STORAGE_KEY = "gc-odontohub-periodontal-diagnostico";
 
-  bleeding: "nao_informado",
-  plaque: "nao_informado",
-  calculus: "nao_informado",
+const initialForm: DiagnosticForm = {
+bleeding: "nao_informado",
+plaque: "nao_informado",
+calculus: "nao_informado",
+clinicalAttachmentLoss: "nao_informado",
+radiographicBoneLoss: "nao_informado",
 
-  maximumCAL: "",
-  maximumPD: "",
-  radiographicBoneLoss: "",
+maximumProbingDepth: "",
+maximumCAL: "",
+radiographicBoneLossPercent: "",
+teethLostToPeriodontitis: "",
+affectedTeethPercent: "",
 
-  boneLossPattern: "nao_informado",
+mobility: "nao_informado",
+furcation: "nao_informado",
+furcationClassIIOrIII: "nao_informado",
+suppuration: "nao_informado",
+verticalBoneLoss: "nao_informado",
 
-  teethAffectedPercentage: "",
-  teethLostPeriodontitis: "",
+masticatoryDysfunction: "nao_informado",
+secondaryOcclusalTrauma: "nao_informado",
+ridgeDefectModerate: "nao_informado",
+ridgeDefectSevere: "nao_informado",
+occlusalCollapse: "nao_informado",
+complexRehabilitation: "nao_informado",
+remainingTeeth: "",
 
-  furcation: "nao_informado",
-  verticalBoneLoss: "",
+boneLossPattern: "nenhuma",
 
-  mobility: "nao_informado",
+smoking: "nao_informado",
+cigarettesPerDay: "",
 
-  ridgeDefect: "nao_informado",
+diabetes: "nao_informado",
+diabetesControl: "nao_informado",
+hba1c: "",
 
-  masticatoryDysfunction: "nao_informado",
-  secondaryOcclusalTrauma: "nao_informado",
-  occlusalCollapse: "nao_informado",
+progressionEvidence: "nao_informado",
+boneLossFiveYears: "",
+calFiveYears: "",
+patientAge: "",
 
-  remainingTeeth: "",
-  remainingPairs: "",
+acuteConditions: [],
 
-  molarIncisorPattern: false,
-
-  longitudinalProgression: "nao_informado",
-
-  boneLossAgeRatio: "",
-
-  smoking: "nao_informado",
-
-  diabetes: "nao_informado",
-
-  acuteCondition: "nenhuma",
-
-  progressionKnown: "nao_informado",
+prognosis: "Sem prognóstico determinado",
 };
 
 function numberValue(value: string): number | null {
-  if (!value.trim()) {
-    return null;
-  }
-
-  const parsed = Number(value.replace(",", "."));
-
-  if (!Number.isFinite(parsed)) {
-    return null;
-  }
-
-  return parsed;
+if (!value.trim()) {
+return null;
 }
 
-function calculateDiagnosis(data: Answers): DiagnosisResult {
-  const warnings: string[] = [];
+const parsed = Number(value.replace(",", "."));
 
-  const maximumCAL = numberValue(data.maximumCAL);
-  const maximumPD = numberValue(data.maximumPD);
-  const boneLoss = numberValue(data.radiographicBoneLoss);
-  const affectedPercentage = numberValue(data.teethAffectedPercentage);
-  const teethLost = numberValue(data.teethLostPeriodontitis);
-  const verticalBoneLoss = numberValue(data.verticalBoneLoss);
-  const remainingTeeth = numberValue(data.remainingTeeth);
-  const remainingPairs = numberValue(data.remainingPairs);
-  const boneLossAgeRatio = numberValue(data.boneLossAgeRatio);
+return Number.isFinite(parsed) ? parsed : null;
+}
 
-  const hasInterdentalCAL = data.interdentalCAL === "sim";
-  const hasFreeSurfaceCAL = data.freeSurfaceCAL === "sim";
+function yes(value: YesNo): boolean {
+return value === "sim";
+}
 
-  const hasPDOver3 = maximumPD !== null && maximumPD > 3;
+function calculateStage(form: DiagnosticForm): Stage {
+const cal = numberValue(form.maximumCAL);
+const probingDepth = numberValue(form.maximumProbingDepth);
+const teethLost = numberValue(form.teethLostToPeriodontitis);
+const remainingTeeth = numberValue(form.remainingTeeth);
 
-  const periodontalCase =
-    (hasInterdentalCAL && !data.nonPeriodontalCause) ||
-    (hasFreeSurfaceCAL &&
-      maximumCAL !== null &&
-      maximumCAL >= 3 &&
-      hasPDOver3 &&
-      !data.nonPeriodontalCause);
+const hasCal =
+form.clinicalAttachmentLoss === "sim" &&
+cal !== null;
 
-  if (data.nonPeriodontalCause) {
-    warnings.push(
-      "Foi indicada uma possível causa não periodontal para a perda de inserção. A classificação de periodontite deve ser confirmada após excluir essa causa."
-    );
-  }
+const hasBoneLoss =
+form.radiographicBoneLoss === "sim" &&
+numberValue(form.radiographicBoneLossPercent) !== null;
 
-  if (data.acuteCondition !== "nenhuma") {
-    warnings.push(
-      "Existe uma condição periodontal aguda associada. Ela deve ser registrada e avaliada separadamente."
-    );
-  }
+const boneLoss = numberValue(
+form.radiographicBoneLossPercent
+);
 
-  if (!periodontalCase) {
-    if (
-      data.interdentalCAL === "nao" &&
-      data.freeSurfaceCAL === "nao"
-    ) {
-      if (data.bleeding === "sim") {
-        return {
-          condition: "Gengivite",
-          stage: "Não determinado",
-          grade: "Não determinado",
-          extent: "Não determinado",
-          distribution: "Nenhuma",
-          prognosis: "Favorável com controle dos fatores etiológicos",
-          warnings,
-          explanation:
-            "Não foram identificados critérios suficientes para classificar o caso como periodontite. Foi relatado sangramento à sondagem, compatível com inflamação gengival.",
-        };
-      }
+if (!hasCal && !hasBoneLoss) {
+return "Não determinado";
+}
 
-      return {
-        condition: "Saúde periodontal — sem critérios informados de periodontite",
-        stage: "Não determinado",
-        grade: "Não determinado",
-        extent: "Não determinado",
-        distribution: "Nenhuma",
-        prognosis: "Favorável",
-        warnings,
-        explanation:
-          "Com os dados informados, não foram identificados critérios suficientes para classificar o caso como periodontite.",
-      };
-    }
+/*
 
-    return {
-      condition: "Dados insuficientes para classificação definitiva",
-      stage: "Não determinado",
-      grade: "Não determinado",
-      extent: "Não determinado",
-      distribution: "Nenhuma",
-      prognosis: "Não determinado",
-      warnings: [
-        ...warnings,
-        "É necessário confirmar a presença de perda de inserção clínica e/ou os demais critérios diagnósticos.",
-      ],
-      explanation:
-        "Os dados fornecidos não permitem estabelecer com segurança se o paciente atende aos critérios de caso de periodontite.",
-    };
-  }
+* A lógica abaixo segue a tabela fornecida para o projeto:
+*
+* Estágio I:
+* CAL 1–2 mm / perda óssea <15%
+*
+* Estágio II:
+* CAL 3–4 mm / perda óssea 15–33%
+*
+* Estágio III:
+* CAL >=5 mm / perda óssea até terço médio/apical,
+* associado aos critérios de complexidade.
+*
+* Estágio IV:
+* critérios do estágio III + comprometimento funcional/
+* necessidade de reabilitação complexa.
+*
+* Quando faltam dados essenciais, não inventamos a classificação.
+  */
 
-  if (maximumCAL === null && boneLoss === null) {
-    return {
-      condition: "Periodontite — estágio não determinado",
-      stage: "Não determinado",
-      grade: "Não determinado",
-      extent: "Não determinado",
-      distribution: data.molarIncisorPattern
-        ? "Padrão molar/incisivo"
-        : "Nenhuma",
-      prognosis: "Não determinado",
-      warnings: [
-        ...warnings,
-        "Informe a maior perda de inserção clínica e/ou a perda óssea radiográfica para determinar o estágio.",
-      ],
-      explanation:
-        "O caso apresenta dados compatíveis com periodontite, mas não há informações quantitativas suficientes para estabelecer o estágio.",
-    };
-  }
+const stageIV =
+form.complexRehabilitation === "sim" ||
+form.masticatoryDysfunction === "sim" ||
+form.secondaryOcclusalTrauma === "sim" ||
+form.ridgeDefectSevere === "sim" ||
+form.occlusalCollapse === "sim" ||
+(remainingTeeth !== null && remainingTeeth < 20) ||
+(teethLost !== null && teethLost >= 5);
 
-  /*
-   * ESTÁGIO
-   *
-   * A classificação considera gravidade e complexidade.
-   * O sistema primeiro identifica o estágio mínimo pela gravidade
-   * e posteriormente eleva o estágio quando existem características
-   * de complexidade compatíveis.
-   */
+if (
+stageIV &&
+(cal !== null && cal >= 5 ||
+(boneLoss !== null && boneLoss > 33))
+) {
+return "IV";
+}
 
-  let stage: Stage = "I";
+const stageIII =
+(cal !== null && cal >= 5) ||
+(probingDepth !== null && probingDepth >= 6) ||
+form.verticalBoneLoss === "sim" ||
+form.furcationClassIIOrIII === "sim" ||
+form.ridgeDefectModerate === "sim";
 
+if (stageIII) {
+return "III";
+}
+
+if (
+(cal !== null && cal >= 3 && cal <= 4) ||
+(boneLoss !== null && boneLoss >= 15 && boneLoss <= 33) ||
+(probingDepth !== null && probingDepth === 5)
+) {
+return "II";
+}
+
+if (
+(cal !== null && cal >= 1 && cal <= 2) ||
+(boneLoss !== null && boneLoss > 0 && boneLoss < 15) ||
+(probingDepth !== null && probingDepth <= 4)
+) {
+return "I";
+}
+
+return "Não determinado";
+}
+
+function calculateGrade(form: DiagnosticForm): Grade {
+const progression = form.progressionEvidence;
+
+const boneLossFiveYears = numberValue(
+form.boneLossFiveYears
+);
+
+const calFiveYears = numberValue(
+form.calFiveYears
+);
+
+const age = numberValue(form.patientAge);
+const currentBoneLoss = numberValue(
+form.radiographicBoneLossPercent
+);
+
+if (
+progression === "sim" &&
+(boneLossFiveYears !== null ||
+calFiveYears !== null)
+) {
+if (
+(boneLossFiveYears !== null &&
+boneLossFiveYears >= 2) ||
+(calFiveYears !== null &&
+calFiveYears >= 2)
+) {
+return "C";
+}
+}
+
+if (
+age !== null &&
+age > 0 &&
+currentBoneLoss !== null
+) {
+const ratio = currentBoneLoss / age;
+
+if (ratio > 1) {
+  return "C";
+}
+
+if (ratio >= 0.25) {
+  return "B";
+}
+
+if (ratio < 0.25) {
+  return "A";
+}
+
+}
+
+/*
+
+* Tabagismo e diabetes são modificadores de risco.
+* Não transformamos automaticamente "fumante" em Grau C.
+  */
   if (
-    (maximumCAL !== null && maximumCAL >= 5) ||
-    (boneLoss !== null && boneLoss > 33) ||
-    (teethLost !== null && teethLost >= 5)
+  form.smoking === "fumante" &&
+  numberValue(form.cigarettesPerDay) !== null &&
+  (numberValue(form.cigarettesPerDay) ?? 0) >= 10
   ) {
-    stage = "III";
-  } else if (
-    (maximumCAL !== null && maximumCAL >= 3) ||
-    (boneLoss !== null && boneLoss >= 15) ||
-    (teethLost !== null && teethLost >= 1)
-  ) {
-    stage = "II";
-  } else {
-    stage = "I";
+  return "C";
   }
 
-  /*
-   * COMPLEXIDADE PARA ESTÁGIO III
-   */
+if (
+form.diabetes === "sim" &&
+form.diabetesControl === "nao_controlado"
+) {
+return "C";
+}
 
-  const complexityIII =
-    (maximumPD !== null && maximumPD >= 6) ||
-    (verticalBoneLoss !== null && verticalBoneLoss >= 3) ||
-    data.furcation === "classe_II" ||
-    data.furcation === "classe_III" ||
-    data.ridgeDefect === "moderado";
+if (
+form.diabetes === "sim" &&
+form.diabetesControl === "controlado"
+) {
+return "B";
+}
 
-  if (complexityIII && stage !== "IV") {
-    stage = "III";
-  }
+if (
+progression === "nao" &&
+(boneLossFiveYears !== null ||
+calFiveYears !== null)
+) {
+return "A";
+}
 
-  /*
-   * COMPLEXIDADE PARA ESTÁGIO IV
-   */
+return "Não determinado";
+}
 
-  const complexStageIV =
-    data.masticatoryDysfunction === "sim" ||
-    data.secondaryOcclusalTrauma === "sim" ||
-    data.ridgeDefect === "grave" ||
-    data.occlusalCollapse === "sim" ||
-    (remainingTeeth !== null && remainingTeeth < 20) ||
-    (remainingPairs !== null && remainingPairs < 10);
+function calculateDiagnosis(
+form: DiagnosticForm
+): DiagnosisResult {
+const warnings: string[] = [];
+const modifiers: string[] = [];
 
-  if (stage === "III" && complexStageIV) {
-    stage = "IV";
-  }
+const hasAcuteCondition =
+form.acuteConditions.length > 0;
 
-  /*
-   * EXTENSÃO
-   */
+if (hasAcuteCondition) {
+warnings.push(
+"Existe uma condição periodontal aguda selecionada. Ela deve ser avaliada separadamente antes de concluir a classificação periodontal."
+);
+}
 
-  let extent: Extent | "Não determinado" = "Não determinado";
+if (form.smoking === "fumante") {
+modifiers.push("Tabagismo");
+}
 
-  if (affectedPercentage !== null) {
-    extent = affectedPercentage < 30 ? "Localizada" : "Generalizada";
-  }
+if (form.diabetes === "sim") {
+modifiers.push(
+form.diabetesControl === "nao_controlado"
+? "Diabetes com controle metabólico não informado/insuficiente"
+: "Diabetes"
+);
+}
 
-  /*
-   * DISTRIBUIÇÃO
-   */
+if (form.mobility === "sim") {
+modifiers.push("Mobilidade dentária");
+}
 
-  const distribution: Distribution = data.molarIncisorPattern
-    ? "Padrão molar/incisivo"
-    : "Nenhuma";
+if (form.furcation === "sim") {
+modifiers.push("Envolvimento de furca");
+}
 
-  /*
-   * GRAU
-   */
+if (form.suppuration) {
+modifiers.push("Supuração");
+}
 
-  let grade: Grade = "B";
+const cal = numberValue(form.maximumCAL);
+const probingDepth = numberValue(
+form.maximumProbingDepth
+);
+const boneLoss = numberValue(
+form.radiographicBoneLossPercent
+);
 
-  if (data.longitudinalProgression === "sem_perda") {
-    grade = "A";
-  }
+const hasPeriodontitisEvidence =
+form.clinicalAttachmentLoss === "sim" &&
+cal !== null &&
+cal >= 1;
 
-  if (data.longitudinalProgression === "menor_2mm") {
-    grade = "B";
-  }
+if (!hasPeriodontitisEvidence) {
+const hasGingivalInflammation =
+form.bleeding === "sim" ||
+form.plaque === "sim" ||
+form.calculus === "sim";
 
-  if (data.longitudinalProgression === "maior_igual_2mm") {
-    grade = "C";
-  }
-
-  if (
-    data.longitudinalProgression === "nao_informado" &&
-    boneLossAgeRatio !== null
-  ) {
-    if (boneLossAgeRatio < 0.25) {
-      grade = "A";
-    } else if (boneLossAgeRatio <= 1) {
-      grade = "B";
-    } else {
-      grade = "C";
-    }
-  }
-
-  /*
-   * MODIFICADORES DE GRAU
-   */
-
-  if (data.smoking === "10_ou_mais") {
-    grade = "C";
-  }
-
-  if (data.diabetes === "hba1c_maior_igual_7") {
-    grade = "C";
-  }
-
-  /*
-   * PROGNÓSTICO
-   */
-
-  let prognosis = "Favorável";
-
-  if (stage === "I" || stage === "II") {
-    prognosis =
-      "Favorável, desde que haja controle do biofilme, tratamento adequado e manutenção periodontal.";
-  }
-
-  if (stage === "III") {
-    prognosis =
-      "Reservado — requer tratamento periodontal, controle dos fatores de risco e manutenção rigorosa.";
-  }
-
-  if (stage === "IV") {
-    prognosis =
-      "Reservado/desfavorável — requer avaliação individual dos dentes e planejamento periodontal e reabilitador.";
-  }
-
-  if (data.mobility === "grau_3") {
-    prognosis =
-      "Reservado — mobilidade acentuada deve ser avaliada individualmente.";
-  }
-
-  if (data.furcation === "classe_III") {
-    prognosis =
-      "Reservado — envolvimento de furca avançado exige avaliação individual do elemento.";
-  }
-
-  /*
-   * DADOS AUSENTES IMPORTANTES
-   */
-
-  if (affectedPercentage === null) {
-    warnings.push(
-      "A extensão localizada/generalizada não pôde ser determinada porque a porcentagem de dentes acometidos não foi informada."
-    );
-  }
-
-  if (data.longitudinalProgression === "nao_informado" && boneLossAgeRatio === null) {
-    warnings.push(
-      "Não há dados suficientes para estabelecer diretamente a velocidade de progressão. O Grau B foi mantido como classificação provisória."
-    );
-  }
-
-  if (data.smoking === "nao_informado") {
-    warnings.push("Status de tabagismo não informado.");
-  }
-
-  if (data.diabetes === "nao_informado") {
-    warnings.push("Status de diabetes não informado.");
-  }
-
+if (hasGingivalInflammation) {
   return {
-    condition: "Periodontite",
-    stage,
-    grade,
-    extent,
-    distribution,
-    prognosis,
-    warnings,
-    explanation:
-      "O sistema identificou critérios compatíveis com periodontite e aplicou uma classificação inicial utilizando os dados clínicos, radiográficos, de complexidade e fatores modificadores informados. A classificação definitiva deve ser confirmada pelo cirurgião-dentista.",
+    condition: hasAcuteCondition
+      ? "Condição aguda necessita avaliação específica"
+      : "Gengivite",
+    stage: "Não determinado",
+    grade: "Não determinado",
+    extent: "Não determinado",
+    distribution: "Não determinado",
+    prognosis: form.prognosis,
+    modifiers,
+    warnings: [
+      ...warnings,
+      "Não há dados suficientes que sustentem periodontite.",
+    ],
+    canClassify: !hasAcuteCondition,
   };
 }
 
-function Section({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <div className="mb-5">
-        <h2 className="text-lg font-semibold text-text-primary">
-          {title}
-        </h2>
+return {
+  condition: hasAcuteCondition
+    ? "Condição aguda necessita avaliação específica"
+    : "Periodonto clinicamente saudável",
+  stage: "Não determinado",
+  grade: "Não determinado",
+  extent: "Não determinado",
+  distribution: "Não determinado",
+  prognosis: form.prognosis,
+  modifiers,
+  warnings,
+  canClassify: !hasAcuteCondition,
+};
 
-        {description ? (
-          <p className="mt-1 text-sm leading-6 text-text-secondary">
-            {description}
-          </p>
-        ) : null}
-      </div>
-
-      {children}
-    </section>
-  );
 }
 
-function RadioGroup({
-  value,
-  onChange,
-  options,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  options: { label: string; value: string }[];
-}) {
-  return (
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-      {options.map((option) => {
-        const selected = value === option.value;
-
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onChange(option.value)}
-            className={`rounded-xl border px-4 py-3 text-left text-sm font-medium transition ${
-              selected
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-card text-text-primary hover:bg-muted"
-            }`}
-          >
-            <span className="mr-2">
-              {selected ? "●" : "○"}
-            </span>
-
-            {option.label}
-          </button>
-        );
-      })}
-    </div>
-  );
+if (
+cal === null ||
+form.radiographicBoneLoss === "nao_informado"
+) {
+warnings.push(
+"São necessários dados clínicos e radiográficos adicionais para determinar a classificação definitiva."
+);
 }
 
-function InputNumber({
-  label,
-  value,
-  onChange,
-  unit,
-  placeholder = "0",
+if (
+form.affectedTeethPercent.trim() === ""
+) {
+warnings.push(
+"Informe a porcentagem de dentes afetados para determinar a extensão."
+);
+}
+
+if (
+form.progressionEvidence === "nao_informado"
+) {
+warnings.push(
+"A evidência de progressão não foi informada. O grau permanece indeterminado."
+);
+}
+
+const stage = calculateStage(form);
+const grade = calculateGrade(form);
+
+const affectedPercent = numberValue(
+form.affectedTeethPercent
+);
+
+let extent: Extent = "Não determinado";
+
+if (affectedPercent !== null) {
+extent =
+affectedPercent < 30
+? "Localizada"
+: "Generalizada";
+}
+
+let distribution: Distribution =
+"Nenhuma";
+
+if (
+form.boneLossPattern !== "nenhuma" &&
+affectedPercent !== null
+) {
+distribution =
+affectedPercent < 30
+? "Nenhuma"
+: "Padrão molar/incisivo";
+}
+
+const canClassify =
+warnings.length === 0 &&
+stage !== "Não determinado" &&
+grade !== "Não determinado" &&
+extent !== "Não determinado";
+
+if (probingDepth === null) {
+warnings.push(
+"A profundidade máxima de sondagem não foi informada."
+);
+}
+
+if (boneLoss === null) {
+warnings.push(
+"A perda óssea radiográfica percentual não foi informada."
+);
+}
+
+return {
+condition: "Periodontite",
+stage,
+grade,
+extent,
+distribution,
+prognosis: form.prognosis,
+modifiers,
+warnings,
+canClassify,
+};
+}
+
+function OptionButton({
+selected,
+children,
+onClick,
 }: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  unit?: string;
-  placeholder?: string;
+selected: boolean;
+children: React.ReactNode;
+onClick: () => void;
 }) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-medium text-text-primary">
-        {label}
+return (
+<button
+type="button"
+onClick={onClick}
+className={[
+"rounded-lg border px-3 py-2 text-sm transition",
+selected
+? "border-primary bg-primary/10 text-primary"
+: "border-border bg-background text-text-secondary hover:border-primary/40 hover:text-text-primary",
+].join(" ")}
+>
+{children} </button>
+);
+}
+
+function YesNoField({
+label,
+value,
+onChange,
+}: {
+label: string;
+value: YesNo;
+onChange: (value: YesNo) => void;
+}) {
+return ( <div className="space-y-2"> <Label>{label}</Label>
+
+  <div className="flex flex-wrap gap-2">
+    <OptionButton
+      selected={value === "sim"}
+      onClick={() => onChange("sim")}
+    >
+      Sim
+    </OptionButton>
+
+    <OptionButton
+      selected={value === "nao"}
+      onClick={() => onChange("nao")}
+    >
+      Não
+    </OptionButton>
+
+    <OptionButton
+      selected={value === "nao_informado"}
+      onClick={() => onChange("nao_informado")}
+    >
+      Não informado
+    </OptionButton>
+  </div>
+</div>
+
+);
+}
+
+function NumericField({
+label,
+value,
+onChange,
+suffix,
+placeholder,
+}: {
+label: string;
+value: string;
+onChange: (value: string) => void;
+suffix?: string;
+placeholder?: string;
+}) {
+return ( <div className="space-y-2"> <Label>{label}</Label>
+
+  <div className="flex items-center gap-2">
+    <Input
+      type="number"
+      min="0"
+      step="0.1"
+      value={value}
+      onChange={(event) =>
+        onChange(event.target.value)
+      }
+      placeholder={placeholder ?? "0"}
+    />
+
+    {suffix && (
+      <span className="shrink-0 text-sm text-text-muted">
+        {suffix}
       </span>
+    )}
+  </div>
+</div>
 
-      <div className="flex">
-        <input
-          type="number"
-          min="0"
-          step="0.1"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={placeholder}
-          className="w-full rounded-l-xl border border-border bg-background px-4 py-3 text-sm text-text-primary outline-none focus:border-primary"
-        />
-
-        {unit ? (
-          <span className="flex items-center rounded-r-xl border border-l-0 border-border bg-muted px-4 text-sm text-text-secondary">
-            {unit}
-          </span>
-        ) : null}
-      </div>
-    </label>
-  );
-}
-
-function ResultItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-background p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
-        {label}
-      </p>
-
-      <p className="mt-1 text-sm font-semibold text-text-primary">
-        {value}
-      </p>
-    </div>
-  );
+);
 }
 
 export default function DiagnosticoPeriodontalPage() {
-  const [data, setData] = useState<Answers>(initialAnswers);
-  const [generated, setGenerated] = useState(false);
+const [form, setForm] =
+useState<DiagnosticForm>(initialForm);
 
-  const result = useMemo(
-    () => calculateDiagnosis(data),
-    [data]
+const [saved, setSaved] = useState(false);
+
+useEffect(() => {
+try {
+const raw = window.localStorage.getItem(
+STORAGE_KEY
+);
+
+  if (!raw) {
+    return;
+  }
+
+  const parsed = JSON.parse(raw) as Partial<DiagnosticForm>;
+
+  setForm({
+    ...initialForm,
+    ...parsed,
+  });
+} catch (error) {
+  console.error(
+    "Erro ao carregar diagnóstico periodontal:",
+    error
   );
+}
 
-  function update<K extends keyof Answers>(
-    key: K,
-    value: Answers[K]
-  ) {
-    setData((current) => ({
-      ...current,
-      [key]: value,
-    }));
+}, []);
+
+useEffect(() => {
+const timer = window.setTimeout(() => {
+try {
+window.localStorage.setItem(
+STORAGE_KEY,
+JSON.stringify(form)
+);
+
+    setSaved(true);
+  } catch (error) {
+    console.error(
+      "Erro ao salvar diagnóstico periodontal:",
+      error
+    );
   }
+}, 500);
 
-  function reset() {
-    setData(initialAnswers);
-    setGenerated(false);
-  }
+return () => {
+  window.clearTimeout(timer);
+};
 
-  return (
-    <main className="min-h-screen bg-background p-4 md:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
-        <header className="mb-6">
-          <div className="mb-3 inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
-            Periodontia
-          </div>
+}, [form]);
 
-          <h1 className="text-2xl font-bold text-text-primary md:text-3xl">
-            Diagnóstico periodontal
-          </h1>
+const result = useMemo(
+() => calculateDiagnosis(form),
+[form]
+);
 
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-text-secondary">
-            Ferramenta de apoio à classificação periodontal a partir dos
-            achados clínicos, radiográficos e fatores modificadores.
-          </p>
-        </header>
+function update<K extends keyof DiagnosticForm>(
+field: K,
+value: DiagnosticForm[K]
+) {
+setForm((current) => ({
+...current,
+[field]: value,
+}));
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="space-y-5">
-            <Section
-              title="1. Critério de caso de periodontite"
-              description="Informe se existe perda de inserção clínica compatível com periodontite."
-            >
-              <div className="space-y-5">
-                <div>
-                  <p className="mb-3 text-sm font-medium text-text-primary">
-                    Perda de inserção clínica interdental detectável em pelo
-                    menos dois dentes não adjacentes?
-                  </p>
+setSaved(false);
 
-                  <RadioGroup
-                    value={data.interdentalCAL}
-                    onChange={(value) =>
-                      update(
-                        "interdentalCAL",
-                        value as YesNo
-                      )
-                    }
-                    options={[
-                      { label: "Sim", value: "sim" },
-                      { label: "Não", value: "nao" },
-                      {
-                        label: "Não informado",
-                        value: "nao_informado",
-                      },
-                    ]}
-                  />
-                </div>
+}
 
-                <div>
-                  <p className="mb-3 text-sm font-medium text-text-primary">
-                    Perda de inserção em faces livres ≥ 3 mm com bolsa > 3
-                    mm em pelo menos dois dentes?
-                  </p>
+function toggleAcuteCondition(
+condition: AcuteCondition
+) {
+setForm((current) => {
+const exists =
+current.acuteConditions.includes(condition);
 
-                  <RadioGroup
-                    value={data.freeSurfaceCAL}
-                    onChange={(value) =>
-                      update(
-                        "freeSurfaceCAL",
-                        value as YesNo
-                      )
-                    }
-                    options={[
-                      { label: "Sim", value: "sim" },
-                      { label: "Não", value: "nao" },
-                      {
-                        label: "Não informado",
-                        value: "nao_informado",
-                      },
-                    ]}
-                  />
-                </div>
+  return {
+    ...current,
+    acuteConditions: exists
+      ? current.acuteConditions.filter(
+          (item) => item !== condition
+        )
+      : [
+          ...current.acuteConditions,
+          condition,
+        ],
+  };
+});
 
-                <div>
-                  <p className="mb-3 text-sm font-medium text-text-primary">
-                    A perda de inserção pode ser atribuída a uma causa não
-                    periodontal?
-                  </p>
+setSaved(false);
 
-                  <RadioGroup
-                    value={data.nonPeriodontalCause ? "sim" : "nao"}
-                    onChange={(value) =>
-                      update(
-                        "nonPeriodontalCause",
-                        value === "sim"
-                      )
-                    }
-                    options={[
-                      { label: "Não", value: "nao" },
-                      { label: "Sim", value: "sim" },
-                    ]}
-                  />
+}
 
-                  <p className="mt-2 text-xs leading-5 text-text-muted">
-                    Exemplos incluem recessão traumática, cárie cervical,
-                    situações relacionadas ao terceiro molar, lesão
-                    endodôntica drenando pelo periodonto marginal e fratura
-                    radicular vertical.
-                  </p>
-                </div>
-              </div>
-            </Section>
+function clearForm() {
+const confirmed = window.confirm(
+"Deseja limpar todos os dados do diagnóstico periodontal?"
+);
 
-            <Section
-              title="2. Inflamação periodontal"
-              description="Achados clínicos relacionados à atividade inflamatória."
-            >
-              <div className="space-y-5">
-                <div>
-                  <p className="mb-3 text-sm font-medium text-text-primary">
-                    Sangramento à sondagem?
-                  </p>
+if (!confirmed) {
+  return;
+}
 
-                  <RadioGroup
-                    value={data.bleeding}
-                    onChange={(value) =>
-                      update("bleeding", value as YesNo)
-                    }
-                    options={[
-                      { label: "Sim", value: "sim" },
-                      { label: "Não", value: "nao" },
-                      {
-                        label: "Não informado",
-                        value: "nao_informado",
-                      },
-                    ]}
-                  />
-                </div>
+setForm(initialForm);
+setSaved(false);
 
-                <div>
-                  <p className="mb-3 text-sm font-medium text-text-primary">
-                    Biofilme dental presente?
-                  </p>
+try {
+  window.localStorage.removeItem(
+    STORAGE_KEY
+  );
+} catch (error) {
+  console.error(
+    "Erro ao limpar diagnóstico:",
+    error
+  );
+}
 
-                  <RadioGroup
-                    value={data.plaque}
-                    onChange={(value) =>
-                      update("plaque", value as YesNo)
-                    }
-                    options={[
-                      { label: "Sim", value: "sim" },
-                      { label: "Não", value: "nao" },
-                      {
-                        label: "Não informado",
-                        value: "nao_informado",
-                      },
-                    ]}
-                  />
-                </div>
+}
 
-                <div>
-                  <p className="mb-3 text-sm font-medium text-text-primary">
-                    Cálculo dental presente?
-                  </p>
+return ( <div className="space-y-6">
+<PageHeader
+title="Diagnóstico Periodontal"
+description="Sistema de apoio à avaliação e classificação periodontal."
+action={ <div className="flex items-center gap-2">
+{saved && ( <span className="hidden items-center gap-1 text-xs text-text-muted sm:flex"> <CheckCircle2 className="h-3.5 w-3.5" />
+Salvo automaticamente </span>
+)}
 
-                  <RadioGroup
-                    value={data.calculus}
-                    onChange={(value) =>
-                      update("calculus", value as YesNo)
-                    }
-                    options={[
-                      { label: "Sim", value: "sim" },
-                      { label: "Não", value: "nao" },
-                      {
-                        label: "Não informado",
-                        value: "nao_informado",
-                      },
-                    ]}
-                  />
-                </div>
-              </div>
-            </Section>
+        <Button
+          variant="ghost"
+          onClick={clearForm}
+        >
+          Limpar
+        </Button>
+      </div>
+    }
+  />
 
-            <Section
-              title="3. Gravidade"
-              description="Valores máximos observados no exame periodontal."
-            >
-              <div className="grid gap-4 md:grid-cols-3">
-                <InputNumber
-                  label="Maior perda de inserção clínica"
-                  value={data.maximumCAL}
-                  onChange={(value) =>
-                    update("maximumCAL", value)
+  <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+    {/* FORMULÁRIO */}
+    <div className="space-y-6">
+      {/* CONDIÇÃO GENGIVAL */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            1. Condição periodontal
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent className="grid gap-5 sm:grid-cols-2">
+          <YesNoField
+            label="Sangramento à sondagem"
+            value={form.bleeding}
+            onChange={(value) =>
+              update("bleeding", value)
+            }
+          />
+
+          <YesNoField
+            label="Biofilme"
+            value={form.plaque}
+            onChange={(value) =>
+              update("plaque", value)
+            }
+          />
+
+          <YesNoField
+            label="Cálculo"
+            value={form.calculus}
+            onChange={(value) =>
+              update("calculus", value)
+            }
+          />
+
+          <YesNoField
+            label="Perda de inserção clínica"
+            value={
+              form.clinicalAttachmentLoss
+            }
+            onChange={(value) =>
+              update(
+                "clinicalAttachmentLoss",
+                value
+              )
+            }
+          />
+
+          <YesNoField
+            label="Perda óssea radiográfica"
+            value={
+              form.radiographicBoneLoss
+            }
+            onChange={(value) =>
+              update(
+                "radiographicBoneLoss",
+                value
+              )
+            }
+          />
+
+          <YesNoField
+            label="Mobilidade dentária"
+            value={form.mobility}
+            onChange={(value) =>
+              update("mobility", value)
+            }
+          />
+
+          <YesNoField
+            label="Envolvimento de furca"
+            value={form.furcation}
+            onChange={(value) =>
+              update("furcation", value)
+            }
+          />
+
+          <YesNoField
+            label="Furca classe II ou III"
+            value={
+              form.furcationClassIIOrIII
+            }
+            onChange={(value) =>
+              update(
+                "furcationClassIIOrIII",
+                value
+              )
+            }
+          />
+        </CardContent>
+      </Card>
+
+      {/* MEDIDAS */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            2. Dados clínicos e radiográficos
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent className="grid gap-5 sm:grid-cols-2">
+          <NumericField
+            label="Maior profundidade de sondagem"
+            value={
+              form.maximumProbingDepth
+            }
+            onChange={(value) =>
+              update(
+                "maximumProbingDepth",
+                value
+              )
+            }
+            suffix="mm"
+            placeholder="Ex.: 6"
+          />
+
+          <NumericField
+            label="Maior perda de inserção clínica"
+            value={form.maximumCAL}
+            onChange={(value) =>
+              update("maximumCAL", value)
+            }
+            suffix="mm"
+            placeholder="Ex.: 5"
+          />
+
+          <NumericField
+            label="Maior perda óssea radiográfica"
+            value={
+              form.radiographicBoneLossPercent
+            }
+            onChange={(value) =>
+              update(
+                "radiographicBoneLossPercent",
+                value
+              )
+            }
+            suffix="%"
+            placeholder="Ex.: 35"
+          />
+
+          <NumericField
+            label="Dentes perdidos por periodontite"
+            value={
+              form.teethLostToPeriodontitis
+            }
+            onChange={(value) =>
+              update(
+                "teethLostToPeriodontitis",
+                value
+              )
+            }
+            suffix="dentes"
+          />
+
+          <NumericField
+            label="Percentual de dentes afetados"
+            value={
+              form.affectedTeethPercent
+            }
+            onChange={(value) =>
+              update(
+                "affectedTeethPercent",
+                value
+              )
+            }
+            suffix="%"
+            placeholder="Ex.: 40"
+          />
+
+          <NumericField
+            label="Número de dentes remanescentes"
+            value={form.remainingTeeth}
+            onChange={(value) =>
+              update(
+                "remainingTeeth",
+                value
+              )
+            }
+            suffix="dentes"
+          />
+        </CardContent>
+      </Card>
+
+      {/* COMPLEXIDADE */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            3. Complexidade e fatores locais
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-5">
+          <YesNoField
+            label="Perda óssea vertical/angular"
+            value={form.verticalBoneLoss}
+            onChange={(value) =>
+              update(
+                "verticalBoneLoss",
+                value
+              )
+            }
+          />
+
+          <YesNoField
+            label="Defeito de rebordo moderado"
+            value={
+              form.ridgeDefectModerate
+            }
+            onChange={(value) =>
+              update(
+                "ridgeDefectModerate",
+                value
+              )
+            }
+          />
+
+          <YesNoField
+            label="Defeito de rebordo grave"
+            value={
+              form.ridgeDefectSevere
+            }
+            onChange={(value) =>
+              update(
+                "ridgeDefectSevere",
+                value
+              )
+            }
+          />
+
+          <YesNoField
+            label="Disfunção mastigatória"
+            value={
+              form.masticatoryDysfunction
+            }
+            onChange={(value) =>
+              update(
+                "masticatoryDysfunction",
+                value
+              )
+            }
+          />
+
+          <YesNoField
+            label="Trauma oclusal secundário"
+            value={
+              form.secondaryOcclusalTrauma
+            }
+            onChange={(value) =>
+              update(
+                "secondaryOcclusalTrauma",
+                value
+              )
+            }
+          />
+
+          <YesNoField
+            label="Colapso oclusal"
+            value={form.occlusalCollapse}
+            onChange={(value) =>
+              update(
+                "occlusalCollapse",
+                value
+              )
+            }
+          />
+
+          <YesNoField
+            label="Necessidade de reabilitação complexa"
+            value={
+              form.complexRehabilitation
+            }
+            onChange={(value) =>
+              update(
+                "complexRehabilitation",
+                value
+              )
+            }
+          />
+
+          <div className="space-y-2">
+            <Label>
+              Padrão da perda óssea
+            </Label>
+
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["nenhuma", "Nenhuma"],
+                  [
+                    "horizontal",
+                    "Horizontal",
+                  ],
+                  [
+                    "vertical",
+                    "Vertical/angular",
+                  ],
+                  ["mista", "Mista"],
+                ] as const
+              ).map(([value, label]) => (
+                <OptionButton
+                  key={value}
+                  selected={
+                    form.boneLossPattern ===
+                    value
                   }
-                  unit="mm"
-                />
-
-                <InputNumber
-                  label="Maior profundidade de sondagem"
-                  value={data.maximumPD}
-                  onChange={(value) =>
-                    update("maximumPD", value)
-                  }
-                  unit="mm"
-                />
-
-                <InputNumber
-                  label="Maior perda óssea radiográfica"
-                  value={data.radiographicBoneLoss}
-                  onChange={(value) =>
-                    update(
-                      "radiographicBoneLoss",
-                      value
-                    )
-                  }
-                  unit="%"
-                />
-              </div>
-
-              <div className="mt-5">
-                <p className="mb-3 text-sm font-medium text-text-primary">
-                  Padrão predominante da perda óssea
-                </p>
-
-                <RadioGroup
-                  value={data.boneLossPattern}
-                  onChange={(value) =>
+                  onClick={() =>
                     update(
                       "boneLossPattern",
-                      value as Answers["boneLossPattern"]
-                    )
-                  }
-                  options={[
-                    {
-                      label: "Horizontal",
-                      value: "horizontal",
-                    },
-                    {
-                      label: "Vertical / angular",
-                      value: "vertical",
-                    },
-                    {
-                      label: "Mista",
-                      value: "mista",
-                    },
-                    {
-                      label: "Não informado",
-                      value: "nao_informado",
-                    },
-                  ]}
-                />
-              </div>
-            </Section>
-
-            <Section
-              title="4. Extensão e distribuição"
-              description="Dados utilizados como descritores da periodontite."
-            >
-              <div className="grid gap-4 md:grid-cols-2">
-                <InputNumber
-                  label="Porcentagem de dentes acometidos"
-                  value={data.teethAffectedPercentage}
-                  onChange={(value) =>
-                    update(
-                      "teethAffectedPercentage",
                       value
                     )
                   }
-                  unit="%"
-                  placeholder="Ex.: 45"
-                />
+                >
+                  {label}
+                </OptionButton>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-                <InputNumber
-                  label="Dentes perdidos por periodontite"
-                  value={data.teethLostPeriodontitis}
-                  onChange={(value) =>
+      {/* GRAU */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            4. Progressão e grau
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-5">
+          <YesNoField
+            label="Existe evidência de progressão da doença?"
+            value={
+              form.progressionEvidence
+            }
+            onChange={(value) =>
+              update(
+                "progressionEvidence",
+                value
+              )
+            }
+          />
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <NumericField
+              label="Perda óssea radiográfica em 5 anos"
+              value={
+                form.boneLossFiveYears
+              }
+              onChange={(value) =>
+                update(
+                  "boneLossFiveYears",
+                  value
+                )
+              }
+              suffix="mm"
+            />
+
+            <NumericField
+              label="Perda de inserção em 5 anos"
+              value={form.calFiveYears}
+              onChange={(value) =>
+                update(
+                  "calFiveYears",
+                  value
+                )
+              }
+              suffix="mm"
+            />
+
+            <NumericField
+              label="Idade do paciente"
+              value={form.patientAge}
+              onChange={(value) =>
+                update(
+                  "patientAge",
+                  value
+                )
+              }
+              suffix="anos"
+            />
+          </div>
+
+          <div className="rounded-lg border border-border bg-background/50 p-4 text-sm text-text-secondary">
+            O grau não deve ser definido
+            apenas por tabagismo ou diabetes.
+            Esses fatores funcionam como
+            modificadores de risco.
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* FATORES MODIFICADORES */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            5. Fatores modificadores
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label>Tabagismo</Label>
+
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  [
+                    "nao_fuma",
+                    "Não fuma",
+                  ],
+                  [
+                    "fumante",
+                    "Fumante",
+                  ],
+                  [
+                    "ex_fumante",
+                    "Ex-fumante",
+                  ],
+                  [
+                    "nao_informado",
+                    "Não informado",
+                  ],
+                ] as const
+              ).map(([value, label]) => (
+                <OptionButton
+                  key={value}
+                  selected={
+                    form.smoking ===
+                    value
+                  }
+                  onClick={() =>
                     update(
-                      "teethLostPeriodontitis",
+                      "smoking",
                       value
                     )
                   }
-                  unit="dentes"
-                  placeholder="Ex.: 2"
-                />
-              </div>
-
-              <div className="mt-5">
-                <p className="mb-3 text-sm font-medium text-text-primary">
-                  Existe padrão molar/incisivo?
-                </p>
-
-                <RadioGroup
-                  value={
-                    data.molarIncisorPattern
-                      ? "sim"
-                      : "nao"
-                  }
-                  onChange={(value) =>
-                    update(
-                      "molarIncisorPattern",
-                      value === "sim"
-                    )
-                  }
-                  options={[
-                    { label: "Sim", value: "sim" },
-                    { label: "Não", value: "nao" },
-                  ]}
-                />
-              </div>
-            </Section>
-
-            <Section
-              title="5. Complexidade"
-              description="Características que podem elevar a classificação de estágio."
-            >
-              <div className="space-y-5">
-                <InputNumber
-                  label="Perda óssea vertical"
-                  value={data.verticalBoneLoss}
-                  onChange={(value) =>
-                    update(
-                      "verticalBoneLoss",
-                      value
-                    )
-                  }
-                  unit="mm"
-                />
-
-                <div>
-                  <p className="mb-3 text-sm font-medium text-text-primary">
-                    Envolvimento de furca
-                  </p>
-
-                  <RadioGroup
-                    value={data.furcation}
-                    onChange={(value) =>
-                      update(
-                        "furcation",
-                        value as Answers["furcation"]
-                      )
-                    }
-                    options={[
-                      {
-                        label: "Nenhuma",
-                        value: "nenhuma",
-                      },
-                      {
-                        label: "Classe I",
-                        value: "classe_I",
-                      },
-                      {
-                        label: "Classe II",
-                        value: "classe_II",
-                      },
-                      {
-                        label: "Classe III",
-                        value: "classe_III",
-                      },
-                      {
-                        label: "Não informado",
-                        value: "nao_informado",
-                      },
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <p className="mb-3 text-sm font-medium text-text-primary">
-                    Mobilidade dentária
-                  </p>
-
-                  <RadioGroup
-                    value={data.mobility}
-                    onChange={(value) =>
-                      update(
-                        "mobility",
-                        value as Answers["mobility"]
-                      )
-                    }
-                    options={[
-                      {
-                        label: "Nenhuma",
-                        value: "nenhuma",
-                      },
-                      {
-                        label: "Grau 1",
-                        value: "grau_1",
-                      },
-                      {
-                        label: "Grau 2",
-                        value: "grau_2",
-                      },
-                      {
-                        label: "Grau 3",
-                        value: "grau_3",
-                      },
-                      {
-                        label: "Não informado",
-                        value: "nao_informado",
-                      },
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <p className="mb-3 text-sm font-medium text-text-primary">
-                    Defeito de rebordo
-                  </p>
-
-                  <RadioGroup
-                    value={data.ridgeDefect}
-                    onChange={(value) =>
-                      update(
-                        "ridgeDefect",
-                        value as Answers["ridgeDefect"]
-                      )
-                    }
-                    options={[
-                      {
-                        label: "Nenhum",
-                        value: "nenhum",
-                      },
-                      {
-                        label: "Moderado",
-                        value: "moderado",
-                      },
-                      {
-                        label: "Grave",
-                        value: "grave",
-                      },
-                      {
-                        label: "Não informado",
-                        value: "nao_informado",
-                      },
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <p className="mb-3 text-sm font-medium text-text-primary">
-                    Disfunção mastigatória?
-                  </p>
-
-                  <RadioGroup
-                    value={data.masticatoryDysfunction}
-                    onChange={(value) =>
-                      update(
-                        "masticatoryDysfunction",
-                        value as YesNo
-                      )
-                    }
-                    options={[
-                      { label: "Sim", value: "sim" },
-                      { label: "Não", value: "nao" },
-                      {
-                        label: "Não informado",
-                        value: "nao_informado",
-                      },
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <p className="mb-3 text-sm font-medium text-text-primary">
-                    Trauma oclusal secundário associado à mobilidade ≥ 2?
-                  </p>
-
-                  <RadioGroup
-                    value={data.secondaryOcclusalTrauma}
-                    onChange={(value) =>
-                      update(
-                        "secondaryOcclusalTrauma",
-                        value as YesNo
-                      )
-                    }
-                    options={[
-                      { label: "Sim", value: "sim" },
-                      { label: "Não", value: "nao" },
-                      {
-                        label: "Não informado",
-                        value: "nao_informado",
-                      },
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <p className="mb-3 text-sm font-medium text-text-primary">
-                    Colapso oclusal?
-                  </p>
-
-                  <RadioGroup
-                    value={data.occlusalCollapse}
-                    onChange={(value) =>
-                      update(
-                        "occlusalCollapse",
-                        value as YesNo
-                      )
-                    }
-                    options={[
-                      { label: "Sim", value: "sim" },
-                      { label: "Não", value: "nao" },
-                      {
-                        label: "Não informado",
-                        value: "nao_informado",
-                      },
-                    ]}
-                  />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <InputNumber
-                    label="Dentes remanescentes"
-                    value={data.remainingTeeth}
-                    onChange={(value) =>
-                      update(
-                        "remainingTeeth",
-                        value
-                      )
-                    }
-                    unit="dentes"
-                  />
-
-                  <InputNumber
-                    label="Pares de dentes remanescentes"
-                    value={data.remainingPairs}
-                    onChange={(value) =>
-                      update(
-                        "remainingPairs",
-                        value
-                      )
-                    }
-                    unit="pares"
-                  />
-                </div>
-              </div>
-            </Section>
-
-            <Section
-              title="6. Grau — progressão"
-              description="Use dados longitudinais quando disponíveis."
-            >
-              <div>
-                <p className="mb-3 text-sm font-medium text-text-primary">
-                  Evidência direta de progressão em 5 anos
-                </p>
-
-                <RadioGroup
-                  value={data.longitudinalProgression}
-                  onChange={(value) =>
-                    update(
-                      "longitudinalProgression",
-                      value as Answers["longitudinalProgression"]
-                    )
-                  }
-                  options={[
-                    {
-                      label: "Sem evidência de perda",
-                      value: "sem_perda",
-                    },
-                    {
-                      label: "Menos de 2 mm",
-                      value: "menor_2mm",
-                    },
-                    {
-                      label: "≥ 2 mm",
-                      value: "maior_igual_2mm",
-                    },
-                    {
-                      label: "Não informado",
-                      value: "nao_informado",
-                    },
-                  ]}
-                />
-              </div>
-
-              <div className="mt-5">
-                <InputNumber
-                  label="Relação % perda óssea / idade"
-                  value={data.boneLossAgeRatio}
-                  onChange={(value) =>
-                    update(
-                      "boneLossAgeRatio",
-                      value
-                    )
-                  }
-                  placeholder="Ex.: 0,5"
-                />
-              </div>
-            </Section>
-
-            <Section
-              title="7. Fatores modificadores"
-              description="Principais fatores de risco utilizados na classificação do grau."
-            >
-              <div className="space-y-5">
-                <div>
-                  <p className="mb-3 text-sm font-medium text-text-primary">
-                    Tabagismo
-                  </p>
-
-                  <RadioGroup
-                    value={data.smoking}
-                    onChange={(value) =>
-                      update(
-                        "smoking",
-                        value as Answers["smoking"]
-                      )
-                    }
-                    options={[
-                      {
-                        label: "Não fumante",
-                        value: "nao_fumante",
-                      },
-                      {
-                        label: "< 10 cigarros/dia",
-                        value: "menos_10",
-                      },
-                      {
-                        label: "≥ 10 cigarros/dia",
-                        value: "10_ou_mais",
-                      },
-                      {
-                        label: "Não informado",
-                        value: "nao_informado",
-                      },
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <p className="mb-3 text-sm font-medium text-text-primary">
-                    Diabetes / HbA1c
-                  </p>
-
-                  <RadioGroup
-                    value={data.diabetes}
-                    onChange={(value) =>
-                      update(
-                        "diabetes",
-                        value as Answers["diabetes"]
-                      )
-                    }
-                    options={[
-                      {
-                        label: "Sem diabetes / normoglicêmico",
-                        value: "nao",
-                      },
-                      {
-                        label: "Diabetes — HbA1c < 7%",
-                        value: "hba1c_menor_7",
-                      },
-                      {
-                        label: "Diabetes — HbA1c ≥ 7%",
-                        value: "hba1c_maior_igual_7",
-                      },
-                      {
-                        label: "Não informado",
-                        value: "nao_informado",
-                      },
-                    ]}
-                  />
-                </div>
-              </div>
-            </Section>
-
-            <Section
-              title="8. Condições associadas"
-              description="Registre condições que exigem consideração específica."
-            >
-              <div>
-                <p className="mb-3 text-sm font-medium text-text-primary">
-                  Existe condição periodontal aguda ou outra condição
-                  associada?
-                </p>
-
-                <RadioGroup
-                  value={data.acuteCondition}
-                  onChange={(value) =>
-                    update(
-                      "acuteCondition",
-                      value as Answers["acuteCondition"]
-                    )
-                  }
-                  options={[
-                    {
-                      label: "Nenhuma",
-                      value: "nenhuma",
-                    },
-                    {
-                      label: "Abscesso periodontal",
-                      value: "abscesso",
-                    },
-                    {
-                      label: "Lesão endo-periodontal",
-                      value: "endo_perio",
-                    },
-                    {
-                      label: "Condição necrosante",
-                      value: "necrosante",
-                    },
-                    {
-                      label: "Outra",
-                      value: "outra",
-                    },
-                  ]}
-                />
-              </div>
-            </Section>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => setGenerated(true)}
-                className="flex-1 rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90"
-              >
-                Gerar diagnóstico
-              </button>
-
-              <button
-                type="button"
-                onClick={reset}
-                className="rounded-xl border border-border bg-card px-5 py-3 font-semibold text-text-primary transition hover:bg-muted"
-              >
-                Limpar formulário
-              </button>
+                >
+                  {label}
+                </OptionButton>
+              ))}
             </div>
           </div>
 
-          <aside className="lg:sticky lg:top-6 lg:self-start">
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <div className="mb-5">
-                <div className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                  Resultado
-                </div>
+          {form.smoking === "fumante" && (
+            <NumericField
+              label="Cigarros por dia"
+              value={
+                form.cigarettesPerDay
+              }
+              onChange={(value) =>
+                update(
+                  "cigarettesPerDay",
+                  value
+                )
+              }
+              suffix="cigarros/dia"
+            />
+          )}
 
-                <h2 className="mt-1 text-xl font-bold text-text-primary">
-                  Classificação periodontal
-                </h2>
+          <div className="space-y-2">
+            <Label>Diabetes</Label>
+
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ["nao", "Não"],
+                  ["sim", "Sim"],
+                  [
+                    "nao_informado",
+                    "Não informado",
+                  ],
+                ] as const
+              ).map(([value, label]) => (
+                <OptionButton
+                  key={value}
+                  selected={
+                    form.diabetes ===
+                    value
+                  }
+                  onClick={() =>
+                    update(
+                      "diabetes",
+                      value
+                    )
+                  }
+                >
+                  {label}
+                </OptionButton>
+              ))}
+            </div>
+          </div>
+
+          {form.diabetes === "sim" && (
+            <div className="space-y-2">
+              <Label>
+                Controle metabólico
+              </Label>
+
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    [
+                      "controlado",
+                      "Controlado",
+                    ],
+                    [
+                      "nao_controlado",
+                      "Não controlado",
+                    ],
+                    [
+                      "nao_informado",
+                      "Não informado",
+                    ],
+                  ] as const
+                ).map(
+                  ([value, label]) => (
+                    <OptionButton
+                      key={value}
+                      selected={
+                        form.diabetesControl ===
+                        value
+                      }
+                      onClick={() =>
+                        update(
+                          "diabetesControl",
+                          value
+                        )
+                      }
+                    >
+                      {label}
+                    </OptionButton>
+                  )
+                )}
               </div>
 
-              {!generated ? (
-                <div className="rounded-xl border border-border bg-muted p-4">
-                  <p className="text-sm leading-6 text-text-secondary">
-                    Preencha os dados clínicos e radiográficos e clique em
-                    <strong> Gerar diagnóstico</strong>.
+              <NumericField
+                label="HbA1c"
+                value={form.hba1c}
+                onChange={(value) =>
+                  update(
+                    "hba1c",
+                    value
+                  )
+                }
+                suffix="%"
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* CONDIÇÕES AGUDAS */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            6. Condições periodontais agudas
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-3">
+          {(
+            [
+              [
+                "abscesso_periodontal",
+                "Abscesso periodontal",
+              ],
+              [
+                "lesao_endo_periodontal",
+                "Lesão endo-periodontal",
+              ],
+              [
+                "gengivite_ulcerativa",
+                "Gengivite ulcerativa",
+              ],
+              [
+                "periodontite_ulcerativa",
+                "Periodontite ulcerativa",
+              ],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() =>
+                toggleAcuteCondition(
+                  value
+                )
+              }
+              className={[
+                "flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left text-sm transition",
+                form.acuteConditions.includes(
+                  value
+                )
+                  ? "border-warning bg-warning/10 text-text-primary"
+                  : "border-border hover:border-warning/40",
+              ].join(" ")}
+            >
+              <span>{label}</span>
+
+              {form.acuteConditions.includes(
+                value
+              ) && (
+                <CheckCircle2 className="h-4 w-4 text-warning" />
+              )}
+            </button>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* PROGNÓSTICO */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            7. Prognóstico geral
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                "Favorável",
+                "Questionável",
+                "Desfavorável",
+                "Reservado",
+                "Sem prognóstico determinado",
+              ] as Prognosis[]
+            ).map((value) => (
+              <OptionButton
+                key={value}
+                selected={
+                  form.prognosis ===
+                  value
+                }
+                onClick={() =>
+                  update(
+                    "prognosis",
+                    value
+                  )
+                }
+              >
+                {value}
+              </OptionButton>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+
+    {/* RESULTADO */}
+    <div className="xl:sticky xl:top-6 xl:self-start">
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Stethoscope className="h-5 w-5" />
+            </div>
+
+            <div>
+              <CardTitle>
+                Diagnóstico Periodontal
+              </CardTitle>
+
+              <p className="mt-1 text-xs text-text-muted">
+                Resultado baseado nos dados
+                informados
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-5 p-5">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-text-muted">
+              Diagnóstico
+            </p>
+
+            <p className="mt-1 text-xl font-semibold text-text-primary">
+              {result.condition}
+            </p>
+          </div>
+
+          {result.condition ===
+            "Periodontite" && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-border p-3">
+                  <p className="text-xs text-text-muted">
+                    Estágio
+                  </p>
+
+                  <p className="mt-1 text-2xl font-bold text-primary">
+                    {result.stage}
                   </p>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <ResultItem
-                    label="Condição"
-                    value={result.condition}
-                  />
 
-                  <ResultItem
-                    label="Estágio"
-                    value={result.stage}
-                  />
+                <div className="rounded-xl border border-border p-3">
+                  <p className="text-xs text-text-muted">
+                    Grau
+                  </p>
 
-                  <ResultItem
-                    label="Grau"
-                    value={result.grade}
-                  />
-
-                  <ResultItem
-                    label="Extensão"
-                    value={result.extent}
-                  />
-
-                  <ResultItem
-                    label="Distribuição"
-                    value={result.distribution}
-                  />
-
-                  <ResultItem
-                    label="Prognóstico geral"
-                    value={result.prognosis}
-                  />
-
-                  <div className="rounded-xl border border-border bg-muted p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
-                      Interpretação
-                    </p>
-
-                    <p className="mt-2 text-sm leading-6 text-text-secondary">
-                      {result.explanation}
-                    </p>
-                  </div>
-
-                  {result.warnings.length > 0 ? (
-                    <div className="rounded-xl border border-warning/30 bg-warning/10 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-warning">
-                        Atenção
-                      </p>
-
-                      <ul className="mt-2 space-y-2">
-                        {result.warnings.map(
-                          (warning, index) => (
-                            <li
-                              key={`${warning}-${index}`}
-                              className="text-sm leading-5 text-text-secondary"
-                            >
-                              • {warning}
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    </div>
-                  ) : null}
-
-                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                      Apoio à decisão clínica
-                    </p>
-
-                    <p className="mt-2 text-xs leading-5 text-text-secondary">
-                      Este resultado organiza os dados informados e não
-                      substitui o diagnóstico clínico realizado pelo
-                      cirurgião-dentista.
-                    </p>
-                  </div>
+                  <p className="mt-1 text-2xl font-bold text-primary">
+                    {result.grade}
+                  </p>
                 </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                <div className="rounded-lg bg-background p-3">
+                  <p className="text-xs text-text-muted">
+                    Extensão
+                  </p>
+
+                  <p className="mt-1 font-medium text-text-primary">
+                    {result.extent}
+                  </p>
+                </div>
+
+                <div className="rounded-lg bg-background p-3">
+                  <p className="text-xs text-text-muted">
+                    Distribuição
+                  </p>
+
+                  <p className="mt-1 font-medium text-text-primary">
+                    {result.distribution}
+                  </p>
+                </div>
+
+                <div className="rounded-lg bg-background p-3">
+                  <p className="text-xs text-text-muted">
+                    Prognóstico
+                  </p>
+
+                  <p className="mt-1 font-medium text-text-primary">
+                    {result.prognosis}
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+
+          {result.modifiers.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs text-text-muted">
+                Fatores modificadores
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+                {result.modifiers.map(
+                  (modifier) => (
+                    <Badge
+                      key={modifier}
+                      variant="warning"
+                    >
+                      {modifier}
+                    </Badge>
+                  )
+                )}
+              </div>
+            </div>
+          )}
+
+          {result.canClassify ? (
+            <div className="flex gap-2 rounded-lg border border-success/20 bg-success/5 p-3 text-sm text-text-secondary">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+
+              <p>
+                Os dados preenchidos permitem
+                apresentar esta classificação
+                como resultado de apoio.
+              </p>
+            </div>
+          ) : (
+            <div className="flex gap-2 rounded-lg border border-warning/20 bg-warning/5 p-3 text-sm text-text-secondary">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+
+              <div>
+                <p className="font-medium text-text-primary">
+                  Dados insuficientes
+                </p>
+
+                <p className="mt-1">
+                  Não é possível determinar
+                  a classificação definitiva
+                  com os dados informados.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {result.warnings.length > 0 && (
+            <div className="space-y-2">
+              {result.warnings.map(
+                (warning) => (
+                  <div
+                    key={warning}
+                    className="flex gap-2 rounded-lg border border-border bg-background p-3 text-xs text-text-secondary"
+                  >
+                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+
+                    <span>{warning}</span>
+                  </div>
+                )
               )}
             </div>
-          </aside>
-        </div>
-      </div>
-    </main>
-  );
+          )}
+
+          <div className="border-t border-border pt-4">
+            <div className="flex items-center gap-2 text-xs text-text-muted">
+              <Save className="h-3.5 w-3.5" />
+
+              <span>
+                Alterações salvas automaticamente
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardContent className="p-4">
+          <div className="flex gap-2">
+            <ClipboardCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+
+            <p className="text-xs leading-relaxed text-text-secondary">
+              Este módulo é uma ferramenta de
+              apoio à decisão clínica. A
+              classificação deve ser confirmada
+              pelo cirurgião-dentista mediante
+              avaliação clínica, radiográfica e
+              histórico do paciente.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  </div>
+</div>
+
+);
 }
