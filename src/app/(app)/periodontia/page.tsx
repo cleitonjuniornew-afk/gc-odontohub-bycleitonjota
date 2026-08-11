@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import {
@@ -18,6 +19,7 @@ import {
   Plus,
   Stethoscope,
   UserRound,
+  ClipboardCheck,
 } from "lucide-react";
 
 import Odontogram from "./components/odontogram";
@@ -107,7 +109,8 @@ export default function PeriodontiaPage() {
 
   const [patientId, setPatientId] = useState("");
 
-  const [examStarted, setExamStarted] = useState(false);
+  const [examStarted, setExamStarted] =
+    useState(false);
 
   const [currentExam, setCurrentExam] =
     useState<PeriodontalExam | null>(null);
@@ -195,25 +198,15 @@ export default function PeriodontiaPage() {
         date,
       });
 
-      /*
-       * O ID REAL DO EXAME É GUARDADO AQUI.
-       */
       setCurrentExam(exam);
       setExamStarted(true);
       setExamDate(date);
 
-      /*
-       * Inicializa os 32 dentes no exame.
-       */
       await initializeTeeth({
         examId: exam.id,
         toothNumbers: TOOTH_NUMBERS,
       });
 
-      /*
-       * Força a criação de uma nova instância
-       * do odontograma já com o examId correto.
-       */
       setOdontogramKey(
         (current) => current + 1
       );
@@ -354,7 +347,7 @@ export default function PeriodontiaPage() {
             {examStarted && (
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 onClick={handleExportPdf}
               >
                 <FileText className="mr-2 h-4 w-4" />
@@ -393,6 +386,27 @@ export default function PeriodontiaPage() {
           </div>
         }
       />
+
+      {/* ======================================================
+          NAVEGAÇÃO DA PERIODONTIA
+          ====================================================== */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-2">
+        <Link
+          href="/periodontia"
+          className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+        >
+          <Activity className="h-4 w-4" />
+          Periodontograma
+        </Link>
+
+        <Link
+          href="/periodontia/diagnostico"
+          className="inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-medium text-text-secondary transition hover:bg-primary/10 hover:text-primary"
+        >
+          <ClipboardCheck className="h-4 w-4" />
+          Diagnóstico
+        </Link>
+      </div>
 
       {!examStarted && (
         <Card className="border-primary/20">
